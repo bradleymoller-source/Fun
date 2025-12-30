@@ -1,0 +1,150 @@
+import { useEffect, useRef, useCallback } from 'react';
+import { io, Socket } from 'socket.io-client';
+import { useSessionStore } from '../stores/sessionStore';
+
+const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
+
+export function useSocket() {
+  const socketRef = useRef<Socket | null>(null);
+  const store = useSessionStore();
+
+  // Initialize socket connection
+  useEffect(() => {
+    const socket = io(SERVER_URL, {
+      autoConnect: true,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+    });
+
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      console.log('Connected to server');
+      store.setConnected(true);
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Disconnected from server');
+      store.setConnected(false);
+    });
+
+    // Player joined event
+    socket.on('player-joined', (data) => {
+      store.setPlayers(data.players);
+    });
+
+    // Player left event
+    socket.on('player-left', (data) => {
+      store.setPlayers(data.players);
+    });
+
+    // Player disconnected (but still in session)
+    socket.on('player-disconnected', (data) => {
+      store.setPlayers(data.players);
+    });
+
+    // Kicked by DM
+    socket.on('kicked', (data) => {
+      store.reset();
+      store.setError(data.message);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
+
+  // Create a new session (DM action)
+  const createSession = useCallback(() => {
+    return new Promise<{ roomCode: string; dmKey: string }>((resolve, reject) => {
+      if (!socketRef.current) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      socketRef.current.emit('create-session', (response: any) => {
+        if (response.success) {
+          store.setSession(response.roomCode, response.dmKey, true);
+          store.setView('dm');
+          resolve({ roomCode: response.roomCode, dmKey: response.dmKey });
+        } else {
+          store.setError(response.error);
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }, []);
+
+  // Reclaim an existing session (DM action)
+  const reclaimSession = useCallback((roomCode: string, dmKey: string) => {
+    return new Promise<void>((resolve, reject) => {
+      if (!socketRef.current) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      socketRef.current.emit('reclaim-session', { roomCode, dmKey }, (response: any) => {
+        if (response.success) {
+          store.setSession(response.roomCode, dmKey, true);
+          store.setPlayers(response.players);
+          store.setView('dm');
+          resolve();
+        } else {
+          store.setError(response.error);
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }, []);
+
+  // Join a session (Player action)
+  const joinSession = useCallback((roomCode: string, playerName: string) => {
+    return new Promise<void>((resolve, reject) => {
+      if (!socketRef.current) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      socketRef.current.emit('join-session', { roomCode, playerName }, (response: any) => {
+        if (response.success) {
+          store.setSession(response.roomCode, null, false);
+          store.setPlayerName(playerName);
+          store.setView('player');
+          resolve();
+        } else {
+          store.setError(response.error);
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }, []);
+
+  // Kick a player (DM action)
+  const kickPlayer = useCallback((playerId: string) => {
+    return new Promise<void>((resolve, reject) => {
+      if (!socketRef.current) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      socketRef.current.emit('kick-player', { playerId }, (response: any) => {
+        if (response.success) {
+          resolve();
+        } else {
+          store.setError(response.error);
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }, []);
+
+  return {
+    socket: socketRef.current,
+    isConnected: store.isConnected,
+    createSession,
+    reclaimSession,
+    joinSession,
+    kickPlayer,
+  };
+}
