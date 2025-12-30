@@ -9,8 +9,14 @@ import {
   markPlayerDisconnected,
   getPlayers,
   sessionExists,
+  getMapState,
+  updateMapState,
+  addToken as addTokenToSession,
+  updateToken as updateTokenInSession,
+  removeToken as removeTokenFromSession,
+  moveToken as moveTokenInSession,
 } from './sessionManager';
-import { JoinSessionRequest, ReclaimSessionRequest } from './types';
+import { JoinSessionRequest, ReclaimSessionRequest, Token, MapState } from './types';
 
 // Track which session each socket belongs to
 const socketSessions = new Map<string, { roomCode: string; isDm: boolean }>();
@@ -53,12 +59,13 @@ export function setupSocketHandlers(io: Server): void {
       socket.join(roomCode);
       socketSessions.set(socket.id, { roomCode, isDm: true });
 
-      // Send current player list
+      // Send current player list and map state
       const players = getPlayers(roomCode);
+      const map = getMapState(roomCode);
 
       console.log(`Session reclaimed: ${roomCode} by ${socket.id}`);
 
-      callback({ success: true, roomCode, players });
+      callback({ success: true, roomCode, players, map });
     });
 
     // Player joins a session
@@ -81,6 +88,13 @@ export function setupSocketHandlers(io: Server): void {
       socket.join(upperRoomCode);
       socketSessions.set(socket.id, { roomCode: upperRoomCode, isDm: false });
 
+      // Get map state for the player (filter hidden tokens)
+      const map = getMapState(upperRoomCode);
+      const playerMap = map ? {
+        ...map,
+        tokens: map.tokens.filter(t => !t.isHidden),
+      } : null;
+
       // Notify everyone in the session (including DM)
       io.to(upperRoomCode).emit('player-joined', {
         player: {
@@ -97,7 +111,7 @@ export function setupSocketHandlers(io: Server): void {
 
       console.log(`Player ${playerName} joined ${upperRoomCode}`);
 
-      callback({ success: true, roomCode: upperRoomCode });
+      callback({ success: true, roomCode: upperRoomCode, map: playerMap });
     });
 
     // DM kicks a player
@@ -138,6 +152,179 @@ export function setupSocketHandlers(io: Server): void {
 
       callback({ success: true });
     });
+
+    // ============ MAP EVENTS ============
+
+    // DM updates map settings (image, grid, etc.)
+    socket.on('update-map', (data: { mapState: Partial<MapState> }, callback: (response: any) => void) => {
+      const sessionInfo = socketSessions.get(socket.id);
+
+      if (!sessionInfo || !sessionInfo.isDm) {
+        callback({ success: false, error: 'Only the DM can update the map' });
+        return;
+      }
+
+      const { roomCode } = sessionInfo;
+      const updatedMap = updateMapState(roomCode, data.mapState);
+
+      if (!updatedMap) {
+        callback({ success: false, error: 'Failed to update map' });
+        return;
+      }
+
+      // Broadcast to all players (filter hidden tokens for non-DMs)
+      const playerMap = {
+        ...updatedMap,
+        tokens: updatedMap.tokens.filter(t => !t.isHidden),
+      };
+      socket.to(roomCode).emit('map-updated', { map: playerMap });
+
+      callback({ success: true, map: updatedMap });
+    });
+
+    // DM adds a token
+    socket.on('add-token', (data: { token: Token }, callback: (response: any) => void) => {
+      const sessionInfo = socketSessions.get(socket.id);
+
+      if (!sessionInfo || !sessionInfo.isDm) {
+        callback({ success: false, error: 'Only the DM can add tokens' });
+        return;
+      }
+
+      const { roomCode } = sessionInfo;
+      const tokens = addTokenToSession(roomCode, data.token);
+
+      if (!tokens) {
+        callback({ success: false, error: 'Failed to add token' });
+        return;
+      }
+
+      // Broadcast to players (filter hidden tokens)
+      const visibleTokens = tokens.filter(t => !t.isHidden);
+      socket.to(roomCode).emit('tokens-updated', { tokens: visibleTokens });
+
+      callback({ success: true, tokens });
+    });
+
+    // Move a token (DM or player if they own it)
+    socket.on('move-token', (data: { tokenId: string; x: number; y: number }, callback: (response: any) => void) => {
+      const sessionInfo = socketSessions.get(socket.id);
+
+      if (!sessionInfo) {
+        callback({ success: false, error: 'Not in a session' });
+        return;
+      }
+
+      const { roomCode, isDm } = sessionInfo;
+      const map = getMapState(roomCode);
+
+      if (!map) {
+        callback({ success: false, error: 'No map found' });
+        return;
+      }
+
+      // Check if user can move this token
+      const token = map.tokens.find(t => t.id === data.tokenId);
+      if (!token) {
+        callback({ success: false, error: 'Token not found' });
+        return;
+      }
+
+      // Only DM can move tokens for now (later: check ownerId)
+      if (!isDm) {
+        callback({ success: false, error: 'Only the DM can move tokens' });
+        return;
+      }
+
+      const tokens = moveTokenInSession(roomCode, data.tokenId, data.x, data.y);
+
+      if (!tokens) {
+        callback({ success: false, error: 'Failed to move token' });
+        return;
+      }
+
+      // Broadcast to all (filter hidden for non-DMs)
+      const visibleTokens = tokens.filter(t => !t.isHidden);
+      socket.to(roomCode).emit('tokens-updated', { tokens: visibleTokens });
+
+      callback({ success: true, tokens });
+    });
+
+    // DM updates a token
+    socket.on('update-token', (data: { tokenId: string; updates: Partial<Token> }, callback: (response: any) => void) => {
+      const sessionInfo = socketSessions.get(socket.id);
+
+      if (!sessionInfo || !sessionInfo.isDm) {
+        callback({ success: false, error: 'Only the DM can update tokens' });
+        return;
+      }
+
+      const { roomCode } = sessionInfo;
+      const tokens = updateTokenInSession(roomCode, data.tokenId, data.updates);
+
+      if (!tokens) {
+        callback({ success: false, error: 'Failed to update token' });
+        return;
+      }
+
+      // Broadcast to players (filter hidden tokens)
+      const visibleTokens = tokens.filter(t => !t.isHidden);
+      socket.to(roomCode).emit('tokens-updated', { tokens: visibleTokens });
+
+      callback({ success: true, tokens });
+    });
+
+    // DM removes a token
+    socket.on('remove-token', (data: { tokenId: string }, callback: (response: any) => void) => {
+      const sessionInfo = socketSessions.get(socket.id);
+
+      if (!sessionInfo || !sessionInfo.isDm) {
+        callback({ success: false, error: 'Only the DM can remove tokens' });
+        return;
+      }
+
+      const { roomCode } = sessionInfo;
+      const tokens = removeTokenFromSession(roomCode, data.tokenId);
+
+      if (!tokens) {
+        callback({ success: false, error: 'Failed to remove token' });
+        return;
+      }
+
+      // Broadcast to players
+      const visibleTokens = tokens.filter(t => !t.isHidden);
+      socket.to(roomCode).emit('tokens-updated', { tokens: visibleTokens });
+
+      callback({ success: true, tokens });
+    });
+
+    // Get current map state
+    socket.on('get-map', (callback: (response: any) => void) => {
+      const sessionInfo = socketSessions.get(socket.id);
+
+      if (!sessionInfo) {
+        callback({ success: false, error: 'Not in a session' });
+        return;
+      }
+
+      const { roomCode, isDm } = sessionInfo;
+      const map = getMapState(roomCode);
+
+      if (!map) {
+        callback({ success: false, error: 'No map found' });
+        return;
+      }
+
+      // Filter hidden tokens for players
+      const responseMap = isDm ? map : {
+        ...map,
+        tokens: map.tokens.filter(t => !t.isHidden),
+      };
+
+      callback({ success: true, map: responseMap });
+    });
+
+    // ============ END MAP EVENTS ============
 
     // Handle disconnection
     socket.on('disconnect', () => {

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useSessionStore } from '../stores/sessionStore';
+import type { Token, MapState } from '../types';
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
 
@@ -50,6 +51,20 @@ export function useSocket() {
       store.setError(data.message);
     });
 
+    // Map updated event
+    socket.on('map-updated', (data) => {
+      if (data.map) {
+        store.setMapState(data.map);
+      }
+    });
+
+    // Tokens updated event
+    socket.on('tokens-updated', (data) => {
+      if (data.tokens) {
+        store.setTokens(data.tokens);
+      }
+    });
+
     return () => {
       socket.disconnect();
     };
@@ -88,6 +103,9 @@ export function useSocket() {
         if (response.success) {
           store.setSession(response.roomCode, dmKey, true);
           store.setPlayers(response.players);
+          if (response.map) {
+            store.setMapState(response.map);
+          }
           store.setView('dm');
           resolve();
         } else {
@@ -110,6 +128,9 @@ export function useSocket() {
         if (response.success) {
           store.setSession(response.roomCode, null, false);
           store.setPlayerName(playerName);
+          if (response.map) {
+            store.setMapState(response.map);
+          }
           store.setView('player');
           resolve();
         } else {
@@ -139,6 +160,108 @@ export function useSocket() {
     });
   }, []);
 
+  // ============ MAP FUNCTIONS ============
+
+  // Update map state (DM action)
+  const updateMap = useCallback((mapState: Partial<MapState>) => {
+    return new Promise<void>((resolve, reject) => {
+      if (!socketRef.current) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      socketRef.current.emit('update-map', { mapState }, (response: any) => {
+        if (response.success) {
+          store.setMapState(response.map);
+          resolve();
+        } else {
+          store.setError(response.error);
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }, []);
+
+  // Add token (DM action)
+  const addToken = useCallback((token: Token) => {
+    return new Promise<void>((resolve, reject) => {
+      if (!socketRef.current) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      socketRef.current.emit('add-token', { token }, (response: any) => {
+        if (response.success) {
+          store.setTokens(response.tokens);
+          resolve();
+        } else {
+          store.setError(response.error);
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }, []);
+
+  // Move token
+  const moveToken = useCallback((tokenId: string, x: number, y: number) => {
+    return new Promise<void>((resolve, reject) => {
+      if (!socketRef.current) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      socketRef.current.emit('move-token', { tokenId, x, y }, (response: any) => {
+        if (response.success) {
+          store.setTokens(response.tokens);
+          resolve();
+        } else {
+          store.setError(response.error);
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }, []);
+
+  // Update token (DM action)
+  const updateToken = useCallback((tokenId: string, updates: Partial<Token>) => {
+    return new Promise<void>((resolve, reject) => {
+      if (!socketRef.current) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      socketRef.current.emit('update-token', { tokenId, updates }, (response: any) => {
+        if (response.success) {
+          store.setTokens(response.tokens);
+          resolve();
+        } else {
+          store.setError(response.error);
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }, []);
+
+  // Remove token (DM action)
+  const removeToken = useCallback((tokenId: string) => {
+    return new Promise<void>((resolve, reject) => {
+      if (!socketRef.current) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      socketRef.current.emit('remove-token', { tokenId }, (response: any) => {
+        if (response.success) {
+          store.setTokens(response.tokens);
+          resolve();
+        } else {
+          store.setError(response.error);
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }, []);
+
   return {
     socket: socketRef.current,
     isConnected: store.isConnected,
@@ -146,5 +269,11 @@ export function useSocket() {
     reclaimSession,
     joinSession,
     kickPlayer,
+    // Map functions
+    updateMap,
+    addToken,
+    moveToken,
+    updateToken,
+    removeToken,
   };
 }

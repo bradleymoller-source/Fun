@@ -1,9 +1,20 @@
-import { Session, Player, CreateSessionResponse } from './types';
+import { Session, Player, CreateSessionResponse, MapState, Token, FogArea } from './types';
 import { generateRoomCode, generateDmKey } from './roomCode';
 import db, { cleanupExpiredSessions } from './database';
 
 // In-memory store for active sessions (for real-time state)
 const activeSessions = new Map<string, Session>();
+
+// Default map state for new sessions
+const defaultMapState: MapState = {
+  imageUrl: null,
+  gridSize: 50,
+  gridOffsetX: 0,
+  gridOffsetY: 0,
+  showGrid: true,
+  tokens: [],
+  fogOfWar: [],
+};
 
 /**
  * Creates a new game session
@@ -25,6 +36,7 @@ export function createSession(): CreateSessionResponse {
     dmKey,
     dmSocketId: null,
     players: new Map(),
+    map: { ...defaultMapState },
     createdAt: now,
     lastActivity: now,
   };
@@ -125,6 +137,84 @@ export function getPlayers(roomCode: string): Player[] {
 }
 
 /**
+ * Gets the map state for a session
+ */
+export function getMapState(roomCode: string): MapState | null {
+  const session = getSession(roomCode);
+  return session ? session.map : null;
+}
+
+/**
+ * Updates the entire map state
+ */
+export function updateMapState(roomCode: string, mapState: Partial<MapState>): MapState | null {
+  const session = getSession(roomCode);
+  if (!session) return null;
+
+  session.map = { ...session.map, ...mapState };
+  updateActivity(roomCode);
+  return session.map;
+}
+
+/**
+ * Adds a token to the map
+ */
+export function addToken(roomCode: string, token: Token): Token[] | null {
+  const session = getSession(roomCode);
+  if (!session) return null;
+
+  session.map.tokens.push(token);
+  updateActivity(roomCode);
+  return session.map.tokens;
+}
+
+/**
+ * Updates a token on the map
+ */
+export function updateToken(roomCode: string, tokenId: string, updates: Partial<Token>): Token[] | null {
+  const session = getSession(roomCode);
+  if (!session) return null;
+
+  const tokenIndex = session.map.tokens.findIndex(t => t.id === tokenId);
+  if (tokenIndex === -1) return null;
+
+  session.map.tokens[tokenIndex] = { ...session.map.tokens[tokenIndex], ...updates };
+  updateActivity(roomCode);
+  return session.map.tokens;
+}
+
+/**
+ * Removes a token from the map
+ */
+export function removeToken(roomCode: string, tokenId: string): Token[] | null {
+  const session = getSession(roomCode);
+  if (!session) return null;
+
+  session.map.tokens = session.map.tokens.filter(t => t.id !== tokenId);
+  updateActivity(roomCode);
+  return session.map.tokens;
+}
+
+/**
+ * Moves a token to a new position
+ */
+export function moveToken(roomCode: string, tokenId: string, x: number, y: number): Token[] | null {
+  return updateToken(roomCode, tokenId, { x, y });
+}
+
+/**
+ * Updates fog of war
+ */
+export function updateFogOfWar(roomCode: string, fogOfWar: FogArea[]): FogArea[] | null {
+  const session = getSession(roomCode);
+  if (!session) return null;
+
+  session.map.fogOfWar = fogOfWar;
+  updateActivity(roomCode);
+  return session.map.fogOfWar;
+}
+
+/**
  * Updates last activity timestamp
  */
 function updateActivity(roomCode: string): void {
@@ -157,6 +247,7 @@ export function loadSessionsFromDb(): void {
       dmKey: row.dm_key,
       dmSocketId: null,
       players: new Map(),
+      map: { ...defaultMapState },
       createdAt: new Date(row.created_at),
       lastActivity: new Date(row.last_activity),
     };
