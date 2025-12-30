@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useSessionStore } from '../stores/sessionStore';
+import { saveSession, loadSession, clearSession } from '../utils/sessionStorage';
 import type { Token, MapState, DiceRoll, ChatMessage, InitiativeEntry, Character } from '../types';
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
@@ -24,8 +25,64 @@ export function useSocket() {
       console.log('Connected to server');
       store.setConnected(true);
 
-      // Auto-rejoin room if we have session info (handles view transitions and reconnections)
+      // First check if we have state in memory
       const state = useSessionStore.getState();
+
+      // If no state in memory, try to restore from localStorage
+      if (!state.roomCode) {
+        const storedSession = loadSession();
+        if (storedSession) {
+          console.log('Found stored session, attempting to restore...');
+          if (storedSession.isDm && storedSession.dmKey) {
+            // DM: Reclaim stored session
+            socket.emit('reclaim-session', {
+              roomCode: storedSession.roomCode,
+              dmKey: storedSession.dmKey
+            }, (response: any) => {
+              if (response.success) {
+                console.log('Restored DM session from storage:', storedSession.roomCode);
+                useSessionStore.getState().setSession(response.roomCode, storedSession.dmKey!, true);
+                useSessionStore.getState().setPlayers(response.players || []);
+                if (response.map) {
+                  useSessionStore.getState().setMapState(response.map);
+                }
+                if (response.initiative) {
+                  useSessionStore.getState().setInitiative(response.initiative);
+                }
+                useSessionStore.getState().setView('dm');
+              } else {
+                console.log('Stored DM session expired or invalid, clearing...');
+                clearSession();
+              }
+            });
+          } else if (storedSession.playerName) {
+            // Player: Rejoin stored session
+            socket.emit('join-session', {
+              roomCode: storedSession.roomCode,
+              playerName: storedSession.playerName
+            }, (response: any) => {
+              if (response.success) {
+                console.log('Restored player session from storage:', storedSession.roomCode);
+                useSessionStore.getState().setSession(response.roomCode, null, false);
+                useSessionStore.getState().setPlayerName(storedSession.playerName!);
+                if (response.map) {
+                  useSessionStore.getState().setMapState(response.map);
+                }
+                if (response.initiative) {
+                  useSessionStore.getState().setInitiative(response.initiative);
+                }
+                useSessionStore.getState().setView('player');
+              } else {
+                console.log('Stored player session expired or invalid, clearing...');
+                clearSession();
+              }
+            });
+          }
+          return;
+        }
+      }
+
+      // Auto-rejoin room if we have session info in memory (handles view transitions and reconnections)
       if (state.roomCode) {
         if (state.isDm && state.dmKey) {
           // DM: Reclaim session to rejoin room
@@ -35,6 +92,9 @@ export function useSocket() {
               if (response.players) {
                 useSessionStore.getState().setPlayers(response.players);
               }
+              if (response.initiative) {
+                useSessionStore.getState().setInitiative(response.initiative);
+              }
             }
           });
         } else if (state.playerName) {
@@ -42,6 +102,9 @@ export function useSocket() {
           socket.emit('join-session', { roomCode: state.roomCode, playerName: state.playerName }, (response: any) => {
             if (response.success) {
               console.log('Auto-rejoined session:', state.roomCode);
+              if (response.initiative) {
+                useSessionStore.getState().setInitiative(response.initiative);
+              }
             }
           });
         }
@@ -70,6 +133,7 @@ export function useSocket() {
 
     // Kicked by DM
     socket.on('kicked', (data) => {
+      clearSession(); // Clear stored session
       store.reset();
       store.setError(data.message);
     });
@@ -172,6 +236,12 @@ export function useSocket() {
         if (response.success) {
           store.setSession(response.roomCode, response.dmKey, true);
           store.setView('dm');
+          // Save to localStorage for persistence
+          saveSession({
+            roomCode: response.roomCode,
+            isDm: true,
+            dmKey: response.dmKey,
+          });
           resolve({ roomCode: response.roomCode, dmKey: response.dmKey });
         } else {
           store.setError(response.error);
@@ -197,6 +267,12 @@ export function useSocket() {
             store.setMapState(response.map);
           }
           store.setView('dm');
+          // Save to localStorage for persistence
+          saveSession({
+            roomCode: response.roomCode,
+            isDm: true,
+            dmKey,
+          });
           resolve();
         } else {
           store.setError(response.error);
@@ -222,6 +298,12 @@ export function useSocket() {
             store.setMapState(response.map);
           }
           store.setView('player');
+          // Save to localStorage for persistence
+          saveSession({
+            roomCode: response.roomCode,
+            isDm: false,
+            playerName,
+          });
           resolve();
         } else {
           store.setError(response.error);
@@ -248,6 +330,12 @@ export function useSocket() {
         }
       });
     });
+  }, []);
+
+  // Leave session (Player/DM action)
+  const leaveSession = useCallback(() => {
+    clearSession(); // Clear stored session
+    store.reset();
   }, []);
 
   // ============ MAP FUNCTIONS ============
@@ -603,6 +691,7 @@ export function useSocket() {
     createSession,
     reclaimSession,
     joinSession,
+    leaveSession,
     kickPlayer,
     // Map functions
     updateMap,

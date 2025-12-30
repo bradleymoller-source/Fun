@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Player, SessionState, MapState, Token, FogArea, SavedMap, DiceRoll, ChatMessage, InitiativeEntry, Character } from '../types';
+import type { Player, SessionState, MapState, Token, FogArea, SavedMap, DiceRoll, ChatMessage, InitiativeEntry, Character, Monster } from '../types';
 
 const initialMapState: MapState = {
   imageUrl: null,
@@ -50,6 +50,7 @@ interface SessionStore extends SessionState {
   deleteSavedMap: (mapId: string) => void;
   setSavedMaps: (maps: SavedMap[]) => void;
   setActiveMapId: (mapId: string | null) => void;
+  updateMapNotes: (mapId: string, notes: string) => void;
 
   // Phase 3: Dice Actions
   addDiceRoll: (roll: DiceRoll) => void;
@@ -77,6 +78,13 @@ interface SessionStore extends SessionState {
   addCharacterToSession: (character: Character) => void;
   removeCharacterFromSession: (characterId: string) => void;
   setPlayerTab: (tab: 'map' | 'character') => void;
+
+  // Monster Actions (DM only)
+  addMonster: (monster: Monster) => void;
+  updateMonster: (monsterId: string, updates: Partial<Monster>) => void;
+  removeMonster: (monsterId: string) => void;
+  setActiveMonster: (monster: Monster | null) => void;
+  setMonsters: (monsters: Monster[]) => void;
 }
 
 const initialState: SessionState = {
@@ -95,6 +103,8 @@ const initialState: SessionState = {
   isInCombat: false,
   character: null,
   allCharacters: [],
+  monsters: [],
+  activeMonster: null,
   view: 'landing',
   playerTab: 'map',
   error: null,
@@ -274,6 +284,13 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
 
   setActiveMapId: (activeMapId) => set({ activeMapId }),
 
+  updateMapNotes: (mapId, notes) =>
+    set((state) => ({
+      savedMaps: state.savedMaps.map((m) =>
+        m.id === mapId ? { ...m, notes } : m
+      ),
+    })),
+
   // Phase 3: Dice Actions
   addDiceRoll: (roll) =>
     set((state) => ({
@@ -378,4 +395,32 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     })),
 
   setPlayerTab: (playerTab) => set({ playerTab }),
+
+  // Monster Actions (DM only)
+  addMonster: (monster) =>
+    set((state) => ({
+      monsters: [...state.monsters, monster],
+    })),
+
+  updateMonster: (monsterId, updates) =>
+    set((state) => ({
+      monsters: state.monsters.map((m) =>
+        m.id === monsterId ? { ...m, ...updates } : m
+      ),
+      activeMonster:
+        state.activeMonster?.id === monsterId
+          ? { ...state.activeMonster, ...updates }
+          : state.activeMonster,
+    })),
+
+  removeMonster: (monsterId) =>
+    set((state) => ({
+      monsters: state.monsters.filter((m) => m.id !== monsterId),
+      activeMonster:
+        state.activeMonster?.id === monsterId ? null : state.activeMonster,
+    })),
+
+  setActiveMonster: (activeMonster) => set({ activeMonster }),
+
+  setMonsters: (monsters) => set({ monsters }),
 }));

@@ -27,6 +27,7 @@ export function PlayerView() {
   const [mapDimensions, setMapDimensions] = useState(ORIENTATION_SIZES.landscape);
   const [showCharacterCreator, setShowCharacterCreator] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const mapContainerRef = useRef<HTMLDivElement>(null);
 
   // Quick roll function for keyboard shortcuts
@@ -142,7 +143,7 @@ export function PlayerView() {
   const renderMapView = () => (
     <>
       {/* Map Display */}
-      <div className="flex-1" ref={mapContainerRef}>
+      <div className="flex-1 map-container" ref={mapContainerRef}>
         {/* Map Toolbar */}
         <div className="flex items-center justify-between mb-2 bg-dark-wood p-2 rounded-lg border border-leather">
           <div className="flex items-center gap-2">
@@ -182,7 +183,7 @@ export function PlayerView() {
       </div>
 
       {/* Sidebar - Phase 3 Features */}
-      <div className="w-full lg:w-80 space-y-4">
+      <div className={`w-full lg:w-80 space-y-4 ${showMobileSidebar ? 'block' : 'hidden lg:block'}`}>
         {/* Initiative Tracker (view only for players) */}
         <Panel>
           <h2 className="font-medieval text-xl text-gold mb-4">
@@ -267,7 +268,7 @@ export function PlayerView() {
       </div>
 
       {/* Sidebar - Dice & Chat */}
-      <div className="w-full lg:w-80 space-y-4">
+      <div className={`w-full lg:w-80 space-y-4 ${showMobileSidebar ? 'block' : 'hidden lg:block'}`}>
         {/* Dice Roller */}
         <Panel>
           <h2 className="font-medieval text-xl text-gold mb-4">
@@ -430,6 +431,15 @@ export function PlayerView() {
             {!character && <span className="ml-2 text-sm">(Create)</span>}
           </button>
         </div>
+
+        {/* Mobile Sidebar Toggle Button */}
+        <button
+          onClick={() => setShowMobileSidebar(!showMobileSidebar)}
+          className="lg:hidden mobile-menu-btn bg-gold text-dark-wood"
+          aria-label="Toggle controls"
+        >
+          {showMobileSidebar ? '✕' : '☰'}
+        </button>
 
         {/* Main Content */}
         <div className="flex flex-col lg:flex-row gap-4">

@@ -14,3 +14,69 @@
 body {
   @apply bg-dark-wood min-h-screen m-0;
 }
+
+/* Mobile-friendly touch targets */
+@media (max-width: 768px) {
+  /* Ensure buttons are at least 44x44px for touch */
+  button, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Smaller padding on mobile */
+  .p-4 {
+    padding: 0.75rem;
+  }
+
+  /* Improve scrolling on mobile */
+  .overflow-y-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Hide keyboard shortcuts hint on mobile */
+  .hide-mobile {
+    display: none !important;
+  }
+}
+
+/* Touch-friendly hover states */
+@media (hover: none) {
+  button:hover, [role="button"]:hover {
+    opacity: 1;
+  }
+}
+
+/* Prevent text selection on draggable elements */
+.no-select {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Smooth animations for panel collapse */
+.panel-transition {
+  transition: max-height 0.3s ease-in-out, opacity 0.2s ease-in-out;
+  overflow: hidden;
+}
+
+/* Canvas container for responsive sizing */
+.map-container {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Mobile menu button styling */
+.mobile-menu-btn {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  z-index: 50;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}

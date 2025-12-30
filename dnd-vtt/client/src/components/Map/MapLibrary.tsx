@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useSessionStore } from '../../stores/sessionStore';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
+import { DMNotes } from '../DMNotes';
 
 interface MapLibraryProps {
   onShowToPlayers: (mapId: string) => void;
@@ -9,9 +10,10 @@ interface MapLibraryProps {
 }
 
 export function MapLibrary({ onShowToPlayers, onHideFromPlayers }: MapLibraryProps) {
-  const { map, savedMaps, activeMapId, saveCurrentMap, loadSavedMap, deleteSavedMap } = useSessionStore();
+  const { map, savedMaps, activeMapId, saveCurrentMap, loadSavedMap, deleteSavedMap, updateMapNotes } = useSessionStore();
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [mapName, setMapName] = useState('');
+  const [notesMapId, setNotesMapId] = useState<string | null>(null);
 
   const handleSave = () => {
     if (!mapName.trim()) return;
@@ -117,6 +119,17 @@ export function MapLibrary({ onShowToPlayers, onHideFromPlayers }: MapLibraryPro
                   {activeMapId === savedMap.id ? 'Showing' : 'Show'}
                 </button>
                 <button
+                  onClick={() => setNotesMapId(notesMapId === savedMap.id ? null : savedMap.id)}
+                  className={`text-xs px-2 py-1 rounded ${
+                    savedMap.notes
+                      ? 'bg-yellow-700 text-white'
+                      : 'bg-leather text-parchment hover:bg-yellow-700 hover:text-white'
+                  }`}
+                  title={savedMap.notes ? 'View/edit notes' : 'Add notes'}
+                >
+                  {savedMap.notes ? 'Notes' : '+Notes'}
+                </button>
+                <button
                   onClick={() => deleteSavedMap(savedMap.id)}
                   className="text-xs bg-red-800 px-2 py-1 rounded text-white hover:bg-red-600"
                   title="Delete this map"
@@ -124,6 +137,17 @@ export function MapLibrary({ onShowToPlayers, onHideFromPlayers }: MapLibraryPro
                   Delete
                 </button>
               </div>
+
+              {/* DM Notes Panel */}
+              {notesMapId === savedMap.id && (
+                <div className="mt-2 pt-2 border-t border-leather/50">
+                  <DMNotes
+                    notes={savedMap.notes || ''}
+                    onSave={(notes) => updateMapNotes(savedMap.id, notes)}
+                    mapName={savedMap.name}
+                  />
+                </div>
+              )}
             </div>
           ))}
         </div>

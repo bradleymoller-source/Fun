@@ -10,6 +10,7 @@ import { MapLibrary } from './Map/MapLibrary';
 import { DiceRoller } from './DiceRoller';
 import { ChatPanel } from './ChatPanel';
 import { InitiativeTracker } from './InitiativeTracker';
+import { MonsterPanel } from './Monster/MonsterPanel';
 import type { Token, DiceRoll, ChatMessage, InitiativeEntry, FogArea } from '../types';
 
 type MapOrientation = 'landscape' | 'portrait';
@@ -45,6 +46,7 @@ export function DMView() {
   const [isMapLocked, setIsMapLocked] = useState(false);
   const [mapDimensions, setMapDimensions] = useState(ORIENTATION_SIZES.landscape);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const mapContainerRef = useRef<HTMLDivElement>(null);
 
   // Quick roll function for keyboard shortcuts
@@ -393,10 +395,19 @@ export function DMView() {
           </Panel>
         )}
 
+        {/* Mobile Sidebar Toggle Button */}
+        <button
+          onClick={() => setShowMobileSidebar(!showMobileSidebar)}
+          className="lg:hidden mobile-menu-btn bg-gold text-dark-wood"
+          aria-label="Toggle controls"
+        >
+          {showMobileSidebar ? '✕' : '☰'}
+        </button>
+
         {/* Main Content: Map + Sidebar */}
         <div className="flex flex-col lg:flex-row gap-4">
           {/* Map Canvas - Takes most of the space */}
-          <div className="flex-1" ref={mapContainerRef}>
+          <div className="flex-1 map-container" ref={mapContainerRef}>
             {/* Map Toolbar */}
             <div className="flex items-center justify-between mb-2 bg-dark-wood p-2 rounded-lg border border-leather">
               <div className="flex items-center gap-2">
@@ -450,7 +461,7 @@ export function DMView() {
           </div>
 
           {/* Sidebar - Controls */}
-          <div className="w-full lg:w-80 space-y-4">
+          <div className={`w-full lg:w-80 space-y-4 ${showMobileSidebar ? 'block' : 'hidden lg:block'}`}>
             {/* Players Panel (Collapsible) */}
             {showPlayers && (
               <Panel>
@@ -530,6 +541,17 @@ export function DMView() {
                 onNextTurn={handleNextTurn}
                 onStartCombat={handleStartCombat}
                 onEndCombat={handleEndCombat}
+              />
+            </Panel>
+
+            {/* Monster Stat Blocks */}
+            <Panel>
+              <h2 className="font-medieval text-xl text-gold mb-4">
+                Monsters & NPCs
+              </h2>
+              <MonsterPanel
+                onRollDice={handleDiceRoll}
+                socketId={socket?.id}
               />
             </Panel>
 

@@ -58,6 +58,7 @@ export interface SavedMap {
   gridOffsetY: number;
   tokens: Token[];  // Tokens associated with this map
   savedAt: string;  // ISO date string
+  notes?: string;   // Private DM notes for this map
 }
 
 // Phase 3: Dice Rolling
@@ -308,6 +309,124 @@ export interface CharacterCreationState {
   character: Partial<Character>;
 }
 
+// ============ MONSTER/NPC STAT BLOCKS ============
+
+// Monster size category
+export type MonsterSize = 'Tiny' | 'Small' | 'Medium' | 'Large' | 'Huge' | 'Gargantuan';
+
+// Monster type/category
+export type MonsterType =
+  | 'aberration'
+  | 'beast'
+  | 'celestial'
+  | 'construct'
+  | 'dragon'
+  | 'elemental'
+  | 'fey'
+  | 'fiend'
+  | 'giant'
+  | 'humanoid'
+  | 'monstrosity'
+  | 'ooze'
+  | 'plant'
+  | 'undead';
+
+// Monster attack/action
+export interface MonsterAction {
+  id: string;
+  name: string;
+  description: string;
+  attackBonus?: number;  // For attack rolls
+  damage?: string;       // e.g., "2d6+4 slashing"
+  reach?: string;        // e.g., "5 ft." or "60 ft."
+  isRanged?: boolean;
+}
+
+// Special ability or trait
+export interface MonsterTrait {
+  id: string;
+  name: string;
+  description: string;
+}
+
+// Legendary action (for legendary creatures)
+export interface LegendaryAction {
+  id: string;
+  name: string;
+  description: string;
+  cost: number;  // How many legendary actions it costs
+}
+
+// Complete monster stat block
+export interface Monster {
+  id: string;
+  name: string;
+
+  // Basic Info
+  size: MonsterSize;
+  type: MonsterType;
+  alignment: string;
+  challengeRating: string;  // e.g., "1/4", "1", "5", "17"
+  xp: number;
+
+  // Combat Stats
+  armorClass: number;
+  armorType?: string;  // e.g., "natural armor", "plate"
+  hitPoints: number;
+  hitDice: string;     // e.g., "6d8+12"
+  speed: string;       // e.g., "30 ft., fly 60 ft."
+
+  // Ability Scores
+  abilities: AbilityScores;
+
+  // Saving Throws (only list proficient ones)
+  savingThrows?: Partial<Record<keyof AbilityScores, number>>;
+
+  // Skills (only list proficient ones)
+  skills?: Record<string, number>;
+
+  // Defenses
+  damageVulnerabilities?: string[];
+  damageResistances?: string[];
+  damageImmunities?: string[];
+  conditionImmunities?: Condition[];
+
+  // Senses
+  senses: string;  // e.g., "darkvision 60 ft., passive Perception 12"
+  languages: string;  // e.g., "Common, Draconic"
+
+  // Abilities & Actions
+  traits: MonsterTrait[];
+  actions: MonsterAction[];
+  bonusActions?: MonsterAction[];
+  reactions?: MonsterAction[];
+  legendaryActions?: LegendaryAction[];
+  legendaryActionCount?: number;  // How many per round
+  lairActions?: string[];
+  regionalEffects?: string[];
+
+  // Spellcasting (optional)
+  spellcasting?: {
+    ability: keyof AbilityScores;
+    spellSaveDC: number;
+    spellAttackBonus: number;
+    atWill?: string[];
+    perDay?: Record<string, string[]>;  // e.g., {"3": ["fireball", "lightning bolt"]}
+    spellSlots?: Record<number, string[]>;  // Spell level -> spells
+  };
+
+  // Metadata
+  source?: string;  // e.g., "Monster Manual", "Custom"
+  notes?: string;   // DM notes
+}
+
+// Preset monsters for quick access
+export interface MonsterPreset {
+  id: string;
+  monster: Monster;
+  category: 'common' | 'boss' | 'minion' | 'custom';
+}
+
 export interface SessionState {
   // Connection state
   isConnected: boolean;
@@ -341,6 +460,10 @@ export interface SessionState {
   // Phase 4: Character
   character: Character | null;
   allCharacters: Character[];  // All characters in session (for DM view)
+
+  // Monsters (DM only)
+  monsters: Monster[];  // DM's monster library
+  activeMonster: Monster | null;  // Currently viewed monster stat block
 
   // UI state
   view: 'landing' | 'create' | 'join' | 'dm' | 'player';
