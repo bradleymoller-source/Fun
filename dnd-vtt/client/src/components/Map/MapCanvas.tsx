@@ -57,6 +57,8 @@ export function MapCanvas({ width, height, isDm, isLocked = false, onTokenMove, 
   const [drawingFog, setDrawingFog] = useState(false);
   const [fogStart, setFogStart] = useState<{ x: number; y: number } | null>(null);
   const [fogEnd, setFogEnd] = useState<{ x: number; y: number } | null>(null);
+  // Grid snap toggle
+  const [gridSnap, setGridSnap] = useState(true);
   const stageRef = useRef<Konva.Stage>(null);
 
   // Load map image when URL changes
@@ -243,13 +245,22 @@ export function MapCanvas({ width, height, isDm, isLocked = false, onTokenMove, 
         onDragEnd={(e) => {
           e.cancelBubble = true;
           if (!onTokenMove) return;
-          const newX = Math.round((e.target.x() - map.gridOffsetX) / gridSize);
-          const newY = Math.round((e.target.y() - map.gridOffsetY) / gridSize);
-          onTokenMove(token.id, newX, newY);
-          e.target.position({
-            x: newX * gridSize + map.gridOffsetX,
-            y: newY * gridSize + map.gridOffsetY,
-          });
+
+          if (gridSnap) {
+            // Snap to grid
+            const newX = Math.round((e.target.x() - map.gridOffsetX) / gridSize);
+            const newY = Math.round((e.target.y() - map.gridOffsetY) / gridSize);
+            onTokenMove(token.id, newX, newY);
+            e.target.position({
+              x: newX * gridSize + map.gridOffsetX,
+              y: newY * gridSize + map.gridOffsetY,
+            });
+          } else {
+            // Free-form placement (store as fractional grid position)
+            const newX = (e.target.x() - map.gridOffsetX) / gridSize;
+            const newY = (e.target.y() - map.gridOffsetY) / gridSize;
+            onTokenMove(token.id, newX, newY);
+          }
         }}
       >
         {/* Active turn highlight ring */}
@@ -475,6 +486,13 @@ export function MapCanvas({ width, height, isDm, isLocked = false, onTokenMove, 
           title="Measure Distance"
         >
           📏
+        </button>
+        <button
+          onClick={() => setGridSnap(!gridSnap)}
+          className={`w-8 h-8 rounded border text-xs ${gridSnap ? 'bg-dark-wood text-gold border-gold hover:bg-leather' : 'bg-orange-600 text-white border-orange-400'}`}
+          title={gridSnap ? 'Grid Snap On' : 'Grid Snap Off (Free Move)'}
+        >
+          {gridSnap ? '⊞' : '◇'}
         </button>
         {/* Fog of War controls (DM only) */}
         {isDm && (

@@ -1,7 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Panel } from './ui/Panel';
+import { Button } from './ui/Button';
 import { useSessionStore } from '../stores/sessionStore';
 import { useSocket } from '../hooks/useSocket';
+import { useKeyboardShortcuts, KEYBOARD_SHORTCUTS } from '../hooks/useKeyboardShortcuts';
 import { MapCanvas } from './Map/MapCanvas';
 import { DiceRoller } from './DiceRoller';
 import { ChatPanel } from './ChatPanel';
@@ -24,7 +26,41 @@ export function PlayerView() {
   const [mapOrientation, setMapOrientation] = useState<MapOrientation>('landscape');
   const [mapDimensions, setMapDimensions] = useState(ORIENTATION_SIZES.landscape);
   const [showCharacterCreator, setShowCharacterCreator] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const mapContainerRef = useRef<HTMLDivElement>(null);
+
+  // Quick roll function for keyboard shortcuts
+  const handleQuickRoll = useCallback((dice: string) => {
+    const diceMap: Record<string, { count: number; sides: number }> = {
+      d4: { count: 1, sides: 4 },
+      d6: { count: 1, sides: 6 },
+      d8: { count: 1, sides: 8 },
+      d10: { count: 1, sides: 10 },
+      d12: { count: 1, sides: 12 },
+      d20: { count: 1, sides: 20 },
+      d100: { count: 1, sides: 100 },
+    };
+    const diceInfo = diceMap[dice];
+    if (!diceInfo) return;
+
+    const rolls = Array.from({ length: diceInfo.count }, () =>
+      Math.floor(Math.random() * diceInfo.sides) + 1
+    );
+    const total = rolls.reduce((sum, r) => sum + r, 0);
+
+    const roll: DiceRoll = {
+      id: `roll-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      playerId: socket?.id || 'player',
+      playerName: character?.name || playerName || 'Player',
+      notation: dice,
+      rolls,
+      modifier: 0,
+      total,
+      timestamp: new Date().toISOString(),
+      isPrivate: false,
+    };
+    rollDice(roll);
+  }, [socket?.id, character?.name, playerName, rollDice]);
 
   // Update dimensions when orientation changes
   useEffect(() => {
@@ -95,6 +131,13 @@ export function PlayerView() {
       console.error('Failed to move token:', error);
     }
   };
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    isDm: false,
+    onQuickRoll: handleQuickRoll,
+    onEscape: () => setShowShortcuts(false),
+  });
 
   const renderMapView = () => (
     <>
@@ -267,6 +310,16 @@ export function PlayerView() {
               </p>
             </div>
             <div className="flex items-center gap-4">
+              {/* Keyboard Shortcuts Help */}
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => setShowShortcuts(!showShortcuts)}
+                title="Keyboard Shortcuts"
+              >
+                ⌨️
+              </Button>
+
               {/* Party Toggle */}
               <button
                 onClick={() => setShowParty(!showParty)}
@@ -324,6 +377,32 @@ export function PlayerView() {
             </div>
           )}
         </Panel>
+
+        {/* Keyboard Shortcuts Help Panel */}
+        {showShortcuts && (
+          <Panel className="mb-4">
+            <div className="flex justify-between items-center mb-3">
+              <h2 className="font-medieval text-xl text-gold">Keyboard Shortcuts</h2>
+              <button
+                onClick={() => setShowShortcuts(false)}
+                className="text-parchment/70 hover:text-parchment"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <h3 className="text-gold text-sm font-semibold mb-2">Quick Dice</h3>
+                {KEYBOARD_SHORTCUTS.common.map((shortcut) => (
+                  <div key={shortcut.key} className="flex justify-between text-sm text-parchment py-1">
+                    <kbd className="bg-dark-wood px-2 rounded border border-leather">{shortcut.key}</kbd>
+                    <span className="text-parchment/70">{shortcut.description}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Panel>
+        )}
 
         {/* Tab Navigation */}
         <div className="flex gap-2 mb-4">

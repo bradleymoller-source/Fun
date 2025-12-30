@@ -2,7 +2,30 @@ import { useState } from 'react';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { useSessionStore } from '../stores/sessionStore';
-import type { InitiativeEntry } from '../types';
+import type { InitiativeEntry, Condition } from '../types';
+
+// Condition colors and icons for visual display
+const CONDITION_INFO: Record<Condition, { icon: string; color: string; description: string }> = {
+  poisoned: { icon: '🤢', color: 'bg-green-700', description: 'Disadvantage on attacks and ability checks' },
+  stunned: { icon: '💫', color: 'bg-yellow-600', description: 'Incapacitated, auto-fail STR/DEX saves' },
+  prone: { icon: '🔻', color: 'bg-gray-600', description: 'Disadvantage on attacks, advantage for adjacent melee' },
+  frightened: { icon: '😨', color: 'bg-purple-700', description: 'Disadvantage while source is in sight' },
+  charmed: { icon: '💕', color: 'bg-pink-600', description: 'Cannot attack charmer, charmer has advantage on social checks' },
+  paralyzed: { icon: '⚡', color: 'bg-yellow-500', description: 'Incapacitated, auto-fail STR/DEX saves, crits within 5ft' },
+  restrained: { icon: '🔗', color: 'bg-orange-600', description: 'Speed 0, disadvantage on attacks and DEX saves' },
+  blinded: { icon: '👁️', color: 'bg-gray-700', description: 'Auto-fail sight checks, disadvantage on attacks' },
+  deafened: { icon: '🔇', color: 'bg-blue-700', description: 'Cannot hear, auto-fail hearing checks' },
+  invisible: { icon: '👻', color: 'bg-indigo-600', description: 'Cannot be seen, advantage on attacks, attacks have disadvantage' },
+  incapacitated: { icon: '❌', color: 'bg-red-700', description: 'Cannot take actions or reactions' },
+  exhausted: { icon: '😫', color: 'bg-amber-700', description: 'Cumulative penalties' },
+  concentrating: { icon: '🔮', color: 'bg-blue-500', description: 'Maintaining concentration on a spell' },
+};
+
+const ALL_CONDITIONS: Condition[] = [
+  'poisoned', 'stunned', 'prone', 'frightened', 'charmed',
+  'paralyzed', 'restrained', 'blinded', 'deafened', 'invisible',
+  'incapacitated', 'exhausted', 'concentrating',
+];
 
 interface InitiativeTrackerProps {
   isDm: boolean;
@@ -29,6 +52,7 @@ export function InitiativeTracker({
   const [newMaxHp, setNewMaxHp] = useState('');
   const [isNpc, setIsNpc] = useState(true);
   const [hpDelta, setHpDelta] = useState<Record<string, string>>({});
+  const [showConditions, setShowConditions] = useState<string | null>(null); // Entry ID to show conditions for
 
   const handleAddEntry = () => {
     if (!newName.trim() || !newInit.trim()) return;
@@ -91,6 +115,21 @@ export function InitiativeTracker({
 
     onUpdateEntry(entryId, { currentHp: newHp });
     setHpDelta(prev => ({ ...prev, [entryId]: '' }));
+  };
+
+  // Toggle a condition on an entry
+  const handleToggleCondition = (entryId: string, condition: Condition) => {
+    const entry = initiative.find(e => e.id === entryId);
+    if (!entry) return;
+
+    const currentConditions = entry.conditions || [];
+    const hasCondition = currentConditions.includes(condition);
+
+    const newConditions = hasCondition
+      ? currentConditions.filter(c => c !== condition)
+      : [...currentConditions, condition];
+
+    onUpdateEntry(entryId, { conditions: newConditions });
   };
 
   return (
@@ -216,10 +255,39 @@ export function InitiativeTracker({
                     <div className={`font-medieval truncate ${entry.isActive ? 'text-gold' : 'text-parchment'}`}>
                       {entry.name}
                     </div>
-                    <div className="text-parchment/50 text-xs">
-                      {entry.isNpc ? 'NPC' : 'Player'}
+                    <div className="flex items-center gap-1">
+                      <span className="text-parchment/50 text-xs">
+                        {entry.isNpc ? 'NPC' : 'Player'}
+                      </span>
+                      {/* Condition Badges */}
+                      {entry.conditions && entry.conditions.length > 0 && (
+                        <div className="flex flex-wrap gap-0.5">
+                          {entry.conditions.map((condition) => (
+                            <span
+                              key={condition}
+                              className={`text-xs px-1 rounded ${CONDITION_INFO[condition].color} text-white`}
+                              title={`${condition}: ${CONDITION_INFO[condition].description}`}
+                            >
+                              {CONDITION_INFO[condition].icon}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
+
+                  {/* Conditions Button (DM only) */}
+                  {isDm && (
+                    <button
+                      onClick={() => setShowConditions(showConditions === entry.id ? null : entry.id)}
+                      className={`px-1 text-sm flex-shrink-0 ${
+                        showConditions === entry.id ? 'text-gold' : 'text-parchment/50 hover:text-parchment'
+                      }`}
+                      title="Conditions"
+                    >
+                      ⚡
+                    </button>
+                  )}
 
                   {/* Initiative Score */}
                   <div className={`font-bold text-lg flex-shrink-0 ${entry.isActive ? 'text-gold' : 'text-parchment/70'}`}>
@@ -283,6 +351,34 @@ export function InitiativeTracker({
                         </button>
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* Conditions Picker (DM only) */}
+                {isDm && showConditions === entry.id && (
+                  <div className="mt-2 p-2 bg-leather/30 rounded border border-leather">
+                    <div className="text-parchment/70 text-xs mb-2">Toggle Conditions:</div>
+                    <div className="flex flex-wrap gap-1">
+                      {ALL_CONDITIONS.map((condition) => {
+                        const hasCondition = entry.conditions?.includes(condition);
+                        const info = CONDITION_INFO[condition];
+                        return (
+                          <button
+                            key={condition}
+                            onClick={() => handleToggleCondition(entry.id, condition)}
+                            className={`text-xs px-2 py-1 rounded flex items-center gap-1 transition-colors ${
+                              hasCondition
+                                ? `${info.color} text-white`
+                                : 'bg-dark-wood text-parchment/70 hover:text-parchment border border-leather'
+                            }`}
+                            title={info.description}
+                          >
+                            <span>{info.icon}</span>
+                            <span className="capitalize">{condition}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>

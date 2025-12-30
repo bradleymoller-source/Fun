@@ -34,9 +34,12 @@ interface DiceRollerProps {
   isDm: boolean;
 }
 
+type RollMode = 'normal' | 'advantage' | 'disadvantage';
+
 export function DiceRoller({ onRoll, playerId, playerName, isDm }: DiceRollerProps) {
   const [notation, setNotation] = useState('');
   const [isPrivate, setIsPrivate] = useState(false);
+  const [rollMode, setRollMode] = useState<RollMode>('normal');
   const { diceHistory } = useSessionStore();
 
   const handleRoll = () => {
@@ -66,14 +69,30 @@ export function DiceRoller({ onRoll, playerId, playerName, isDm }: DiceRollerPro
     const parsed = parseDiceNotation(dice);
     if (!parsed) return;
 
-    const rolls = rollDice(parsed.count, parsed.sides);
-    const total = rolls.reduce((sum, r) => sum + r, 0) + parsed.modifier;
+    // Handle advantage/disadvantage for d20 rolls
+    const isD20 = parsed.count === 1 && parsed.sides === 20;
+    let rolls: number[];
+    let total: number;
+    let displayNotation = dice;
+
+    if (isD20 && rollMode !== 'normal') {
+      // Roll 2d20 and take higher/lower
+      const roll1 = Math.floor(Math.random() * 20) + 1;
+      const roll2 = Math.floor(Math.random() * 20) + 1;
+      const chosenRoll = rollMode === 'advantage' ? Math.max(roll1, roll2) : Math.min(roll1, roll2);
+      rolls = [roll1, roll2];
+      total = chosenRoll + parsed.modifier;
+      displayNotation = `${dice} (${rollMode === 'advantage' ? 'ADV' : 'DIS'})`;
+    } else {
+      rolls = rollDice(parsed.count, parsed.sides);
+      total = rolls.reduce((sum, r) => sum + r, 0) + parsed.modifier;
+    }
 
     const roll: DiceRoll = {
       id: `roll-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       playerId,
       playerName,
-      notation: dice,
+      notation: displayNotation,
       rolls,
       modifier: parsed.modifier,
       total,
@@ -97,6 +116,43 @@ export function DiceRoller({ onRoll, playerId, playerName, isDm }: DiceRollerPro
             {dice.toUpperCase()}
           </button>
         ))}
+      </div>
+
+      {/* Advantage/Disadvantage Toggle */}
+      <div className="flex gap-1 bg-dark-wood p-1 rounded">
+        <button
+          onClick={() => setRollMode('disadvantage')}
+          className={`flex-1 py-1 px-2 rounded text-xs font-bold transition-colors ${
+            rollMode === 'disadvantage'
+              ? 'bg-red-600 text-white'
+              : 'text-parchment/70 hover:text-parchment'
+          }`}
+          title="Disadvantage: Roll 2d20, take lower"
+        >
+          DIS
+        </button>
+        <button
+          onClick={() => setRollMode('normal')}
+          className={`flex-1 py-1 px-2 rounded text-xs font-bold transition-colors ${
+            rollMode === 'normal'
+              ? 'bg-gold text-dark-wood'
+              : 'text-parchment/70 hover:text-parchment'
+          }`}
+          title="Normal: Roll normally"
+        >
+          NORMAL
+        </button>
+        <button
+          onClick={() => setRollMode('advantage')}
+          className={`flex-1 py-1 px-2 rounded text-xs font-bold transition-colors ${
+            rollMode === 'advantage'
+              ? 'bg-green-600 text-white'
+              : 'text-parchment/70 hover:text-parchment'
+          }`}
+          title="Advantage: Roll 2d20, take higher"
+        >
+          ADV
+        </button>
       </div>
 
       {/* Custom Roll Input */}
