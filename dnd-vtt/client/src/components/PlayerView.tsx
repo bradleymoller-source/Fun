@@ -209,6 +209,7 @@ export function PlayerView() {
             playerId={socket?.id || 'player'}
             playerName={playerName || 'Player'}
             isDm={false}
+            character={character}
           />
         </Panel>
 
@@ -277,6 +278,7 @@ export function PlayerView() {
             playerId={socket?.id || 'player'}
             playerName={character?.name || playerName || 'Player'}
             isDm={false}
+            character={character}
           />
         </Panel>
 

@@ -2,7 +2,44 @@ import { useState } from 'react';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { useSessionStore } from '../stores/sessionStore';
-import type { DiceRoll } from '../types';
+import type { DiceRoll, Character, AbilityScores, SkillName } from '../types';
+
+// Calculate ability modifier from score
+function getAbilityModifier(score: number): number {
+  return Math.floor((score - 10) / 2);
+}
+
+// Calculate proficiency bonus from level
+function getProficiencyBonus(level: number): number {
+  return Math.floor((level - 1) / 4) + 2;
+}
+
+// Skill to ability mapping
+const SKILL_ABILITIES: Record<SkillName, keyof AbilityScores> = {
+  athletics: 'strength',
+  acrobatics: 'dexterity',
+  sleightOfHand: 'dexterity',
+  stealth: 'dexterity',
+  arcana: 'intelligence',
+  history: 'intelligence',
+  investigation: 'intelligence',
+  nature: 'intelligence',
+  religion: 'intelligence',
+  animalHandling: 'wisdom',
+  insight: 'wisdom',
+  medicine: 'wisdom',
+  perception: 'wisdom',
+  survival: 'wisdom',
+  deception: 'charisma',
+  intimidation: 'charisma',
+  performance: 'charisma',
+  persuasion: 'charisma',
+};
+
+// Format skill name for display
+function formatSkillName(skill: string): string {
+  return skill.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
+}
 
 // Parse dice notation like "2d6+3", "d20", "4d8-2"
 function parseDiceNotation(notation: string): { count: number; sides: number; modifier: number } | null {
@@ -32,15 +69,90 @@ interface DiceRollerProps {
   playerId: string;
   playerName: string;
   isDm: boolean;
+  character?: Character | null;
 }
+
+type CharacterRollType = 'ability' | 'save' | 'skill' | 'attack';
 
 type RollMode = 'normal' | 'advantage' | 'disadvantage';
 
-export function DiceRoller({ onRoll, playerId, playerName, isDm }: DiceRollerProps) {
+export function DiceRoller({ onRoll, playerId, playerName, isDm, character }: DiceRollerProps) {
   const [notation, setNotation] = useState('');
   const [isPrivate, setIsPrivate] = useState(false);
   const [rollMode, setRollMode] = useState<RollMode>('normal');
+  const [showCharacterRolls, setShowCharacterRolls] = useState(false);
   const { diceHistory } = useSessionStore();
+
+  // Calculate character roll modifiers
+  const getCharacterModifier = (rollType: CharacterRollType, key: string): number => {
+    if (!character) return 0;
+
+    const profBonus = getProficiencyBonus(character.level);
+
+    switch (rollType) {
+      case 'ability': {
+        const ability = key as keyof AbilityScores;
+        return getAbilityModifier(character.abilityScores[ability]);
+      }
+      case 'save': {
+        const ability = key as keyof AbilityScores;
+        const modifier = getAbilityModifier(character.abilityScores[ability]);
+        const isProficient = character.savingThrowProficiencies.includes(ability);
+        return modifier + (isProficient ? profBonus : 0);
+      }
+      case 'skill': {
+        const skill = key as SkillName;
+        const ability = SKILL_ABILITIES[skill];
+        const modifier = getAbilityModifier(character.abilityScores[ability]);
+        const profLevel = character.skillProficiencies[skill];
+        if (profLevel === 'expertise') return modifier + profBonus * 2;
+        if (profLevel === 'proficient') return modifier + profBonus;
+        return modifier;
+      }
+      case 'attack': {
+        // For attack, key is the weapon id
+        const weapon = character.weapons.find(w => w.id === key);
+        return weapon?.attackBonus || 0;
+      }
+      default:
+        return 0;
+    }
+  };
+
+  // Roll with character modifier
+  const rollWithModifier = (label: string, modifier: number) => {
+    // Handle advantage/disadvantage
+    let rolls: number[];
+    let chosenRoll: number;
+
+    if (rollMode !== 'normal') {
+      const roll1 = Math.floor(Math.random() * 20) + 1;
+      const roll2 = Math.floor(Math.random() * 20) + 1;
+      chosenRoll = rollMode === 'advantage' ? Math.max(roll1, roll2) : Math.min(roll1, roll2);
+      rolls = [roll1, roll2];
+    } else {
+      chosenRoll = Math.floor(Math.random() * 20) + 1;
+      rolls = [chosenRoll];
+    }
+
+    const total = chosenRoll + modifier;
+    const modifierSign = modifier >= 0 ? '+' : '';
+    const advLabel = rollMode !== 'normal' ? ` (${rollMode === 'advantage' ? 'ADV' : 'DIS'})` : '';
+
+    const roll: DiceRoll = {
+      id: `roll-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      playerId,
+      playerName,
+      notation: `${label}: d20${modifierSign}${modifier}${advLabel}`,
+      rolls,
+      modifier,
+      total,
+      timestamp: new Date().toISOString(),
+      isPrivate: isDm && isPrivate,
+    };
+
+    onRoll(roll);
+  };
 
   const handleRoll = () => {
     const parsed = parseDiceNotation(notation.trim());
@@ -154,6 +266,111 @@ export function DiceRoller({ onRoll, playerId, playerName, isDm }: DiceRollerPro
           ADV
         </button>
       </div>
+
+      {/* Character Rolls (if character exists) */}
+      {character && (
+        <div className="border border-leather rounded">
+          <button
+            onClick={() => setShowCharacterRolls(!showCharacterRolls)}
+            className="w-full p-2 text-left text-parchment font-medieval flex justify-between items-center hover:bg-leather/30"
+          >
+            <span>Character Rolls</span>
+            <span className={`transform transition-transform ${showCharacterRolls ? 'rotate-180' : ''}`}>
+              ▼
+            </span>
+          </button>
+
+          {showCharacterRolls && (
+            <div className="p-2 space-y-3 bg-dark-wood/50">
+              {/* Ability Checks */}
+              <div>
+                <h5 className="text-parchment/70 text-xs uppercase mb-1">Ability Checks</h5>
+                <div className="grid grid-cols-3 gap-1">
+                  {(Object.keys(character.abilityScores) as Array<keyof AbilityScores>).map((ability) => {
+                    const mod = getCharacterModifier('ability', ability);
+                    return (
+                      <button
+                        key={ability}
+                        onClick={() => rollWithModifier(ability.substring(0, 3).toUpperCase(), mod)}
+                        className="px-2 py-1 text-xs bg-leather rounded hover:bg-gold hover:text-dark-wood"
+                        title={`${ability} check: ${mod >= 0 ? '+' : ''}${mod}`}
+                      >
+                        {ability.substring(0, 3).toUpperCase()} ({mod >= 0 ? '+' : ''}{mod})
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Saving Throws */}
+              <div>
+                <h5 className="text-parchment/70 text-xs uppercase mb-1">Saving Throws</h5>
+                <div className="grid grid-cols-3 gap-1">
+                  {(Object.keys(character.abilityScores) as Array<keyof AbilityScores>).map((ability) => {
+                    const mod = getCharacterModifier('save', ability);
+                    const isProficient = character.savingThrowProficiencies.includes(ability);
+                    return (
+                      <button
+                        key={ability}
+                        onClick={() => rollWithModifier(`${ability.substring(0, 3).toUpperCase()} Save`, mod)}
+                        className={`px-2 py-1 text-xs rounded hover:bg-gold hover:text-dark-wood ${
+                          isProficient ? 'bg-gold/30 text-gold' : 'bg-leather'
+                        }`}
+                        title={`${ability} save: ${mod >= 0 ? '+' : ''}${mod}${isProficient ? ' (proficient)' : ''}`}
+                      >
+                        {ability.substring(0, 3).toUpperCase()} ({mod >= 0 ? '+' : ''}{mod})
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Skills */}
+              <div>
+                <h5 className="text-parchment/70 text-xs uppercase mb-1">Skills</h5>
+                <div className="grid grid-cols-2 gap-1 max-h-32 overflow-y-auto">
+                  {(Object.keys(SKILL_ABILITIES) as SkillName[]).map((skill) => {
+                    const mod = getCharacterModifier('skill', skill);
+                    const profLevel = character.skillProficiencies[skill];
+                    return (
+                      <button
+                        key={skill}
+                        onClick={() => rollWithModifier(formatSkillName(skill), mod)}
+                        className={`px-2 py-1 text-xs rounded text-left hover:bg-gold hover:text-dark-wood ${
+                          profLevel === 'expertise' ? 'bg-purple-600/30 text-purple-300' :
+                          profLevel === 'proficient' ? 'bg-gold/30 text-gold' : 'bg-leather'
+                        }`}
+                        title={`${formatSkillName(skill)}: ${mod >= 0 ? '+' : ''}${mod}`}
+                      >
+                        {formatSkillName(skill)} ({mod >= 0 ? '+' : ''}{mod})
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Attack Rolls */}
+              {character.weapons.length > 0 && (
+                <div>
+                  <h5 className="text-parchment/70 text-xs uppercase mb-1">Attack Rolls</h5>
+                  <div className="space-y-1">
+                    {character.weapons.filter(w => w.equipped).map((weapon) => (
+                      <button
+                        key={weapon.id}
+                        onClick={() => rollWithModifier(`${weapon.name} Attack`, weapon.attackBonus)}
+                        className="w-full px-2 py-1 text-xs bg-red-900/30 text-red-300 rounded text-left hover:bg-red-700 hover:text-white"
+                        title={`${weapon.name}: +${weapon.attackBonus} to hit, ${weapon.damage}`}
+                      >
+                        {weapon.name} (+{weapon.attackBonus}) - {weapon.damage}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Custom Roll Input */}
       <div className="flex gap-2">
