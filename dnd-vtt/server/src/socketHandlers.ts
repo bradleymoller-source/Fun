@@ -95,6 +95,23 @@ export function setupSocketHandlers(io: Server): void {
       socket.join(upperRoomCode);
       socketSessions.set(socket.id, { roomCode: upperRoomCode, isDm: false });
 
+      // Auto-generate a token for the player
+      const playerColors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9'];
+      const colorIndex = getPlayers(upperRoomCode).length % playerColors.length;
+      const playerToken: Token = {
+        id: `token-player-${socket.id}`,
+        name: playerName,
+        x: 0,
+        y: 0,
+        size: 'medium',
+        color: playerColors[colorIndex],
+        isHidden: false,
+        ownerId: socket.id,
+      };
+
+      // Add the token to the session
+      const tokens = addTokenToSession(upperRoomCode, playerToken);
+
       // Get map state for the player (filter hidden tokens)
       const map = getMapState(upperRoomCode);
       const playerMap = map ? {
@@ -102,7 +119,7 @@ export function setupSocketHandlers(io: Server): void {
         tokens: map.tokens.filter(t => !t.isHidden),
       } : null;
 
-      // Notify everyone in the session (including DM)
+      // Notify everyone in the session (including DM) about the new player
       io.to(upperRoomCode).emit('player-joined', {
         player: {
           id: player.id,
@@ -116,7 +133,13 @@ export function setupSocketHandlers(io: Server): void {
         })),
       });
 
-      console.log(`Player ${playerName} joined ${upperRoomCode}`);
+      // Broadcast token update to everyone (DM sees all, players see visible only)
+      if (tokens) {
+        const visibleTokens = tokens.filter(t => !t.isHidden);
+        io.to(upperRoomCode).emit('tokens-updated', { tokens: visibleTokens });
+      }
+
+      console.log(`Player ${playerName} joined ${upperRoomCode} with auto-generated token`);
 
       callback({ success: true, roomCode: upperRoomCode, map: playerMap });
     });
@@ -306,7 +329,7 @@ export function setupSocketHandlers(io: Server): void {
     });
 
     // Show map to players (DM action) - broadcasts a specific map to all players
-    socket.on('show-map-to-players', (data: { mapId: string; mapState: { imageUrl: string; gridSize: number; gridOffsetX: number; gridOffsetY: number } }, callback: (response: any) => void) => {
+    socket.on('show-map-to-players', (data: { mapId: string; mapState: { imageUrl: string; gridSize: number; gridOffsetX: number; gridOffsetY: number; tokens?: Token[] } }, callback: (response: any) => void) => {
       const sessionInfo = socketSessions.get(socket.id);
 
       if (!sessionInfo || !sessionInfo.isDm) {
@@ -315,6 +338,9 @@ export function setupSocketHandlers(io: Server): void {
       }
 
       const { roomCode } = sessionInfo;
+
+      // Filter hidden tokens for players
+      const visibleTokens = (data.mapState.tokens || []).filter(t => !t.isHidden);
 
       // Broadcast the map to all players
       socket.to(roomCode).emit('map-shown', {
@@ -325,12 +351,12 @@ export function setupSocketHandlers(io: Server): void {
           gridOffsetX: data.mapState.gridOffsetX,
           gridOffsetY: data.mapState.gridOffsetY,
           showGrid: true,
-          tokens: [],
+          tokens: visibleTokens,
           fogOfWar: [],
         },
       });
 
-      console.log(`DM showing map ${data.mapId} to players in ${roomCode}`);
+      console.log(`DM showing map ${data.mapId} to players in ${roomCode} with ${visibleTokens.length} tokens`);
 
       callback({ success: true });
     });

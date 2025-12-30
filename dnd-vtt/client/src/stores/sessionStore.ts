@@ -237,6 +237,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       gridSize: state.map.gridSize,
       gridOffsetX: state.map.gridOffsetX,
       gridOffsetY: state.map.gridOffsetY,
+      tokens: [...state.map.tokens], // Save current tokens with the map
       savedAt: new Date().toISOString(),
     };
 
@@ -257,6 +258,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         gridSize: savedMap.gridSize,
         gridOffsetX: savedMap.gridOffsetX,
         gridOffsetY: savedMap.gridOffsetY,
+        tokens: savedMap.tokens || [], // Load saved tokens with the map
       },
     });
   },

@@ -23,6 +23,29 @@ export function useSocket() {
     socket.on('connect', () => {
       console.log('Connected to server');
       store.setConnected(true);
+
+      // Auto-rejoin room if we have session info (handles view transitions and reconnections)
+      const state = useSessionStore.getState();
+      if (state.roomCode) {
+        if (state.isDm && state.dmKey) {
+          // DM: Reclaim session to rejoin room
+          socket.emit('reclaim-session', { roomCode: state.roomCode, dmKey: state.dmKey }, (response: any) => {
+            if (response.success) {
+              console.log('Auto-reclaimed session:', state.roomCode);
+              if (response.players) {
+                useSessionStore.getState().setPlayers(response.players);
+              }
+            }
+          });
+        } else if (state.playerName) {
+          // Player: Rejoin session
+          socket.emit('join-session', { roomCode: state.roomCode, playerName: state.playerName }, (response: any) => {
+            if (response.success) {
+              console.log('Auto-rejoined session:', state.roomCode);
+            }
+          });
+        }
+      }
     });
 
     socket.on('disconnect', () => {
@@ -323,7 +346,7 @@ export function useSocket() {
   }, []);
 
   // Show a map to players (DM action)
-  const showMapToPlayers = useCallback((mapId: string, mapState: { imageUrl: string; gridSize: number; gridOffsetX: number; gridOffsetY: number }) => {
+  const showMapToPlayers = useCallback((mapId: string, mapState: { imageUrl: string; gridSize: number; gridOffsetX: number; gridOffsetY: number; tokens?: Token[] }) => {
     return new Promise<void>((resolve, reject) => {
       if (!socketRef.current) {
         reject(new Error('Not connected'));

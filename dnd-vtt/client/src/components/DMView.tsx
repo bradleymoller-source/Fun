@@ -131,12 +131,16 @@ export function DMView() {
     const savedMap = savedMaps.find(m => m.id === mapId);
     if (!savedMap) return;
 
+    // Filter hidden tokens when showing to players
+    const visibleTokens = (savedMap.tokens || []).filter(t => !t.isHidden);
+
     try {
       await showMapToPlayers(mapId, {
         imageUrl: savedMap.imageUrl,
         gridSize: savedMap.gridSize,
         gridOffsetX: savedMap.gridOffsetX,
         gridOffsetY: savedMap.gridOffsetY,
+        tokens: visibleTokens,
       });
     } catch (error) {
       console.error('Failed to show map to players:', error);

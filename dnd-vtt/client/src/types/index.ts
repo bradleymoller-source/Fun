@@ -46,6 +46,7 @@ export interface SavedMap {
   gridSize: number;
   gridOffsetX: number;
   gridOffsetY: number;
+  tokens: Token[];  // Tokens associated with this map
   savedAt: string;  // ISO date string
 }
 
@@ -251,6 +252,10 @@ export interface Character {
 
   // Features & Traits
   features: Feature[];
+
+  // Simple spell lists (for character creator)
+  cantrips?: string[];
+  spells?: string[];
 
   // Spellcasting (optional)
   spellcasting?: {
