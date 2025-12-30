@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Player, SessionState } from '../types';
+import type { Player, SessionState } from '../types';
 
 interface SessionStore extends SessionState {
   // Actions
