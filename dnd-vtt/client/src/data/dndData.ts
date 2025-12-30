@@ -34,6 +34,123 @@ export const CLASS_PRIMARY_ABILITY: Record<CharacterClass, keyof AbilityScores> 
   wizard: 'intelligence',
 };
 
+// Class-specific standard arrays (optimized for each class's primary/secondary abilities)
+export const CLASS_STANDARD_ARRAYS: Record<CharacterClass, AbilityScores> = {
+  barbarian: { strength: 15, constitution: 14, dexterity: 13, wisdom: 12, charisma: 10, intelligence: 8 },
+  bard: { charisma: 15, dexterity: 14, constitution: 13, wisdom: 12, intelligence: 10, strength: 8 },
+  cleric: { wisdom: 15, constitution: 14, strength: 13, charisma: 12, dexterity: 10, intelligence: 8 },
+  druid: { wisdom: 15, constitution: 14, dexterity: 13, intelligence: 12, charisma: 10, strength: 8 },
+  fighter: { strength: 15, constitution: 14, dexterity: 13, wisdom: 12, charisma: 10, intelligence: 8 },
+  monk: { dexterity: 15, wisdom: 14, constitution: 13, strength: 12, charisma: 10, intelligence: 8 },
+  paladin: { strength: 15, charisma: 14, constitution: 13, wisdom: 12, dexterity: 10, intelligence: 8 },
+  ranger: { dexterity: 15, wisdom: 14, constitution: 13, intelligence: 12, strength: 10, charisma: 8 },
+  rogue: { dexterity: 15, constitution: 14, intelligence: 13, wisdom: 12, charisma: 10, strength: 8 },
+  sorcerer: { charisma: 15, constitution: 14, dexterity: 13, wisdom: 12, intelligence: 10, strength: 8 },
+  warlock: { charisma: 15, constitution: 14, dexterity: 13, wisdom: 12, intelligence: 10, strength: 8 },
+  wizard: { intelligence: 15, constitution: 14, dexterity: 13, wisdom: 12, charisma: 10, strength: 8 },
+};
+
+// Subclasses available at level 1 (D&D 5e 2024)
+export interface SubclassInfo {
+  name: string;
+  description: string;
+  features: string[];
+}
+
+export const CLASS_SUBCLASSES: Partial<Record<CharacterClass, SubclassInfo[]>> = {
+  cleric: [
+    {
+      name: 'Life Domain',
+      description: 'Gods of life promote vitality and health through healing the sick and wounded.',
+      features: ['Disciple of Life: Healing spells restore additional HP equal to 2 + spell level'],
+    },
+    {
+      name: 'Light Domain',
+      description: 'Gods of light promote ideals of rebirth, truth, vigilance, and beauty.',
+      features: ['Warding Flare: Impose disadvantage on an attacker as a reaction'],
+    },
+    {
+      name: 'War Domain',
+      description: 'War gods watch over warriors and reward them for great deeds of valor.',
+      features: ['War Priest: Make bonus action weapon attack (uses = WIS mod per long rest)'],
+    },
+    {
+      name: 'Trickery Domain',
+      description: 'Gods of trickery are mischief-makers and instigators who embody chaos.',
+      features: ['Blessing of the Trickster: Grant advantage on Stealth to ally'],
+    },
+    {
+      name: 'Knowledge Domain',
+      description: 'Gods of knowledge value learning and understanding above all.',
+      features: ['Blessings of Knowledge: Proficiency in 2 extra languages and 2 knowledge skills with expertise'],
+    },
+    {
+      name: 'Nature Domain',
+      description: 'Gods of nature are as varied as the natural world itself.',
+      features: ['Acolyte of Nature: Learn one druid cantrip and gain a skill proficiency'],
+    },
+    {
+      name: 'Tempest Domain',
+      description: 'Gods of tempest govern storms, sea, and sky.',
+      features: ['Wrath of the Storm: Deal 2d8 lightning/thunder damage as reaction when hit'],
+    },
+  ],
+  sorcerer: [
+    {
+      name: 'Draconic Bloodline',
+      description: 'Your innate magic comes from draconic ancestry.',
+      features: ['Dragon Ancestor: Choose dragon type, speak Draconic, HP max +1 per level'],
+    },
+    {
+      name: 'Wild Magic',
+      description: 'Your spellcasting triggers surges of untamed magic.',
+      features: ['Wild Magic Surge: Roll on Wild Magic table after casting 1st level+ spells'],
+    },
+    {
+      name: 'Aberrant Mind',
+      description: 'An alien influence has touched your mind.',
+      features: ['Telepathic Speech: Create telepathic link with creature you can see'],
+    },
+    {
+      name: 'Clockwork Soul',
+      description: 'A cosmic force of order has infused you with magic.',
+      features: ['Restore Balance: Cancel advantage or disadvantage as a reaction'],
+    },
+    {
+      name: 'Shadow Magic',
+      description: 'You are a creature of shadow, touched by the Shadowfell.',
+      features: ['Eyes of the Dark: Gain darkvision 120 ft.'],
+    },
+  ],
+  warlock: [
+    {
+      name: 'The Archfey',
+      description: 'Your patron is a lord or lady of the fey, creatures of legend.',
+      features: ['Fey Presence: Charm or frighten creatures in 10-ft cube'],
+    },
+    {
+      name: 'The Fiend',
+      description: 'You have made a pact with a fiend from the lower planes.',
+      features: ['Dark One\'s Blessing: Gain temp HP equal to CHA mod + warlock level when reducing hostile to 0 HP'],
+    },
+    {
+      name: 'The Great Old One',
+      description: 'Your patron is a mysterious entity from the Far Realm.',
+      features: ['Awakened Mind: Telepathically speak with creatures within 30 ft.'],
+    },
+    {
+      name: 'The Celestial',
+      description: 'Your patron is a being of the Upper Planes.',
+      features: ['Healing Light: Heal creatures with bonus action using d6 pool'],
+    },
+    {
+      name: 'The Hexblade',
+      description: 'You have forged a pact with a sentient weapon from the Shadowfell.',
+      features: ['Hexblade\'s Curse: Curse a creature for bonus damage, crit on 19-20, heal on kill'],
+    },
+  ],
+};
+
 // Class saving throw proficiencies
 export const CLASS_SAVING_THROWS: Record<CharacterClass, (keyof AbilityScores)[]> = {
   barbarian: ['strength', 'constitution'],

@@ -33,6 +33,8 @@ import {
   getDefaultSkillProficiencies,
   CLASS_STARTING_PACKS,
   ALL_SHOP_ITEMS,
+  CLASS_STANDARD_ARRAYS,
+  CLASS_SUBCLASSES,
 } from '../../data/dndData';
 import type { ShopItem } from '../../data/dndData';
 
@@ -60,14 +62,12 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
   const [species, setSpecies] = useState<Species>('human');
   const [subspecies, setSubspecies] = useState<string>('');
   const [characterClass, setCharacterClass] = useState<CharacterClass>('fighter');
+  const [subclass, setSubclass] = useState<string>('');
   const [background, setBackground] = useState('Folk Hero');
   const [alignment, setAlignment] = useState('True Neutral');
 
-  // Ability scores
-  const [abilityScores, setAbilityScores] = useState<AbilityScores>({
-    strength: 15, dexterity: 14, constitution: 13,
-    intelligence: 12, wisdom: 10, charisma: 8,
-  });
+  // Ability scores - initialize with fighter's standard array
+  const [abilityScores, setAbilityScores] = useState<AbilityScores>(CLASS_STANDARD_ARRAYS['fighter']);
   const [abilityMethod, setAbilityMethod] = useState<'standard' | 'roll'>('standard');
 
   // HP method
@@ -110,6 +110,20 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     setSelectedCantrips([]);
     setSelectedSpells([]);
   }, [characterClass, background]);
+
+  // Reset ability scores to class-specific standard when class changes (if using standard method)
+  useEffect(() => {
+    if (abilityMethod === 'standard') {
+      setAbilityScores(CLASS_STANDARD_ARRAYS[characterClass]);
+    }
+    // Reset subclass when class changes
+    const subclasses = CLASS_SUBCLASSES[characterClass];
+    if (subclasses && subclasses.length > 0) {
+      setSubclass(subclasses[0].name);
+    } else {
+      setSubclass('');
+    }
+  }, [characterClass]);
 
   // Reset rolled HP when class changes
   useEffect(() => {
@@ -395,6 +409,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       name,
       species,
       characterClass,
+      subclass: subclass || undefined,
       level,
       background,
       alignment,
@@ -497,6 +512,34 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
         <p className="text-parchment/70 text-xs">Primary: {classInfo.primaryAbility} | Saves: {classInfo.savingThrows}</p>
       </div>
 
+      {/* Subclass selection for classes that choose at level 1 */}
+      {CLASS_SUBCLASSES[characterClass] && (
+        <div>
+          <label className="block text-parchment text-sm mb-1">
+            {characterClass === 'cleric' ? 'Divine Domain' :
+             characterClass === 'sorcerer' ? 'Sorcerous Origin' :
+             characterClass === 'warlock' ? 'Otherworldly Patron' : 'Subclass'}
+          </label>
+          <select
+            value={subclass}
+            onChange={(e) => setSubclass(e.target.value)}
+            className="w-full bg-parchment text-dark-wood px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-gold"
+          >
+            {CLASS_SUBCLASSES[characterClass]!.map(sc => (
+              <option key={sc.name} value={sc.name}>{sc.name}</option>
+            ))}
+          </select>
+          <p className="text-parchment/60 text-xs mt-1">
+            {CLASS_SUBCLASSES[characterClass]!.find(sc => sc.name === subclass)?.description}
+          </p>
+          <div className="mt-1">
+            {CLASS_SUBCLASSES[characterClass]!.find(sc => sc.name === subclass)?.features.map((f, i) => (
+              <p key={i} className="text-gold/80 text-xs">• {f}</p>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div>
         <label className="block text-parchment text-sm mb-1">Background</label>
         <select
@@ -539,7 +582,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
         <div className="flex gap-2 mb-4">
           <Button size="sm" variant={abilityMethod === 'standard' ? 'primary' : 'secondary'} onClick={() => {
             setAbilityMethod('standard');
-            setAbilityScores({ strength: 15, dexterity: 14, constitution: 13, intelligence: 12, wisdom: 10, charisma: 8 });
+            setAbilityScores(CLASS_STANDARD_ARRAYS[characterClass]);
           }}>
             Standard Array
           </Button>
@@ -550,7 +593,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
 
         <p className="text-parchment/70 text-xs">
           {abilityMethod === 'standard'
-            ? 'Standard Array: 15, 14, 13, 12, 10, 8. Click arrows to swap values between abilities.'
+            ? `${CLASS_NAMES[characterClass]} Standard Array: Optimized for ${CLASS_NAMES[characterClass]}. Click arrows to swap.`
             : 'Rolled scores. Click arrows to swap values or re-roll.'}
         </p>
 
