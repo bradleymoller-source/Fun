@@ -70,6 +70,13 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
   const [abilityScores, setAbilityScores] = useState<AbilityScores>(CLASS_STANDARD_ARRAYS['fighter']);
   const [abilityMethod, setAbilityMethod] = useState<'standard' | 'roll'>('standard');
 
+  // Ability Score Increases (ASI) from character origin
+  // D&D 5e 2024: +2 to one, +1 to another OR +1 to three different
+  const [asiMethod, setAsiMethod] = useState<'2-1' | '1-1-1'>('2-1');
+  const [asiPlus2, setAsiPlus2] = useState<keyof AbilityScores | null>(null);
+  const [asiPlus1, setAsiPlus1] = useState<keyof AbilityScores | null>(null);
+  const [asiTriple, setAsiTriple] = useState<(keyof AbilityScores)[]>([]);
+
   // HP method
   const [hpMethod, setHpMethod] = useState<'standard' | 'roll'>('standard');
   const [rolledHp, setRolledHp] = useState<number | null>(null);
@@ -195,9 +202,32 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     setHpMethod('roll');
   };
 
+  // Calculate final ability scores with ASI bonuses applied
+  const getFinalAbilityScores = (): AbilityScores => {
+    const finalScores = { ...abilityScores };
+
+    if (asiMethod === '2-1') {
+      if (asiPlus2) {
+        finalScores[asiPlus2] = Math.min(20, finalScores[asiPlus2] + 2);
+      }
+      if (asiPlus1) {
+        finalScores[asiPlus1] = Math.min(20, finalScores[asiPlus1] + 1);
+      }
+    } else {
+      // 1-1-1 method
+      asiTriple.forEach(ability => {
+        finalScores[ability] = Math.min(20, finalScores[ability] + 1);
+      });
+    }
+
+    return finalScores;
+  };
+
   const getCalculatedHp = () => {
     const hitDie = CLASS_HIT_DICE[characterClass];
-    const conMod = getAbilityModifier(abilityScores.constitution);
+    // Use final CON score with ASI applied
+    const finalScores = getFinalAbilityScores();
+    const conMod = getAbilityModifier(finalScores.constitution);
 
     if (hpMethod === 'roll' && rolledHp !== null) {
       // Rolled HP: roll result + CON modifier (minimum 1)
@@ -213,6 +243,23 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       [a]: prev[b],
       [b]: prev[a],
     }));
+  };
+
+  // Toggle an ability for the +1/+1/+1 ASI method
+  const toggleAsiTriple = (ability: keyof AbilityScores) => {
+    if (asiTriple.includes(ability)) {
+      setAsiTriple(prev => prev.filter(a => a !== ability));
+    } else if (asiTriple.length < 3) {
+      setAsiTriple(prev => [...prev, ability]);
+    }
+  };
+
+  // Reset ASI selections when method changes
+  const handleAsiMethodChange = (method: '2-1' | '1-1-1') => {
+    setAsiMethod(method);
+    setAsiPlus2(null);
+    setAsiPlus1(null);
+    setAsiTriple([]);
   };
 
   const toggleClassSkill = (skill: SkillName) => {
@@ -294,7 +341,8 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
   const createCharacter = (): Character => {
     const level = 1;
     const maxHp = getCalculatedHp();
-    const dexMod = getAbilityModifier(abilityScores.dexterity);
+    const finalScores = getFinalAbilityScores();
+    const dexMod = getAbilityModifier(finalScores.dexterity);
 
     // Combine background and class skill proficiencies
     const finalSkills = { ...getDefaultSkillProficiencies() };
@@ -414,7 +462,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       background,
       alignment,
       experiencePoints: 0,
-      abilityScores,
+      abilityScores: finalScores,
       savingThrowProficiencies: CLASS_SAVING_THROWS[characterClass],
       skillProficiencies: finalSkills,
       armorProficiencies: [],
@@ -669,6 +717,128 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Ability Score Increases (Origin Bonuses) */}
+        <div className="mt-6 pt-4 border-t border-leather">
+          <h4 className="font-medieval text-md text-gold mb-2">Origin Ability Bonuses</h4>
+          <p className="text-parchment/70 text-xs mb-3">
+            Your character's origin grants ability bonuses. Choose one option:
+          </p>
+
+          <div className="flex gap-2 mb-3">
+            <Button
+              size="sm"
+              variant={asiMethod === '2-1' ? 'primary' : 'secondary'}
+              onClick={() => handleAsiMethodChange('2-1')}
+            >
+              +2 / +1
+            </Button>
+            <Button
+              size="sm"
+              variant={asiMethod === '1-1-1' ? 'primary' : 'secondary'}
+              onClick={() => handleAsiMethodChange('1-1-1')}
+            >
+              +1 / +1 / +1
+            </Button>
+          </div>
+
+          {asiMethod === '2-1' ? (
+            <div className="space-y-3">
+              <div>
+                <label className="text-parchment/70 text-sm mb-1 block">+2 Bonus:</label>
+                <div className="flex flex-wrap gap-2">
+                  {abilities.map(ability => (
+                    <button
+                      key={`plus2-${ability}`}
+                      onClick={() => {
+                        if (asiPlus1 === ability) setAsiPlus1(null);
+                        setAsiPlus2(asiPlus2 === ability ? null : ability);
+                      }}
+                      className={`px-3 py-1 rounded text-sm transition-colors ${
+                        asiPlus2 === ability
+                          ? 'bg-gold text-dark-wood font-bold'
+                          : 'bg-leather/50 text-parchment hover:bg-leather'
+                      }`}
+                    >
+                      {ABILITY_ABBREVIATIONS[ability]}
+                      {asiPlus2 === ability && ' +2'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-parchment/70 text-sm mb-1 block">+1 Bonus (different ability):</label>
+                <div className="flex flex-wrap gap-2">
+                  {abilities.filter(a => a !== asiPlus2).map(ability => (
+                    <button
+                      key={`plus1-${ability}`}
+                      onClick={() => setAsiPlus1(asiPlus1 === ability ? null : ability)}
+                      className={`px-3 py-1 rounded text-sm transition-colors ${
+                        asiPlus1 === ability
+                          ? 'bg-gold text-dark-wood font-bold'
+                          : 'bg-leather/50 text-parchment hover:bg-leather'
+                      }`}
+                    >
+                      {ABILITY_ABBREVIATIONS[ability]}
+                      {asiPlus1 === ability && ' +1'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <label className="text-parchment/70 text-sm mb-1 block">
+                +1 to three different abilities ({asiTriple.length}/3):
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {abilities.map(ability => {
+                  const isSelected = asiTriple.includes(ability);
+                  return (
+                    <button
+                      key={`triple-${ability}`}
+                      onClick={() => toggleAsiTriple(ability)}
+                      disabled={!isSelected && asiTriple.length >= 3}
+                      className={`px-3 py-1 rounded text-sm transition-colors ${
+                        isSelected
+                          ? 'bg-gold text-dark-wood font-bold'
+                          : 'bg-leather/50 text-parchment hover:bg-leather disabled:opacity-50'
+                      }`}
+                    >
+                      {ABILITY_ABBREVIATIONS[ability]}
+                      {isSelected && ' +1'}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Final Scores Preview */}
+          {((asiMethod === '2-1' && (asiPlus2 || asiPlus1)) || (asiMethod === '1-1-1' && asiTriple.length > 0)) && (
+            <div className="mt-4 bg-dark-wood p-3 rounded border border-gold/50">
+              <div className="text-gold text-sm mb-2">Final Ability Scores (with bonuses):</div>
+              <div className="grid grid-cols-6 gap-1 text-center">
+                {abilities.map(ability => {
+                  const baseScore = abilityScores[ability];
+                  const finalScore = getFinalAbilityScores()[ability];
+                  const hasBonus = finalScore > baseScore;
+                  return (
+                    <div key={`final-${ability}`} className={`p-2 rounded ${hasBonus ? 'bg-gold/20' : 'bg-leather/30'}`}>
+                      <div className="text-parchment/70 text-xs">{ABILITY_ABBREVIATIONS[ability]}</div>
+                      <div className={`font-bold ${hasBonus ? 'text-gold' : 'text-parchment'}`}>
+                        {finalScore}
+                      </div>
+                      {hasBonus && (
+                        <div className="text-green-400 text-xs">+{finalScore - baseScore}</div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -1040,6 +1210,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     const hitDie = CLASS_HIT_DICE[characterClass];
     const maxHp = getCalculatedHp();
     const profBonus = getProficiencyBonus(1);
+    const finalScores = getFinalAbilityScores();
 
     const allProficientSkills = [
       ...backgroundInfo.skillProficiencies,
@@ -1061,7 +1232,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
 
           <div className="grid grid-cols-3 gap-2 text-center">
             <div className="bg-leather/50 p-2 rounded">
-              <div className="text-gold font-bold text-xl">{10 + getAbilityModifier(abilityScores.dexterity)}</div>
+              <div className="text-gold font-bold text-xl">{10 + getAbilityModifier(finalScores.dexterity)}</div>
               <div className="text-parchment/70 text-xs">AC</div>
             </div>
             <div className="bg-leather/50 p-2 rounded">
@@ -1075,15 +1246,20 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
           </div>
 
           <div className="grid grid-cols-6 gap-1 text-center">
-            {(Object.keys(ABILITY_ABBREVIATIONS) as (keyof AbilityScores)[]).map(ability => (
-              <div key={ability} className="bg-leather/30 p-2 rounded">
-                <div className="text-parchment/70 text-xs">{ABILITY_ABBREVIATIONS[ability]}</div>
-                <div className="text-gold font-bold">{abilityScores[ability]}</div>
-                <div className="text-parchment text-xs">
-                  {formatModifier(getAbilityModifier(abilityScores[ability]))}
+            {(Object.keys(ABILITY_ABBREVIATIONS) as (keyof AbilityScores)[]).map(ability => {
+              const baseScore = abilityScores[ability];
+              const finalScore = finalScores[ability];
+              const hasBonus = finalScore > baseScore;
+              return (
+                <div key={ability} className={`p-2 rounded ${hasBonus ? 'bg-gold/20' : 'bg-leather/30'}`}>
+                  <div className="text-parchment/70 text-xs">{ABILITY_ABBREVIATIONS[ability]}</div>
+                  <div className={`font-bold ${hasBonus ? 'text-gold' : 'text-parchment'}`}>{finalScore}</div>
+                  <div className="text-parchment text-xs">
+                    {formatModifier(getAbilityModifier(finalScore))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div>
