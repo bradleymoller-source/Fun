@@ -130,8 +130,8 @@ export function MapCanvas({ width, height, isDm, isLocked = false, onTokenMove }
     const x = token.x * gridSize + map.gridOffsetX;
     const y = token.y * gridSize + map.gridOffsetY;
 
-    // Can this token be dragged? Only DM can drag, and only if not locked
-    const canDrag = isDm && !isLocked;
+    // DM can always drag tokens (even when map is locked - lock only affects pan/zoom)
+    const canDrag = isDm;
 
     return (
       <Group
@@ -139,7 +139,12 @@ export function MapCanvas({ width, height, isDm, isLocked = false, onTokenMove }
         x={x}
         y={y}
         draggable={canDrag}
+        onDragStart={(e) => {
+          // Stop the drag from bubbling to the Stage (prevents map from moving)
+          e.cancelBubble = true;
+        }}
         onDragEnd={(e) => {
+          e.cancelBubble = true;
           if (!onTokenMove) return;
           // Convert pixel position back to grid position
           const newX = Math.round((e.target.x() - map.gridOffsetX) / gridSize);
@@ -279,13 +284,13 @@ export function MapCanvas({ width, height, isDm, isLocked = false, onTokenMove }
 
       {/* Info overlay */}
       <div className="absolute top-2 left-2 text-parchment/50 text-xs">
-        {isLocked ? 'Map locked' : 'Scroll to zoom • Drag to pan'}
+        {isLocked ? 'Map locked (tokens still moveable)' : 'Scroll to zoom • Drag to pan'}
       </div>
 
       {/* Lock indicator */}
       {isLocked && (
-        <div className="absolute top-2 right-2 bg-red-600/80 text-white px-2 py-1 rounded text-xs">
-          LOCKED
+        <div className="absolute top-2 right-2 bg-green-600/80 text-white px-2 py-1 rounded text-xs">
+          MAP LOCKED
         </div>
       )}
     </div>
