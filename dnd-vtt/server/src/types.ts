@@ -87,6 +87,15 @@ export interface InitiativeEntry {
   conditions?: Condition[];
 }
 
+// Simplified character data for server storage
+export interface CharacterData {
+  id: string;
+  playerId: string;
+  name: string;
+  data: string; // JSON stringified character data
+  updatedAt: string;
+}
+
 // Represents a game session
 export interface Session {
   roomCode: string;     // 6-character code players use to join
@@ -96,6 +105,7 @@ export interface Session {
   map: MapState;        // Current map state
   initiative: InitiativeEntry[];  // Combat initiative order
   isInCombat: boolean;  // Whether combat is active
+  characters: Map<string, CharacterData>;  // Player characters (keyed by playerId)
   createdAt: Date;
   lastActivity: Date;
 }

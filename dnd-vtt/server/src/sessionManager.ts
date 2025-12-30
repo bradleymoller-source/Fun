@@ -1,4 +1,4 @@
-import type { Session, Player, CreateSessionResponse, MapState, Token, FogArea, InitiativeEntry } from './types';
+import type { Session, Player, CreateSessionResponse, MapState, Token, FogArea, InitiativeEntry, CharacterData } from './types';
 import { generateRoomCode, generateDmKey } from './roomCode';
 import db, { cleanupExpiredSessions } from './database';
 
@@ -39,6 +39,7 @@ export function createSession(): CreateSessionResponse {
     map: { ...defaultMapState },
     initiative: [],
     isInCombat: false,
+    characters: new Map(),
     createdAt: now,
     lastActivity: now,
   };
@@ -252,6 +253,7 @@ export function loadSessionsFromDb(): void {
       map: { ...defaultMapState },
       initiative: [],
       isInCombat: false,
+      characters: new Map(),
       createdAt: new Date(row.created_at),
       lastActivity: new Date(row.last_activity),
     };
@@ -332,6 +334,66 @@ export function endCombat(roomCode: string): { initiative: InitiativeEntry[]; is
 
   updateActivity(roomCode);
   return { initiative: session.initiative, isInCombat: session.isInCombat };
+}
+
+// Phase 4: Character management functions
+export function saveCharacter(roomCode: string, playerId: string, characterData: any): CharacterData | null {
+  const session = getSession(roomCode);
+  if (!session) return null;
+
+  const charData: CharacterData = {
+    id: characterData.id || `char-${playerId}`,
+    playerId,
+    name: characterData.name || 'Unknown',
+    data: JSON.stringify(characterData),
+    updatedAt: new Date().toISOString(),
+  };
+
+  session.characters.set(playerId, charData);
+  updateActivity(roomCode);
+
+  console.log(`Character saved for player ${playerId} in ${roomCode}: ${charData.name}`);
+  return charData;
+}
+
+export function getCharacter(roomCode: string, playerId: string): any | null {
+  const session = getSession(roomCode);
+  if (!session) return null;
+
+  const charData = session.characters.get(playerId);
+  if (!charData) return null;
+
+  try {
+    return JSON.parse(charData.data);
+  } catch {
+    return null;
+  }
+}
+
+export function getAllCharacters(roomCode: string): any[] {
+  const session = getSession(roomCode);
+  if (!session) return [];
+
+  const characters: any[] = [];
+  for (const charData of session.characters.values()) {
+    try {
+      characters.push(JSON.parse(charData.data));
+    } catch {
+      // Skip invalid characters
+    }
+  }
+  return characters;
+}
+
+export function deleteCharacter(roomCode: string, playerId: string): boolean {
+  const session = getSession(roomCode);
+  if (!session) return false;
+
+  const deleted = session.characters.delete(playerId);
+  if (deleted) {
+    updateActivity(roomCode);
+  }
+  return deleted;
 }
 
 // Re-export for use in index.ts

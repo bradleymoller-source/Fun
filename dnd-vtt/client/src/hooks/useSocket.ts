@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useSessionStore } from '../stores/sessionStore';
-import type { Token, MapState, DiceRoll, ChatMessage, InitiativeEntry } from '../types';
+import type { Token, MapState, DiceRoll, ChatMessage, InitiativeEntry, Character } from '../types';
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
 
@@ -146,6 +146,13 @@ export function useSocket() {
     // Combat ended
     socket.on('combat-ended', () => {
       store.endCombat();
+    });
+
+    // ============ PHASE 4: CHARACTER EVENTS ============
+
+    // Character updated (DM receives when player saves)
+    socket.on('character-updated', (data) => {
+      store.updateAllCharacters(data.playerId, data.character);
     });
 
     return () => {
@@ -526,6 +533,70 @@ export function useSocket() {
     });
   }, []);
 
+  // ============ PHASE 4: CHARACTER FUNCTIONS ============
+
+  // Save character to server
+  const saveCharacter = useCallback((character: Character) => {
+    return new Promise<void>((resolve, reject) => {
+      if (!socketRef.current) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      socketRef.current.emit('save-character', { character }, (response: any) => {
+        if (response.success) {
+          console.log('Character saved to server');
+          resolve();
+        } else {
+          store.setError(response.error);
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }, []);
+
+  // Load character from server
+  const loadCharacter = useCallback(() => {
+    return new Promise<Character | null>((resolve, reject) => {
+      if (!socketRef.current) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      socketRef.current.emit('get-character', (response: any) => {
+        if (response.success) {
+          if (response.character) {
+            store.setCharacter(response.character);
+          }
+          resolve(response.character || null);
+        } else {
+          store.setError(response.error);
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }, []);
+
+  // Get all characters (DM only)
+  const getAllCharacters = useCallback(() => {
+    return new Promise<Character[]>((resolve, reject) => {
+      if (!socketRef.current) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      socketRef.current.emit('get-all-characters', (response: any) => {
+        if (response.success) {
+          store.setAllCharacters(response.characters || []);
+          resolve(response.characters || []);
+        } else {
+          store.setError(response.error);
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }, []);
+
   return {
     socket: socketRef.current,
     isConnected: store.isConnected,
@@ -549,5 +620,9 @@ export function useSocket() {
     nextTurn,
     startCombat,
     endCombat,
+    // Phase 4: Character
+    saveCharacter,
+    loadCharacter,
+    getAllCharacters,
   };
 }

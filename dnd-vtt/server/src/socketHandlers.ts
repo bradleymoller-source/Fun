@@ -22,6 +22,9 @@ import {
   nextTurn,
   startCombat,
   endCombat,
+  saveCharacter,
+  getCharacter,
+  getAllCharacters,
 } from './sessionManager';
 import { JoinSessionRequest, ReclaimSessionRequest, Token, MapState, DiceRoll, ChatMessage, InitiativeEntry } from './types';
 
@@ -599,6 +602,71 @@ export function setupSocketHandlers(io: Server): void {
     });
 
     // ============ END PHASE 3 ============
+
+    // ============ PHASE 4: CHARACTER PERSISTENCE ============
+
+    // Save character (player saves their character)
+    socket.on('save-character', (data: { character: any }, callback: (response: any) => void) => {
+      const sessionInfo = socketSessions.get(socket.id);
+
+      if (!sessionInfo) {
+        callback({ success: false, error: 'Not in a session' });
+        return;
+      }
+
+      const { roomCode } = sessionInfo;
+      const result = saveCharacter(roomCode, socket.id, data.character);
+
+      if (!result) {
+        callback({ success: false, error: 'Failed to save character' });
+        return;
+      }
+
+      // Notify DM about the character update
+      const session = getSession(roomCode);
+      if (session?.dmSocketId) {
+        io.to(session.dmSocketId).emit('character-updated', {
+          playerId: socket.id,
+          character: data.character,
+        });
+      }
+
+      console.log(`Character saved: ${data.character.name} by ${socket.id}`);
+
+      callback({ success: true });
+    });
+
+    // Get own character (player loads their character)
+    socket.on('get-character', (callback: (response: any) => void) => {
+      const sessionInfo = socketSessions.get(socket.id);
+
+      if (!sessionInfo) {
+        callback({ success: false, error: 'Not in a session' });
+        return;
+      }
+
+      const { roomCode } = sessionInfo;
+      const character = getCharacter(roomCode, socket.id);
+
+      callback({ success: true, character });
+    });
+
+    // Get all characters (DM only)
+    socket.on('get-all-characters', (callback: (response: any) => void) => {
+      const sessionInfo = socketSessions.get(socket.id);
+
+      if (!sessionInfo || !sessionInfo.isDm) {
+        callback({ success: false, error: 'Only the DM can view all characters' });
+        return;
+      }
+
+      const { roomCode } = sessionInfo;
+      const characters = getAllCharacters(roomCode);
+
+      callback({ success: true, characters });
+    });
+
+    // ============ END PHASE 4 ============
 
     // Handle disconnection
     socket.on('disconnect', () => {
