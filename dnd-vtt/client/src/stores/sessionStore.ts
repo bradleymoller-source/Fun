@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Player, SessionState, MapState, Token, FogArea, SavedMap } from '../types';
+import type { Player, SessionState, MapState, Token, FogArea, SavedMap, DiceRoll, ChatMessage, InitiativeEntry } from '../types';
 
 const initialMapState: MapState = {
   imageUrl: null,
@@ -50,6 +50,24 @@ interface SessionStore extends SessionState {
   deleteSavedMap: (mapId: string) => void;
   setSavedMaps: (maps: SavedMap[]) => void;
   setActiveMapId: (mapId: string | null) => void;
+
+  // Phase 3: Dice Actions
+  addDiceRoll: (roll: DiceRoll) => void;
+  clearDiceHistory: () => void;
+
+  // Phase 3: Chat Actions
+  addChatMessage: (message: ChatMessage) => void;
+  clearChatMessages: () => void;
+
+  // Phase 3: Initiative Actions
+  setInitiative: (entries: InitiativeEntry[]) => void;
+  addInitiativeEntry: (entry: InitiativeEntry) => void;
+  removeInitiativeEntry: (entryId: string) => void;
+  updateInitiativeEntry: (entryId: string, updates: Partial<InitiativeEntry>) => void;
+  setActiveInitiative: (entryId: string) => void;
+  nextTurn: () => void;
+  startCombat: () => void;
+  endCombat: () => void;
 }
 
 const initialState: SessionState = {
@@ -62,6 +80,10 @@ const initialState: SessionState = {
   map: initialMapState,
   savedMaps: [],
   activeMapId: null,
+  diceHistory: [],
+  chatMessages: [],
+  initiative: [],
+  isInCombat: false,
   view: 'landing',
   error: null,
 };
@@ -195,7 +217,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   // Map Library Actions
   saveCurrentMap: (name) => {
     const state = get();
-    if (!state.map.imageUrl) return; // Can't save without an image
+    if (!state.map.imageUrl) return;
 
     const newMap: SavedMap = {
       id: `map-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -231,11 +253,84 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   deleteSavedMap: (mapId) =>
     set((state) => ({
       savedMaps: state.savedMaps.filter((m) => m.id !== mapId),
-      // If deleted map was active, clear it
       activeMapId: state.activeMapId === mapId ? null : state.activeMapId,
     })),
 
   setSavedMaps: (savedMaps) => set({ savedMaps }),
 
   setActiveMapId: (activeMapId) => set({ activeMapId }),
+
+  // Phase 3: Dice Actions
+  addDiceRoll: (roll) =>
+    set((state) => ({
+      diceHistory: [roll, ...state.diceHistory].slice(0, 50),
+    })),
+
+  clearDiceHistory: () => set({ diceHistory: [] }),
+
+  // Phase 3: Chat Actions
+  addChatMessage: (message) =>
+    set((state) => ({
+      chatMessages: [...state.chatMessages, message].slice(-100),
+    })),
+
+  clearChatMessages: () => set({ chatMessages: [] }),
+
+  // Phase 3: Initiative Actions
+  setInitiative: (initiative) => set({ initiative }),
+
+  addInitiativeEntry: (entry) =>
+    set((state) => ({
+      initiative: [...state.initiative, entry].sort((a, b) => b.initiative - a.initiative),
+    })),
+
+  removeInitiativeEntry: (entryId) =>
+    set((state) => ({
+      initiative: state.initiative.filter((e) => e.id !== entryId),
+    })),
+
+  updateInitiativeEntry: (entryId, updates) =>
+    set((state) => ({
+      initiative: state.initiative
+        .map((e) => (e.id === entryId ? { ...e, ...updates } : e))
+        .sort((a, b) => b.initiative - a.initiative),
+    })),
+
+  setActiveInitiative: (entryId) =>
+    set((state) => ({
+      initiative: state.initiative.map((e) => ({
+        ...e,
+        isActive: e.id === entryId,
+      })),
+    })),
+
+  nextTurn: () =>
+    set((state) => {
+      if (state.initiative.length === 0) return state;
+
+      const currentIndex = state.initiative.findIndex((e) => e.isActive);
+      const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % state.initiative.length;
+
+      return {
+        initiative: state.initiative.map((e, i) => ({
+          ...e,
+          isActive: i === nextIndex,
+        })),
+      };
+    }),
+
+  startCombat: () =>
+    set((state) => ({
+      isInCombat: true,
+      initiative: state.initiative.map((e, i) => ({
+        ...e,
+        isActive: i === 0,
+      })),
+    })),
+
+  endCombat: () =>
+    set({
+      isInCombat: false,
+      initiative: [],
+    }),
 }));

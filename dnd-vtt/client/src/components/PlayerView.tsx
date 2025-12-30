@@ -1,7 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { Panel } from './ui/Panel';
 import { useSessionStore } from '../stores/sessionStore';
+import { useSocket } from '../hooks/useSocket';
 import { MapCanvas } from './Map/MapCanvas';
+import { DiceRoller } from './DiceRoller';
+import { ChatPanel } from './ChatPanel';
+import { InitiativeTracker } from './InitiativeTracker';
+import type { DiceRoll, ChatMessage } from '../types';
 
 type MapOrientation = 'landscape' | 'portrait';
 
@@ -12,6 +17,7 @@ const ORIENTATION_SIZES = {
 
 export function PlayerView() {
   const { roomCode, playerName, players, isConnected } = useSessionStore();
+  const { rollDice, sendChatMessage, socket } = useSocket();
   const [showParty, setShowParty] = useState(false);
   const [mapOrientation, setMapOrientation] = useState<MapOrientation>('landscape');
   const [mapDimensions, setMapDimensions] = useState(ORIENTATION_SIZES.landscape);
@@ -38,6 +44,32 @@ export function PlayerView() {
     window.addEventListener('resize', updateDimensions);
     return () => window.removeEventListener('resize', updateDimensions);
   }, [mapOrientation]);
+
+  // Phase 3: Dice Roll Handler
+  const handleDiceRoll = async (roll: DiceRoll) => {
+    try {
+      await rollDice(roll);
+    } catch (error) {
+      console.error('Failed to roll dice:', error);
+    }
+  };
+
+  // Phase 3: Chat Message Handler
+  const handleSendMessage = async (content: string) => {
+    const message: ChatMessage = {
+      id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      senderId: socket?.id || 'player',
+      senderName: playerName || 'Player',
+      content,
+      timestamp: new Date().toISOString(),
+      type: 'chat',
+    };
+    try {
+      await sendChatMessage(message);
+    } catch (error) {
+      console.error('Failed to send message:', error);
+    }
+  };
 
   return (
     <div className="min-h-screen p-4">
@@ -112,42 +144,89 @@ export function PlayerView() {
           )}
         </Panel>
 
-        {/* Map Display */}
-        <div ref={mapContainerRef}>
-          {/* Map Toolbar */}
-          <div className="flex items-center justify-between mb-2 bg-dark-wood p-2 rounded-lg border border-leather">
-            <div className="flex items-center gap-2">
-              <span className="text-parchment text-sm">View:</span>
-              <button
-                onClick={() => setMapOrientation('landscape')}
-                className={`px-3 py-1 rounded text-sm ${
-                  mapOrientation === 'landscape'
-                    ? 'bg-gold text-dark-wood'
-                    : 'bg-leather text-parchment hover:bg-leather/70'
-                }`}
-              >
-                Landscape
-              </button>
-              <button
-                onClick={() => setMapOrientation('portrait')}
-                className={`px-3 py-1 rounded text-sm ${
-                  mapOrientation === 'portrait'
-                    ? 'bg-gold text-dark-wood'
-                    : 'bg-leather text-parchment hover:bg-leather/70'
-                }`}
-              >
-                Portrait
-              </button>
+        {/* Main Content: Map + Sidebar */}
+        <div className="flex flex-col lg:flex-row gap-4">
+          {/* Map Display */}
+          <div className="flex-1" ref={mapContainerRef}>
+            {/* Map Toolbar */}
+            <div className="flex items-center justify-between mb-2 bg-dark-wood p-2 rounded-lg border border-leather">
+              <div className="flex items-center gap-2">
+                <span className="text-parchment text-sm">View:</span>
+                <button
+                  onClick={() => setMapOrientation('landscape')}
+                  className={`px-3 py-1 rounded text-sm ${
+                    mapOrientation === 'landscape'
+                      ? 'bg-gold text-dark-wood'
+                      : 'bg-leather text-parchment hover:bg-leather/70'
+                  }`}
+                >
+                  Landscape
+                </button>
+                <button
+                  onClick={() => setMapOrientation('portrait')}
+                  className={`px-3 py-1 rounded text-sm ${
+                    mapOrientation === 'portrait'
+                      ? 'bg-gold text-dark-wood'
+                      : 'bg-leather text-parchment hover:bg-leather/70'
+                  }`}
+                >
+                  Portrait
+                </button>
+              </div>
             </div>
+
+            <Panel className="p-2">
+              <MapCanvas
+                width={mapDimensions.width}
+                height={mapDimensions.height}
+                isDm={false}
+              />
+            </Panel>
           </div>
 
-          <Panel className="p-2">
-            <MapCanvas
-              width={mapDimensions.width}
-              height={mapDimensions.height}
-              isDm={false}
-            />
-          </Panel>
+          {/* Sidebar - Phase 3 Features */}
+          <div className="w-full lg:w-80 space-y-4">
+            {/* Initiative Tracker (view only for players) */}
+            <Panel>
+              <h2 className="font-medieval text-xl text-gold mb-4">
+                Initiative
+              </h2>
+              <InitiativeTracker
+                isDm={false}
+                onAddEntry={() => {}}
+                onRemoveEntry={() => {}}
+                onUpdateEntry={() => {}}
+                onNextTurn={() => {}}
+                onStartCombat={() => {}}
+                onEndCombat={() => {}}
+              />
+            </Panel>
+
+            {/* Dice Roller */}
+            <Panel>
+              <h2 className="font-medieval text-xl text-gold mb-4">
+                Dice Roller
+              </h2>
+              <DiceRoller
+                onRoll={handleDiceRoll}
+                playerId={socket?.id || 'player'}
+                playerName={playerName || 'Player'}
+                isDm={false}
+              />
+            </Panel>
+
+            {/* Chat */}
+            <Panel>
+              <h2 className="font-medieval text-xl text-gold mb-4">
+                Party Chat
+              </h2>
+              <ChatPanel
+                onSendMessage={handleSendMessage}
+                playerId={socket?.id || 'player'}
+                playerName={playerName || 'Player'}
+              />
+            </Panel>
+          </div>
         </div>
       </div>
     </div>

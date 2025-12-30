@@ -43,6 +43,40 @@ export interface MapState {
   fogOfWar: FogArea[];
 }
 
+// Phase 3: Dice Roll
+export interface DiceRoll {
+  id: string;
+  playerId: string;
+  playerName: string;
+  notation: string;
+  rolls: number[];
+  modifier: number;
+  total: number;
+  timestamp: string;
+  isPrivate: boolean;
+}
+
+// Phase 3: Chat Message
+export interface ChatMessage {
+  id: string;
+  senderId: string;
+  senderName: string;
+  content: string;
+  timestamp: string;
+  type: 'chat' | 'roll' | 'system';
+}
+
+// Phase 3: Initiative Entry
+export interface InitiativeEntry {
+  id: string;
+  name: string;
+  initiative: number;
+  isNpc: boolean;
+  isActive: boolean;
+  tokenId?: string;
+  playerId?: string;
+}
+
 // Represents a game session
 export interface Session {
   roomCode: string;     // 6-character code players use to join
@@ -50,6 +84,8 @@ export interface Session {
   dmSocketId: string | null;  // Current DM socket connection
   players: Map<string, Player>;
   map: MapState;        // Current map state
+  initiative: InitiativeEntry[];  // Combat initiative order
+  isInCombat: boolean;  // Whether combat is active
   createdAt: Date;
   lastActivity: Date;
 }

@@ -15,8 +15,15 @@ import {
   updateToken as updateTokenInSession,
   removeToken as removeTokenFromSession,
   moveToken as moveTokenInSession,
+  getInitiative,
+  setInitiative,
+  addInitiativeEntry,
+  removeInitiativeEntry,
+  nextTurn,
+  startCombat,
+  endCombat,
 } from './sessionManager';
-import { JoinSessionRequest, ReclaimSessionRequest, Token, MapState } from './types';
+import { JoinSessionRequest, ReclaimSessionRequest, Token, MapState, DiceRoll, ChatMessage, InitiativeEntry } from './types';
 
 // Track which session each socket belongs to
 const socketSessions = new Map<string, { roomCode: string; isDm: boolean }>();
@@ -374,6 +381,198 @@ export function setupSocketHandlers(io: Server): void {
     });
 
     // ============ END MAP EVENTS ============
+
+    // ============ PHASE 3: DICE, CHAT, INITIATIVE ============
+
+    // Roll dice (any player or DM)
+    socket.on('roll-dice', (data: { roll: DiceRoll }, callback: (response: any) => void) => {
+      const sessionInfo = socketSessions.get(socket.id);
+
+      if (!sessionInfo) {
+        callback({ success: false, error: 'Not in a session' });
+        return;
+      }
+
+      const { roomCode, isDm } = sessionInfo;
+
+      // Private rolls only go to DM
+      if (data.roll.isPrivate) {
+        // Find DM socket and send only to them
+        const session = getSession(roomCode);
+        if (session?.dmSocketId) {
+          io.to(session.dmSocketId).emit('dice-rolled', { roll: data.roll });
+        }
+      } else {
+        // Broadcast to all in room
+        io.to(roomCode).emit('dice-rolled', { roll: data.roll });
+      }
+
+      console.log(`Dice rolled in ${roomCode}: ${data.roll.notation} = ${data.roll.total}`);
+
+      callback({ success: true });
+    });
+
+    // Send chat message (any player or DM)
+    socket.on('send-chat', (data: { message: ChatMessage }, callback: (response: any) => void) => {
+      const sessionInfo = socketSessions.get(socket.id);
+
+      if (!sessionInfo) {
+        callback({ success: false, error: 'Not in a session' });
+        return;
+      }
+
+      const { roomCode } = sessionInfo;
+
+      // Broadcast to all in room
+      io.to(roomCode).emit('chat-received', { message: data.message });
+
+      console.log(`Chat in ${roomCode}: ${data.message.senderName}: ${data.message.content}`);
+
+      callback({ success: true });
+    });
+
+    // Add initiative entry (DM only)
+    socket.on('add-initiative', (data: { entry: InitiativeEntry }, callback: (response: any) => void) => {
+      const sessionInfo = socketSessions.get(socket.id);
+
+      if (!sessionInfo || !sessionInfo.isDm) {
+        callback({ success: false, error: 'Only the DM can manage initiative' });
+        return;
+      }
+
+      const { roomCode } = sessionInfo;
+      const initiative = addInitiativeEntry(roomCode, data.entry);
+
+      if (!initiative) {
+        callback({ success: false, error: 'Failed to add initiative entry' });
+        return;
+      }
+
+      // Broadcast to all
+      io.to(roomCode).emit('initiative-updated', { initiative });
+
+      callback({ success: true, initiative });
+    });
+
+    // Remove initiative entry (DM only)
+    socket.on('remove-initiative', (data: { entryId: string }, callback: (response: any) => void) => {
+      const sessionInfo = socketSessions.get(socket.id);
+
+      if (!sessionInfo || !sessionInfo.isDm) {
+        callback({ success: false, error: 'Only the DM can manage initiative' });
+        return;
+      }
+
+      const { roomCode } = sessionInfo;
+      const initiative = removeInitiativeEntry(roomCode, data.entryId);
+
+      if (!initiative) {
+        callback({ success: false, error: 'Failed to remove initiative entry' });
+        return;
+      }
+
+      // Broadcast to all
+      io.to(roomCode).emit('initiative-updated', { initiative });
+
+      callback({ success: true, initiative });
+    });
+
+    // Next turn in initiative (DM only)
+    socket.on('next-turn', (callback: (response: any) => void) => {
+      const sessionInfo = socketSessions.get(socket.id);
+
+      if (!sessionInfo || !sessionInfo.isDm) {
+        callback({ success: false, error: 'Only the DM can advance turns' });
+        return;
+      }
+
+      const { roomCode } = sessionInfo;
+      const initiative = nextTurn(roomCode);
+
+      if (!initiative) {
+        callback({ success: false, error: 'Failed to advance turn' });
+        return;
+      }
+
+      // Broadcast to all
+      io.to(roomCode).emit('initiative-updated', { initiative });
+
+      const activeEntry = initiative.find(e => e.isActive);
+      console.log(`Next turn in ${roomCode}: ${activeEntry?.name || 'None'}`);
+
+      callback({ success: true, initiative });
+    });
+
+    // Start combat (DM only)
+    socket.on('start-combat', (callback: (response: any) => void) => {
+      const sessionInfo = socketSessions.get(socket.id);
+
+      if (!sessionInfo || !sessionInfo.isDm) {
+        callback({ success: false, error: 'Only the DM can start combat' });
+        return;
+      }
+
+      const { roomCode } = sessionInfo;
+      const initiative = startCombat(roomCode);
+
+      if (!initiative) {
+        callback({ success: false, error: 'Failed to start combat' });
+        return;
+      }
+
+      // Broadcast to all
+      io.to(roomCode).emit('combat-started', { initiative });
+
+      console.log(`Combat started in ${roomCode}`);
+
+      callback({ success: true, initiative });
+    });
+
+    // End combat (DM only)
+    socket.on('end-combat', (callback: (response: any) => void) => {
+      const sessionInfo = socketSessions.get(socket.id);
+
+      if (!sessionInfo || !sessionInfo.isDm) {
+        callback({ success: false, error: 'Only the DM can end combat' });
+        return;
+      }
+
+      const { roomCode } = sessionInfo;
+      endCombat(roomCode);
+
+      // Broadcast to all
+      io.to(roomCode).emit('combat-ended', {});
+
+      console.log(`Combat ended in ${roomCode}`);
+
+      callback({ success: true });
+    });
+
+    // Get initiative state
+    socket.on('get-initiative', (callback: (response: any) => void) => {
+      const sessionInfo = socketSessions.get(socket.id);
+
+      if (!sessionInfo) {
+        callback({ success: false, error: 'Not in a session' });
+        return;
+      }
+
+      const { roomCode } = sessionInfo;
+      const session = getSession(roomCode);
+
+      if (!session) {
+        callback({ success: false, error: 'Session not found' });
+        return;
+      }
+
+      callback({
+        success: true,
+        initiative: getInitiative(roomCode),
+        isInCombat: session.isInCombat,
+      });
+    });
+
+    // ============ END PHASE 3 ============
 
     // Handle disconnection
     socket.on('disconnect', () => {

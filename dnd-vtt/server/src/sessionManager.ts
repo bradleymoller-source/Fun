@@ -1,4 +1,4 @@
-import { Session, Player, CreateSessionResponse, MapState, Token, FogArea } from './types';
+import type { Session, Player, CreateSessionResponse, MapState, Token, FogArea, InitiativeEntry } from './types';
 import { generateRoomCode, generateDmKey } from './roomCode';
 import db, { cleanupExpiredSessions } from './database';
 
@@ -37,6 +37,8 @@ export function createSession(): CreateSessionResponse {
     dmSocketId: null,
     players: new Map(),
     map: { ...defaultMapState },
+    initiative: [],
+    isInCombat: false,
     createdAt: now,
     lastActivity: now,
   };
@@ -248,6 +250,8 @@ export function loadSessionsFromDb(): void {
       dmSocketId: null,
       players: new Map(),
       map: { ...defaultMapState },
+      initiative: [],
+      isInCombat: false,
       createdAt: new Date(row.created_at),
       lastActivity: new Date(row.last_activity),
     };
@@ -255,6 +259,79 @@ export function loadSessionsFromDb(): void {
   }
 
   console.log(`Loaded ${sessions.length} sessions from database`);
+}
+
+// Phase 3: Initiative functions
+export function getInitiative(roomCode: string): { initiative: InitiativeEntry[]; isInCombat: boolean } | null {
+  const session = getSession(roomCode);
+  if (!session) return null;
+  return { initiative: session.initiative, isInCombat: session.isInCombat };
+}
+
+export function setInitiative(roomCode: string, initiative: InitiativeEntry[]): InitiativeEntry[] | null {
+  const session = getSession(roomCode);
+  if (!session) return null;
+  session.initiative = initiative.sort((a, b) => b.initiative - a.initiative);
+  updateActivity(roomCode);
+  return session.initiative;
+}
+
+export function addInitiativeEntry(roomCode: string, entry: InitiativeEntry): InitiativeEntry[] | null {
+  const session = getSession(roomCode);
+  if (!session) return null;
+  session.initiative.push(entry);
+  session.initiative.sort((a, b) => b.initiative - a.initiative);
+  updateActivity(roomCode);
+  return session.initiative;
+}
+
+export function removeInitiativeEntry(roomCode: string, entryId: string): InitiativeEntry[] | null {
+  const session = getSession(roomCode);
+  if (!session) return null;
+  session.initiative = session.initiative.filter(e => e.id !== entryId);
+  updateActivity(roomCode);
+  return session.initiative;
+}
+
+export function nextTurn(roomCode: string): InitiativeEntry[] | null {
+  const session = getSession(roomCode);
+  if (!session || session.initiative.length === 0) return null;
+
+  const currentIndex = session.initiative.findIndex(e => e.isActive);
+  const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % session.initiative.length;
+
+  session.initiative = session.initiative.map((e, i) => ({
+    ...e,
+    isActive: i === nextIndex,
+  }));
+
+  updateActivity(roomCode);
+  return session.initiative;
+}
+
+export function startCombat(roomCode: string): { initiative: InitiativeEntry[]; isInCombat: boolean } | null {
+  const session = getSession(roomCode);
+  if (!session) return null;
+
+  session.isInCombat = true;
+  session.initiative = session.initiative.map((e, i) => ({
+    ...e,
+    isActive: i === 0,
+  }));
+
+  updateActivity(roomCode);
+  return { initiative: session.initiative, isInCombat: session.isInCombat };
+}
+
+export function endCombat(roomCode: string): { initiative: InitiativeEntry[]; isInCombat: boolean } | null {
+  const session = getSession(roomCode);
+  if (!session) return null;
+
+  session.isInCombat = false;
+  session.initiative = [];
+
+  updateActivity(roomCode);
+  return { initiative: session.initiative, isInCombat: session.isInCombat };
 }
 
 // Re-export for use in index.ts

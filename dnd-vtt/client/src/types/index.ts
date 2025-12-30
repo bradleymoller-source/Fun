@@ -49,6 +49,40 @@ export interface SavedMap {
   savedAt: string;  // ISO date string
 }
 
+// Phase 3: Dice Rolling
+export interface DiceRoll {
+  id: string;
+  playerId: string;
+  playerName: string;
+  notation: string;  // e.g., "2d6+3", "d20", "4d8-2"
+  rolls: number[];   // Individual dice results
+  modifier: number;  // +/- modifier
+  total: number;     // Sum of rolls + modifier
+  timestamp: string; // ISO date string
+  isPrivate: boolean; // DM-only roll
+}
+
+// Phase 3: Chat Messages
+export interface ChatMessage {
+  id: string;
+  senderId: string;
+  senderName: string;
+  content: string;
+  timestamp: string;
+  type: 'chat' | 'roll' | 'system';  // Different message types
+}
+
+// Phase 3: Initiative Tracker
+export interface InitiativeEntry {
+  id: string;
+  name: string;
+  initiative: number;
+  isNpc: boolean;  // true = NPC/monster (DM controlled)
+  isActive: boolean;  // Currently has their turn
+  tokenId?: string;  // Link to token on map
+  playerId?: string;  // Link to player (if not NPC)
+}
+
 export interface SessionState {
   // Connection state
   isConnected: boolean;
@@ -70,6 +104,14 @@ export interface SessionState {
 
   // Active map ID (which saved map is currently shown to players, null = none)
   activeMapId: string | null;
+
+  // Phase 3: Dice & Chat
+  diceHistory: DiceRoll[];
+  chatMessages: ChatMessage[];
+
+  // Phase 3: Initiative
+  initiative: InitiativeEntry[];
+  isInCombat: boolean;
 
   // UI state
   view: 'landing' | 'create' | 'join' | 'dm' | 'player';

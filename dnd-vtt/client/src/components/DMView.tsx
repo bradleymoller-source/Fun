@@ -6,7 +6,10 @@ import { useSessionStore } from '../stores/sessionStore';
 import { MapCanvas } from './Map/MapCanvas';
 import { MapControls } from './Map/MapControls';
 import { MapLibrary } from './Map/MapLibrary';
-import type { Token } from '../types';
+import { DiceRoller } from './DiceRoller';
+import { ChatPanel } from './ChatPanel';
+import { InitiativeTracker } from './InitiativeTracker';
+import type { Token, DiceRoll, ChatMessage, InitiativeEntry } from '../types';
 
 type MapOrientation = 'landscape' | 'portrait';
 
@@ -17,7 +20,24 @@ const ORIENTATION_SIZES = {
 
 export function DMView() {
   const { roomCode, dmKey, players, map, savedMaps, addToken: addTokenLocal } = useSessionStore();
-  const { kickPlayer, addToken, moveToken, updateToken, removeToken, updateMap, showMapToPlayers, hideMapFromPlayers } = useSocket();
+  const {
+    kickPlayer,
+    addToken,
+    moveToken,
+    updateToken,
+    removeToken,
+    updateMap,
+    showMapToPlayers,
+    hideMapFromPlayers,
+    rollDice,
+    sendChatMessage,
+    addInitiativeEntry,
+    removeInitiativeEntry,
+    nextTurn,
+    startCombat,
+    endCombat,
+    socket,
+  } = useSocket();
   const [copied, setCopied] = useState<'code' | 'key' | null>(null);
   const [showPlayers, setShowPlayers] = useState(true);
   const [mapOrientation, setMapOrientation] = useState<MapOrientation>('landscape');
@@ -128,6 +148,73 @@ export function DMView() {
       await hideMapFromPlayers();
     } catch (error) {
       console.error('Failed to hide map from players:', error);
+    }
+  };
+
+  // Phase 3: Dice Roll Handler
+  const handleDiceRoll = async (roll: DiceRoll) => {
+    try {
+      await rollDice(roll);
+    } catch (error) {
+      console.error('Failed to roll dice:', error);
+    }
+  };
+
+  // Phase 3: Chat Message Handler
+  const handleSendMessage = async (content: string) => {
+    const message: ChatMessage = {
+      id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      senderId: socket?.id || 'dm',
+      senderName: 'DM',
+      content,
+      timestamp: new Date().toISOString(),
+      type: 'chat',
+    };
+    try {
+      await sendChatMessage(message);
+    } catch (error) {
+      console.error('Failed to send message:', error);
+    }
+  };
+
+  // Phase 3: Initiative Handlers
+  const handleAddInitiativeEntry = async (entry: InitiativeEntry) => {
+    try {
+      await addInitiativeEntry(entry);
+    } catch (error) {
+      console.error('Failed to add initiative entry:', error);
+    }
+  };
+
+  const handleRemoveInitiativeEntry = async (entryId: string) => {
+    try {
+      await removeInitiativeEntry(entryId);
+    } catch (error) {
+      console.error('Failed to remove initiative entry:', error);
+    }
+  };
+
+  const handleNextTurn = async () => {
+    try {
+      await nextTurn();
+    } catch (error) {
+      console.error('Failed to advance turn:', error);
+    }
+  };
+
+  const handleStartCombat = async () => {
+    try {
+      await startCombat();
+    } catch (error) {
+      console.error('Failed to start combat:', error);
+    }
+  };
+
+  const handleEndCombat = async () => {
+    try {
+      await endCombat();
+    } catch (error) {
+      console.error('Failed to end combat:', error);
     }
   };
 
@@ -316,6 +403,47 @@ export function DMView() {
                 onAddToken={handleAddToken}
                 onUpdateToken={handleTokenUpdate}
                 onRemoveToken={handleTokenRemove}
+              />
+            </Panel>
+
+            {/* Initiative Tracker */}
+            <Panel>
+              <h2 className="font-medieval text-xl text-gold mb-4">
+                Initiative Tracker
+              </h2>
+              <InitiativeTracker
+                isDm={true}
+                onAddEntry={handleAddInitiativeEntry}
+                onRemoveEntry={handleRemoveInitiativeEntry}
+                onUpdateEntry={() => {}}
+                onNextTurn={handleNextTurn}
+                onStartCombat={handleStartCombat}
+                onEndCombat={handleEndCombat}
+              />
+            </Panel>
+
+            {/* Dice Roller */}
+            <Panel>
+              <h2 className="font-medieval text-xl text-gold mb-4">
+                Dice Roller
+              </h2>
+              <DiceRoller
+                onRoll={handleDiceRoll}
+                playerId={socket?.id || 'dm'}
+                playerName="DM"
+                isDm={true}
+              />
+            </Panel>
+
+            {/* Chat */}
+            <Panel>
+              <h2 className="font-medieval text-xl text-gold mb-4">
+                Party Chat
+              </h2>
+              <ChatPanel
+                onSendMessage={handleSendMessage}
+                playerId={socket?.id || 'dm'}
+                playerName="DM"
               />
             </Panel>
           </div>

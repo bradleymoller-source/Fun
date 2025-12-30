@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useSessionStore } from '../stores/sessionStore';
-import type { Token, MapState } from '../types';
+import type { Token, MapState, DiceRoll, ChatMessage, InitiativeEntry } from '../types';
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
 
@@ -85,6 +85,44 @@ export function useSocket() {
         fogOfWar: [],
       });
       store.setActiveMapId(null);
+    });
+
+    // ============ PHASE 3: DICE, CHAT, INITIATIVE ============
+
+    // Dice rolled event
+    socket.on('dice-rolled', (data) => {
+      store.addDiceRoll(data.roll);
+      // Also add as a chat message for visibility
+      const rollMessage: ChatMessage = {
+        id: `msg-${data.roll.id}`,
+        senderId: data.roll.playerId,
+        senderName: data.roll.playerName,
+        content: `🎲 ${data.roll.notation}: [${data.roll.rolls.join(', ')}]${data.roll.modifier !== 0 ? ` ${data.roll.modifier > 0 ? '+' : ''}${data.roll.modifier}` : ''} = ${data.roll.total}${data.roll.isPrivate ? ' (private)' : ''}`,
+        timestamp: data.roll.timestamp,
+        type: 'roll',
+      };
+      store.addChatMessage(rollMessage);
+    });
+
+    // Chat message received
+    socket.on('chat-received', (data) => {
+      store.addChatMessage(data.message);
+    });
+
+    // Initiative updated
+    socket.on('initiative-updated', (data) => {
+      store.setInitiative(data.initiative);
+    });
+
+    // Combat started
+    socket.on('combat-started', (data) => {
+      store.setInitiative(data.initiative);
+      store.startCombat();
+    });
+
+    // Combat ended
+    socket.on('combat-ended', () => {
+      store.endCombat();
     });
 
     return () => {
@@ -324,6 +362,147 @@ export function useSocket() {
     });
   }, []);
 
+  // ============ PHASE 3: DICE, CHAT, INITIATIVE ============
+
+  // Roll dice
+  const rollDice = useCallback((roll: DiceRoll) => {
+    return new Promise<void>((resolve, reject) => {
+      if (!socketRef.current) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      socketRef.current.emit('roll-dice', { roll }, (response: any) => {
+        if (response.success) {
+          resolve();
+        } else {
+          store.setError(response.error);
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }, []);
+
+  // Send chat message
+  const sendChatMessage = useCallback((message: ChatMessage) => {
+    return new Promise<void>((resolve, reject) => {
+      if (!socketRef.current) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      socketRef.current.emit('send-chat', { message }, (response: any) => {
+        if (response.success) {
+          resolve();
+        } else {
+          store.setError(response.error);
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }, []);
+
+  // Add initiative entry (DM only)
+  const addInitiativeEntry = useCallback((entry: InitiativeEntry) => {
+    return new Promise<void>((resolve, reject) => {
+      if (!socketRef.current) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      socketRef.current.emit('add-initiative', { entry }, (response: any) => {
+        if (response.success) {
+          store.setInitiative(response.initiative);
+          resolve();
+        } else {
+          store.setError(response.error);
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }, []);
+
+  // Remove initiative entry (DM only)
+  const removeInitiativeEntry = useCallback((entryId: string) => {
+    return new Promise<void>((resolve, reject) => {
+      if (!socketRef.current) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      socketRef.current.emit('remove-initiative', { entryId }, (response: any) => {
+        if (response.success) {
+          store.setInitiative(response.initiative);
+          resolve();
+        } else {
+          store.setError(response.error);
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }, []);
+
+  // Advance to next turn (DM only)
+  const nextTurn = useCallback(() => {
+    return new Promise<void>((resolve, reject) => {
+      if (!socketRef.current) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      socketRef.current.emit('next-turn', (response: any) => {
+        if (response.success) {
+          store.setInitiative(response.initiative);
+          resolve();
+        } else {
+          store.setError(response.error);
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }, []);
+
+  // Start combat (DM only)
+  const startCombat = useCallback(() => {
+    return new Promise<void>((resolve, reject) => {
+      if (!socketRef.current) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      socketRef.current.emit('start-combat', (response: any) => {
+        if (response.success) {
+          store.setInitiative(response.initiative);
+          store.startCombat();
+          resolve();
+        } else {
+          store.setError(response.error);
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }, []);
+
+  // End combat (DM only)
+  const endCombat = useCallback(() => {
+    return new Promise<void>((resolve, reject) => {
+      if (!socketRef.current) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      socketRef.current.emit('end-combat', (response: any) => {
+        if (response.success) {
+          store.endCombat();
+          resolve();
+        } else {
+          store.setError(response.error);
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }, []);
+
   return {
     socket: socketRef.current,
     isConnected: store.isConnected,
@@ -339,5 +518,13 @@ export function useSocket() {
     removeToken,
     showMapToPlayers,
     hideMapFromPlayers,
+    // Phase 3: Dice, Chat, Initiative
+    rollDice,
+    sendChatMessage,
+    addInitiativeEntry,
+    removeInitiativeEntry,
+    nextTurn,
+    startCombat,
+    endCombat,
   };
 }
