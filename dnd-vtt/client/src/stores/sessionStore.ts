@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Player, SessionState, MapState, Token, FogArea } from '../types';
+import type { Player, SessionState, MapState, Token, FogArea, SavedMap } from '../types';
 
 const initialMapState: MapState = {
   imageUrl: null,
@@ -43,6 +43,13 @@ interface SessionStore extends SessionState {
   removeFogArea: (areaId: string) => void;
   toggleFogArea: (areaId: string) => void;
   setFogOfWar: (areas: FogArea[]) => void;
+
+  // Map Library Actions
+  saveCurrentMap: (name: string) => void;
+  loadSavedMap: (mapId: string) => void;
+  deleteSavedMap: (mapId: string) => void;
+  setSavedMaps: (maps: SavedMap[]) => void;
+  setActiveMapId: (mapId: string | null) => void;
 }
 
 const initialState: SessionState = {
@@ -53,11 +60,13 @@ const initialState: SessionState = {
   playerName: null,
   players: [],
   map: initialMapState,
+  savedMaps: [],
+  activeMapId: null,
   view: 'landing',
   error: null,
 };
 
-export const useSessionStore = create<SessionStore>((set) => ({
+export const useSessionStore = create<SessionStore>((set, get) => ({
   ...initialState,
 
   // Session Actions
@@ -182,4 +191,51 @@ export const useSessionStore = create<SessionStore>((set) => ({
     set((state) => ({
       map: { ...state.map, fogOfWar },
     })),
+
+  // Map Library Actions
+  saveCurrentMap: (name) => {
+    const state = get();
+    if (!state.map.imageUrl) return; // Can't save without an image
+
+    const newMap: SavedMap = {
+      id: `map-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      name,
+      imageUrl: state.map.imageUrl,
+      gridSize: state.map.gridSize,
+      gridOffsetX: state.map.gridOffsetX,
+      gridOffsetY: state.map.gridOffsetY,
+      savedAt: new Date().toISOString(),
+    };
+
+    set({
+      savedMaps: [...state.savedMaps, newMap],
+    });
+  },
+
+  loadSavedMap: (mapId) => {
+    const state = get();
+    const savedMap = state.savedMaps.find((m) => m.id === mapId);
+    if (!savedMap) return;
+
+    set({
+      map: {
+        ...state.map,
+        imageUrl: savedMap.imageUrl,
+        gridSize: savedMap.gridSize,
+        gridOffsetX: savedMap.gridOffsetX,
+        gridOffsetY: savedMap.gridOffsetY,
+      },
+    });
+  },
+
+  deleteSavedMap: (mapId) =>
+    set((state) => ({
+      savedMaps: state.savedMaps.filter((m) => m.id !== mapId),
+      // If deleted map was active, clear it
+      activeMapId: state.activeMapId === mapId ? null : state.activeMapId,
+    })),
+
+  setSavedMaps: (savedMaps) => set({ savedMaps }),
+
+  setActiveMapId: (activeMapId) => set({ activeMapId }),
 }));

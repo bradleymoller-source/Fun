@@ -298,6 +298,55 @@ export function setupSocketHandlers(io: Server): void {
       callback({ success: true, tokens });
     });
 
+    // Show map to players (DM action) - broadcasts a specific map to all players
+    socket.on('show-map-to-players', (data: { mapId: string; mapState: { imageUrl: string; gridSize: number; gridOffsetX: number; gridOffsetY: number } }, callback: (response: any) => void) => {
+      const sessionInfo = socketSessions.get(socket.id);
+
+      if (!sessionInfo || !sessionInfo.isDm) {
+        callback({ success: false, error: 'Only the DM can show maps to players' });
+        return;
+      }
+
+      const { roomCode } = sessionInfo;
+
+      // Broadcast the map to all players
+      socket.to(roomCode).emit('map-shown', {
+        mapId: data.mapId,
+        map: {
+          imageUrl: data.mapState.imageUrl,
+          gridSize: data.mapState.gridSize,
+          gridOffsetX: data.mapState.gridOffsetX,
+          gridOffsetY: data.mapState.gridOffsetY,
+          showGrid: true,
+          tokens: [],
+          fogOfWar: [],
+        },
+      });
+
+      console.log(`DM showing map ${data.mapId} to players in ${roomCode}`);
+
+      callback({ success: true });
+    });
+
+    // Hide map from players (DM action)
+    socket.on('hide-map-from-players', (_data: Record<string, never>, callback: (response: any) => void) => {
+      const sessionInfo = socketSessions.get(socket.id);
+
+      if (!sessionInfo || !sessionInfo.isDm) {
+        callback({ success: false, error: 'Only the DM can hide maps from players' });
+        return;
+      }
+
+      const { roomCode } = sessionInfo;
+
+      // Broadcast hide command to all players
+      socket.to(roomCode).emit('map-hidden', {});
+
+      console.log(`DM hiding map from players in ${roomCode}`);
+
+      callback({ success: true });
+    });
+
     // Get current map state
     socket.on('get-map', (callback: (response: any) => void) => {
       const sessionInfo = socketSessions.get(socket.id);

@@ -3,20 +3,33 @@ import { Panel } from './ui/Panel';
 import { useSessionStore } from '../stores/sessionStore';
 import { MapCanvas } from './Map/MapCanvas';
 
+type MapOrientation = 'landscape' | 'portrait';
+
+const ORIENTATION_SIZES = {
+  landscape: { width: 900, height: 600 },
+  portrait: { width: 600, height: 800 },
+};
+
 export function PlayerView() {
   const { roomCode, playerName, players, isConnected } = useSessionStore();
   const [showParty, setShowParty] = useState(false);
-  const [mapDimensions, setMapDimensions] = useState({ width: 800, height: 600 });
+  const [mapOrientation, setMapOrientation] = useState<MapOrientation>('landscape');
+  const [mapDimensions, setMapDimensions] = useState(ORIENTATION_SIZES.landscape);
   const mapContainerRef = useRef<HTMLDivElement>(null);
 
-  // Update map canvas dimensions on resize
+  // Update dimensions when orientation changes
   useEffect(() => {
     const updateDimensions = () => {
       if (mapContainerRef.current) {
-        const rect = mapContainerRef.current.getBoundingClientRect();
+        const containerWidth = mapContainerRef.current.getBoundingClientRect().width - 32;
+        const baseSize = ORIENTATION_SIZES[mapOrientation];
+
+        // Scale down if container is smaller than base size
+        const scale = Math.min(1, containerWidth / baseSize.width);
+
         setMapDimensions({
-          width: rect.width,
-          height: Math.max(400, window.innerHeight - 200),
+          width: Math.floor(baseSize.width * scale),
+          height: Math.floor(baseSize.height * scale),
         });
       }
     };
@@ -24,7 +37,7 @@ export function PlayerView() {
     updateDimensions();
     window.addEventListener('resize', updateDimensions);
     return () => window.removeEventListener('resize', updateDimensions);
-  }, []);
+  }, [mapOrientation]);
 
   return (
     <div className="min-h-screen p-4">
@@ -101,9 +114,36 @@ export function PlayerView() {
 
         {/* Map Display */}
         <div ref={mapContainerRef}>
+          {/* Map Toolbar */}
+          <div className="flex items-center justify-between mb-2 bg-dark-wood p-2 rounded-lg border border-leather">
+            <div className="flex items-center gap-2">
+              <span className="text-parchment text-sm">View:</span>
+              <button
+                onClick={() => setMapOrientation('landscape')}
+                className={`px-3 py-1 rounded text-sm ${
+                  mapOrientation === 'landscape'
+                    ? 'bg-gold text-dark-wood'
+                    : 'bg-leather text-parchment hover:bg-leather/70'
+                }`}
+              >
+                Landscape
+              </button>
+              <button
+                onClick={() => setMapOrientation('portrait')}
+                className={`px-3 py-1 rounded text-sm ${
+                  mapOrientation === 'portrait'
+                    ? 'bg-gold text-dark-wood'
+                    : 'bg-leather text-parchment hover:bg-leather/70'
+                }`}
+              >
+                Portrait
+              </button>
+            </div>
+          </div>
+
           <Panel className="p-2">
             <MapCanvas
-              width={mapDimensions.width - 32}
+              width={mapDimensions.width}
               height={mapDimensions.height}
               isDm={false}
             />

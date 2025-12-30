@@ -6,6 +6,8 @@ import type { Token, TokenSize } from '../../types';
 
 interface MapControlsProps {
   onAddToken: (token: Token) => void;
+  onUpdateToken: (tokenId: string, updates: Partial<Token>) => void;
+  onRemoveToken: (tokenId: string) => void;
 }
 
 const TOKEN_COLORS = [
@@ -19,8 +21,8 @@ const TOKEN_COLORS = [
   '#795548', // Brown
 ];
 
-export function MapControls({ onAddToken }: MapControlsProps) {
-  const { map, setMapImage, setGridSize, toggleGrid } = useSessionStore();
+export function MapControls({ onAddToken, onUpdateToken, onRemoveToken }: MapControlsProps) {
+  const { map, setMapImage, setGridSize, setGridOffset, toggleGrid } = useSessionStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Token creation form
@@ -112,7 +114,7 @@ export function MapControls({ onAddToken }: MapControlsProps) {
           </label>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 mb-3">
           <span className="text-parchment text-sm">Size:</span>
           <input
             type="range"
@@ -123,6 +125,34 @@ export function MapControls({ onAddToken }: MapControlsProps) {
             className="flex-1"
           />
           <span className="text-parchment text-sm w-12">{map.gridSize}px</span>
+        </div>
+
+        {/* Grid Offset Controls */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="text-parchment text-sm w-16">Offset X:</span>
+            <input
+              type="range"
+              min="0"
+              max={map.gridSize}
+              value={map.gridOffsetX}
+              onChange={(e) => setGridOffset(Number(e.target.value), map.gridOffsetY)}
+              className="flex-1"
+            />
+            <span className="text-parchment text-sm w-8">{map.gridOffsetX}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-parchment text-sm w-16">Offset Y:</span>
+            <input
+              type="range"
+              min="0"
+              max={map.gridSize}
+              value={map.gridOffsetY}
+              onChange={(e) => setGridOffset(map.gridOffsetX, Number(e.target.value))}
+              className="flex-1"
+            />
+            <span className="text-parchment text-sm w-8">{map.gridOffsetY}</span>
+          </div>
         </div>
       </div>
 
@@ -200,7 +230,12 @@ export function MapControls({ onAddToken }: MapControlsProps) {
 
           <div className="space-y-2 max-h-40 overflow-y-auto">
             {map.tokens.map((token) => (
-              <TokenListItem key={token.id} token={token} />
+              <TokenListItem
+                key={token.id}
+                token={token}
+                onUpdate={onUpdateToken}
+                onRemove={onRemoveToken}
+              />
             ))}
           </div>
         </div>
@@ -209,9 +244,13 @@ export function MapControls({ onAddToken }: MapControlsProps) {
   );
 }
 
-function TokenListItem({ token }: { token: Token }) {
-  const { removeToken, updateToken } = useSessionStore();
+interface TokenListItemProps {
+  token: Token;
+  onUpdate: (tokenId: string, updates: Partial<Token>) => void;
+  onRemove: (tokenId: string) => void;
+}
 
+function TokenListItem({ token, onUpdate, onRemove }: TokenListItemProps) {
   return (
     <div className="flex items-center justify-between bg-leather/30 px-3 py-2 rounded">
       <div className="flex items-center gap-2">
@@ -226,14 +265,14 @@ function TokenListItem({ token }: { token: Token }) {
       </div>
       <div className="flex gap-1">
         <button
-          onClick={() => updateToken(token.id, { isHidden: !token.isHidden })}
+          onClick={() => onUpdate(token.id, { isHidden: !token.isHidden })}
           className="text-parchment/50 hover:text-parchment text-xs px-2"
           title={token.isHidden ? 'Show to players' : 'Hide from players'}
         >
           {token.isHidden ? '👁' : '👁‍🗨'}
         </button>
         <button
-          onClick={() => removeToken(token.id)}
+          onClick={() => onRemove(token.id)}
           className="text-red-400 hover:text-red-300 text-xs px-2"
         >
           ✕

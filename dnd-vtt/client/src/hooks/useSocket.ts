@@ -65,6 +65,28 @@ export function useSocket() {
       }
     });
 
+    // Map shown to players by DM
+    socket.on('map-shown', (data) => {
+      if (data.map) {
+        store.setMapState(data.map);
+        store.setActiveMapId(data.mapId);
+      }
+    });
+
+    // Map hidden from players by DM
+    socket.on('map-hidden', () => {
+      store.setMapState({
+        imageUrl: null,
+        gridSize: 50,
+        gridOffsetX: 0,
+        gridOffsetY: 0,
+        showGrid: true,
+        tokens: [],
+        fogOfWar: [],
+      });
+      store.setActiveMapId(null);
+    });
+
     return () => {
       socket.disconnect();
     };
@@ -262,6 +284,46 @@ export function useSocket() {
     });
   }, []);
 
+  // Show a map to players (DM action)
+  const showMapToPlayers = useCallback((mapId: string, mapState: { imageUrl: string; gridSize: number; gridOffsetX: number; gridOffsetY: number }) => {
+    return new Promise<void>((resolve, reject) => {
+      if (!socketRef.current) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      socketRef.current.emit('show-map-to-players', { mapId, mapState }, (response: any) => {
+        if (response.success) {
+          store.setActiveMapId(mapId);
+          resolve();
+        } else {
+          store.setError(response.error);
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }, []);
+
+  // Hide map from players (DM action)
+  const hideMapFromPlayers = useCallback(() => {
+    return new Promise<void>((resolve, reject) => {
+      if (!socketRef.current) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      socketRef.current.emit('hide-map-from-players', {}, (response: any) => {
+        if (response.success) {
+          store.setActiveMapId(null);
+          resolve();
+        } else {
+          store.setError(response.error);
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }, []);
+
   return {
     socket: socketRef.current,
     isConnected: store.isConnected,
@@ -275,5 +337,7 @@ export function useSocket() {
     moveToken,
     updateToken,
     removeToken,
+    showMapToPlayers,
+    hideMapFromPlayers,
   };
 }

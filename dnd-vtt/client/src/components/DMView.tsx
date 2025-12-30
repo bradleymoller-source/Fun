@@ -5,17 +5,49 @@ import { useSocket } from '../hooks/useSocket';
 import { useSessionStore } from '../stores/sessionStore';
 import { MapCanvas } from './Map/MapCanvas';
 import { MapControls } from './Map/MapControls';
+import { MapLibrary } from './Map/MapLibrary';
 import type { Token } from '../types';
 
+type MapOrientation = 'landscape' | 'portrait';
+
+const ORIENTATION_SIZES = {
+  landscape: { width: 900, height: 600 },
+  portrait: { width: 600, height: 800 },
+};
+
 export function DMView() {
-  const { roomCode, dmKey, players, map } = useSessionStore();
-  const { kickPlayer, addToken, moveToken, updateMap } = useSocket();
+  const { roomCode, dmKey, players, map, savedMaps } = useSessionStore();
+  const { kickPlayer, addToken, moveToken, updateToken, removeToken, updateMap, showMapToPlayers, hideMapFromPlayers } = useSocket();
   const [copied, setCopied] = useState<'code' | 'key' | null>(null);
   const [showPlayers, setShowPlayers] = useState(true);
-  const [mapDimensions, setMapDimensions] = useState({ width: 800, height: 600 });
+  const [mapOrientation, setMapOrientation] = useState<MapOrientation>('landscape');
+  const [isMapLocked, setIsMapLocked] = useState(false);
+  const [mapDimensions, setMapDimensions] = useState(ORIENTATION_SIZES.landscape);
   const mapContainerRef = useRef<HTMLDivElement>(null);
 
-  // Sync local map state changes to server
+  // Update dimensions when orientation changes
+  useEffect(() => {
+    const updateDimensions = () => {
+      if (mapContainerRef.current) {
+        const containerWidth = mapContainerRef.current.getBoundingClientRect().width - 32;
+        const baseSize = ORIENTATION_SIZES[mapOrientation];
+
+        // Scale down if container is smaller than base size
+        const scale = Math.min(1, containerWidth / baseSize.width);
+
+        setMapDimensions({
+          width: Math.floor(baseSize.width * scale),
+          height: Math.floor(baseSize.height * scale),
+        });
+      }
+    };
+
+    updateDimensions();
+    window.addEventListener('resize', updateDimensions);
+    return () => window.removeEventListener('resize', updateDimensions);
+  }, [mapOrientation]);
+
+  // Sync local map state changes to server (not tokens - those use dedicated events)
   const syncMapToServer = () => {
     updateMap({
       imageUrl: map.imageUrl,
@@ -23,7 +55,6 @@ export function DMView() {
       gridOffsetX: map.gridOffsetX,
       gridOffsetY: map.gridOffsetY,
       showGrid: map.showGrid,
-      tokens: map.tokens,
       fogOfWar: map.fogOfWar,
     });
   };
@@ -33,23 +64,6 @@ export function DMView() {
     const timer = setTimeout(syncMapToServer, 500);
     return () => clearTimeout(timer);
   }, [map.imageUrl, map.gridSize, map.showGrid, map.gridOffsetX, map.gridOffsetY, map.fogOfWar]);
-
-  // Update map canvas dimensions on resize
-  useEffect(() => {
-    const updateDimensions = () => {
-      if (mapContainerRef.current) {
-        const rect = mapContainerRef.current.getBoundingClientRect();
-        setMapDimensions({
-          width: rect.width,
-          height: Math.max(400, window.innerHeight - 300),
-        });
-      }
-    };
-
-    updateDimensions();
-    window.addEventListener('resize', updateDimensions);
-    return () => window.removeEventListener('resize', updateDimensions);
-  }, []);
 
   const copyToClipboard = (text: string, type: 'code' | 'key') => {
     navigator.clipboard.writeText(text);
@@ -70,6 +84,46 @@ export function DMView() {
       await moveToken(tokenId, x, y);
     } catch (error) {
       console.error('Failed to move token:', error);
+    }
+  };
+
+  const handleTokenUpdate = async (tokenId: string, updates: Partial<Token>) => {
+    try {
+      await updateToken(tokenId, updates);
+    } catch (error) {
+      console.error('Failed to update token:', error);
+    }
+  };
+
+  const handleTokenRemove = async (tokenId: string) => {
+    try {
+      await removeToken(tokenId);
+    } catch (error) {
+      console.error('Failed to remove token:', error);
+    }
+  };
+
+  const handleShowMapToPlayers = async (mapId: string) => {
+    const savedMap = savedMaps.find(m => m.id === mapId);
+    if (!savedMap) return;
+
+    try {
+      await showMapToPlayers(mapId, {
+        imageUrl: savedMap.imageUrl,
+        gridSize: savedMap.gridSize,
+        gridOffsetX: savedMap.gridOffsetX,
+        gridOffsetY: savedMap.gridOffsetY,
+      });
+    } catch (error) {
+      console.error('Failed to show map to players:', error);
+    }
+  };
+
+  const handleHideMapFromPlayers = async () => {
+    try {
+      await hideMapFromPlayers();
+    } catch (error) {
+      console.error('Failed to hide map from players:', error);
     }
   };
 
@@ -144,11 +198,50 @@ export function DMView() {
         <div className="flex flex-col lg:flex-row gap-4">
           {/* Map Canvas - Takes most of the space */}
           <div className="flex-1" ref={mapContainerRef}>
+            {/* Map Toolbar */}
+            <div className="flex items-center justify-between mb-2 bg-dark-wood p-2 rounded-lg border border-leather">
+              <div className="flex items-center gap-2">
+                <span className="text-parchment text-sm">View:</span>
+                <button
+                  onClick={() => setMapOrientation('landscape')}
+                  className={`px-3 py-1 rounded text-sm ${
+                    mapOrientation === 'landscape'
+                      ? 'bg-gold text-dark-wood'
+                      : 'bg-leather text-parchment hover:bg-leather/70'
+                  }`}
+                >
+                  Landscape
+                </button>
+                <button
+                  onClick={() => setMapOrientation('portrait')}
+                  className={`px-3 py-1 rounded text-sm ${
+                    mapOrientation === 'portrait'
+                      ? 'bg-gold text-dark-wood'
+                      : 'bg-leather text-parchment hover:bg-leather/70'
+                  }`}
+                >
+                  Portrait
+                </button>
+              </div>
+
+              <button
+                onClick={() => setIsMapLocked(!isMapLocked)}
+                className={`px-3 py-1 rounded text-sm flex items-center gap-1 ${
+                  isMapLocked
+                    ? 'bg-red-600 text-white'
+                    : 'bg-leather text-parchment hover:bg-leather/70'
+                }`}
+              >
+                {isMapLocked ? '🔒 Unlock' : '🔓 Lock'}
+              </button>
+            </div>
+
             <Panel className="p-2">
               <MapCanvas
-                width={mapDimensions.width - 32}
+                width={mapDimensions.width}
                 height={mapDimensions.height}
                 isDm={true}
+                isLocked={isMapLocked}
                 onTokenMove={handleTokenMove}
               />
             </Panel>
@@ -202,12 +295,24 @@ export function DMView() {
               </Panel>
             )}
 
+            {/* Map Library */}
+            <Panel>
+              <MapLibrary
+                onShowToPlayers={handleShowMapToPlayers}
+                onHideFromPlayers={handleHideMapFromPlayers}
+              />
+            </Panel>
+
             {/* Map Controls */}
             <Panel>
               <h2 className="font-medieval text-xl text-gold mb-4">
                 Map Controls
               </h2>
-              <MapControls onAddToken={handleAddToken} />
+              <MapControls
+                onAddToken={handleAddToken}
+                onUpdateToken={handleTokenUpdate}
+                onRemoveToken={handleTokenRemove}
+              />
             </Panel>
           </div>
         </div>

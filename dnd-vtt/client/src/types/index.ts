@@ -38,6 +38,17 @@ export interface FogArea {
   isRevealed: boolean;  // If true, this area is visible to players
 }
 
+// Saved map for the map library
+export interface SavedMap {
+  id: string;
+  name: string;
+  imageUrl: string;
+  gridSize: number;
+  gridOffsetX: number;
+  gridOffsetY: number;
+  savedAt: string;  // ISO date string
+}
+
 export interface SessionState {
   // Connection state
   isConnected: boolean;
@@ -51,8 +62,14 @@ export interface SessionState {
   playerName: string | null;
   players: Player[];
 
-  // Map state
+  // Map state (currently active map)
   map: MapState;
+
+  // Map library (DM's saved maps)
+  savedMaps: SavedMap[];
+
+  // Active map ID (which saved map is currently shown to players, null = none)
+  activeMapId: string | null;
 
   // UI state
   view: 'landing' | 'create' | 'join' | 'dm' | 'player';

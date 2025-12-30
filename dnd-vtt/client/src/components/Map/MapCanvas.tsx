@@ -19,10 +19,11 @@ interface MapCanvasProps {
   width: number;
   height: number;
   isDm: boolean;
+  isLocked?: boolean;
   onTokenMove?: (tokenId: string, x: number, y: number) => void;
 }
 
-export function MapCanvas({ width, height, isDm, onTokenMove }: MapCanvasProps) {
+export function MapCanvas({ width, height, isDm, isLocked = false, onTokenMove }: MapCanvasProps) {
   const { map } = useSessionStore();
   const [stageScale, setStageScale] = useState(1);
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
@@ -43,6 +44,7 @@ export function MapCanvas({ width, height, isDm, onTokenMove }: MapCanvasProps) 
 
   // Handle zoom with mouse wheel
   const handleWheel = (e: KonvaEventObject<WheelEvent>) => {
+    if (isLocked) return;
     e.evt.preventDefault();
 
     const scaleBy = 1.1;
@@ -70,44 +72,45 @@ export function MapCanvas({ width, height, isDm, onTokenMove }: MapCanvasProps) 
 
   // Handle panning with drag
   const handleDragEnd = (e: KonvaEventObject<DragEvent>) => {
+    if (isLocked) return;
     setStagePos({
       x: e.target.x(),
       y: e.target.y(),
     });
   };
 
-  // Draw grid lines
+  // Draw grid lines - now works without map image too
   const renderGrid = () => {
-    if (!map.showGrid || !mapImage) return null;
+    if (!map.showGrid) return null;
 
     const lines = [];
     const gridSize = map.gridSize;
     const startX = map.gridOffsetX % gridSize;
     const startY = map.gridOffsetY % gridSize;
 
-    // Calculate grid extent based on map image or stage size
-    const gridWidth = mapImage ? mapImage.width : width * 2;
-    const gridHeight = mapImage ? mapImage.height : height * 2;
+    // Calculate grid extent based on map image or a large default area
+    const gridWidth = mapImage ? mapImage.width : 2000;
+    const gridHeight = mapImage ? mapImage.height : 2000;
 
     // Vertical lines
-    for (let x = startX; x < gridWidth; x += gridSize) {
+    for (let x = startX; x <= gridWidth; x += gridSize) {
       lines.push(
         <Line
           key={`v-${x}`}
           points={[x, 0, x, gridHeight]}
-          stroke="rgba(255, 255, 255, 0.3)"
+          stroke="rgba(255, 255, 255, 0.4)"
           strokeWidth={1}
         />
       );
     }
 
     // Horizontal lines
-    for (let y = startY; y < gridHeight; y += gridSize) {
+    for (let y = startY; y <= gridHeight; y += gridSize) {
       lines.push(
         <Line
           key={`h-${y}`}
           points={[0, y, gridWidth, y]}
-          stroke="rgba(255, 255, 255, 0.3)"
+          stroke="rgba(255, 255, 255, 0.4)"
           strokeWidth={1}
         />
       );
@@ -127,8 +130,8 @@ export function MapCanvas({ width, height, isDm, onTokenMove }: MapCanvasProps) 
     const x = token.x * gridSize + map.gridOffsetX;
     const y = token.y * gridSize + map.gridOffsetY;
 
-    // Can this token be dragged?
-    const canDrag = isDm; // For now, only DM can drag. Later: check token.ownerId
+    // Can this token be dragged? Only DM can drag, and only if not locked
+    const canDrag = isDm && !isLocked;
 
     return (
       <Group
@@ -208,7 +211,7 @@ export function MapCanvas({ width, height, isDm, onTokenMove }: MapCanvasProps) 
         scaleY={stageScale}
         x={stagePos.x}
         y={stagePos.y}
-        draggable
+        draggable={!isLocked}
         onWheel={handleWheel}
         onDragEnd={handleDragEnd}
       >
@@ -247,23 +250,28 @@ export function MapCanvas({ width, height, isDm, onTokenMove }: MapCanvasProps) 
       {/* Zoom controls */}
       <div className="absolute bottom-4 right-4 flex flex-col gap-2">
         <button
-          onClick={() => setStageScale(Math.min(5, stageScale * 1.2))}
-          className="bg-dark-wood text-gold w-8 h-8 rounded border border-gold hover:bg-leather"
+          onClick={() => !isLocked && setStageScale(Math.min(5, stageScale * 1.2))}
+          className={`w-8 h-8 rounded border ${isLocked ? 'bg-gray-600 text-gray-400 border-gray-500 cursor-not-allowed' : 'bg-dark-wood text-gold border-gold hover:bg-leather'}`}
+          disabled={isLocked}
         >
           +
         </button>
         <button
-          onClick={() => setStageScale(Math.max(0.1, stageScale / 1.2))}
-          className="bg-dark-wood text-gold w-8 h-8 rounded border border-gold hover:bg-leather"
+          onClick={() => !isLocked && setStageScale(Math.max(0.1, stageScale / 1.2))}
+          className={`w-8 h-8 rounded border ${isLocked ? 'bg-gray-600 text-gray-400 border-gray-500 cursor-not-allowed' : 'bg-dark-wood text-gold border-gold hover:bg-leather'}`}
+          disabled={isLocked}
         >
           -
         </button>
         <button
           onClick={() => {
-            setStageScale(1);
-            setStagePos({ x: 0, y: 0 });
+            if (!isLocked) {
+              setStageScale(1);
+              setStagePos({ x: 0, y: 0 });
+            }
           }}
-          className="bg-dark-wood text-gold w-8 h-8 rounded border border-gold hover:bg-leather text-xs"
+          className={`w-8 h-8 rounded border text-xs ${isLocked ? 'bg-gray-600 text-gray-400 border-gray-500 cursor-not-allowed' : 'bg-dark-wood text-gold border-gold hover:bg-leather'}`}
+          disabled={isLocked}
         >
           1:1
         </button>
@@ -271,8 +279,15 @@ export function MapCanvas({ width, height, isDm, onTokenMove }: MapCanvasProps) 
 
       {/* Info overlay */}
       <div className="absolute top-2 left-2 text-parchment/50 text-xs">
-        Scroll to zoom • Drag to pan
+        {isLocked ? 'Map locked' : 'Scroll to zoom • Drag to pan'}
       </div>
+
+      {/* Lock indicator */}
+      {isLocked && (
+        <div className="absolute top-2 right-2 bg-red-600/80 text-white px-2 py-1 rounded text-xs">
+          LOCKED
+        </div>
+      )}
     </div>
   );
 }
