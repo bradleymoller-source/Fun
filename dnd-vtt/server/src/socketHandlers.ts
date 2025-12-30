@@ -88,32 +88,39 @@ export function setupSocketHandlers(io: Server): void {
         return;
       }
 
-      const player = addPlayer(upperRoomCode, socket.id, playerName);
+      const result = addPlayer(upperRoomCode, socket.id, playerName);
 
-      if (!player) {
-        callback({ success: false, error: 'Failed to join session' });
+      if (!result) {
+        callback({ success: false, error: 'Failed to join session. Name may already be in use.' });
         return;
       }
+
+      const { player, isReconnect } = result;
 
       socket.join(upperRoomCode);
       socketSessions.set(socket.id, { roomCode: upperRoomCode, isDm: false });
 
-      // Auto-generate a token for the player
-      const playerColors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9'];
-      const colorIndex = getPlayers(upperRoomCode).length % playerColors.length;
-      const playerToken: Token = {
-        id: `token-player-${socket.id}`,
-        name: playerName,
-        x: 0,
-        y: 0,
-        size: 'medium',
-        color: playerColors[colorIndex],
-        isHidden: false,
-        ownerId: socket.id,
-      };
+      let tokens = null;
 
-      // Add the token to the session
-      const tokens = addTokenToSession(upperRoomCode, playerToken);
+      // Only create a token if this is a new player, not a reconnect
+      if (!isReconnect) {
+        // Auto-generate a token for the new player
+        const playerColors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9'];
+        const colorIndex = getPlayers(upperRoomCode).length % playerColors.length;
+        const playerToken: Token = {
+          id: `token-player-${socket.id}`,
+          name: playerName,
+          x: 0,
+          y: 0,
+          size: 'medium',
+          color: playerColors[colorIndex],
+          isHidden: false,
+          ownerId: socket.id,
+        };
+
+        // Add the token to the session
+        tokens = addTokenToSession(upperRoomCode, playerToken);
+      }
 
       // Get map state for the player (filter hidden tokens)
       const map = getMapState(upperRoomCode);
@@ -122,8 +129,9 @@ export function setupSocketHandlers(io: Server): void {
         tokens: map.tokens.filter(t => !t.isHidden),
       } : null;
 
-      // Notify everyone in the session (including DM) about the new player
-      io.to(upperRoomCode).emit('player-joined', {
+      // Notify everyone EXCEPT the joining player about the new/reconnecting player
+      // (the joining player gets their info via callback)
+      socket.to(upperRoomCode).emit('player-joined', {
         player: {
           id: player.id,
           name: player.name,
@@ -136,13 +144,13 @@ export function setupSocketHandlers(io: Server): void {
         })),
       });
 
-      // Broadcast token update to everyone (DM sees all, players see visible only)
+      // Broadcast token update to others (not to joining player)
       if (tokens) {
         const visibleTokens = tokens.filter(t => !t.isHidden);
-        io.to(upperRoomCode).emit('tokens-updated', { tokens: visibleTokens });
+        socket.to(upperRoomCode).emit('tokens-updated', { tokens: visibleTokens });
       }
 
-      console.log(`Player ${playerName} joined ${upperRoomCode} with auto-generated token`);
+      console.log(`Player ${playerName} ${isReconnect ? 'reconnected to' : 'joined'} ${upperRoomCode}${isReconnect ? '' : ' with auto-generated token'}`);
 
       callback({ success: true, roomCode: upperRoomCode, map: playerMap });
     });

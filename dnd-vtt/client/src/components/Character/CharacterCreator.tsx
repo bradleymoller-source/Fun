@@ -31,9 +31,17 @@ import {
   formatModifier,
   getProficiencyBonus,
   getDefaultSkillProficiencies,
+  CLASS_STARTING_PACKS,
+  ALL_SHOP_ITEMS,
 } from '../../data/dndData';
+import type { ShopItem } from '../../data/dndData';
 
-type CreationStep = 'basics' | 'abilities' | 'skills' | 'spells' | 'details' | 'review';
+type CreationStep = 'basics' | 'abilities' | 'skills' | 'spells' | 'equipment' | 'details' | 'review';
+
+interface SelectedShopItem extends ShopItem {
+  id: string;
+  quantity: number;
+}
 
 interface CharacterCreatorProps {
   onComplete: (character: Character) => void;
@@ -62,12 +70,22 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
   });
   const [abilityMethod, setAbilityMethod] = useState<'standard' | 'roll'>('standard');
 
+  // HP method
+  const [hpMethod, setHpMethod] = useState<'standard' | 'roll'>('standard');
+  const [rolledHp, setRolledHp] = useState<number | null>(null);
+
   // Skills
   const [selectedClassSkills, setSelectedClassSkills] = useState<SkillName[]>([]);
 
   // Spells
   const [selectedCantrips, setSelectedCantrips] = useState<string[]>([]);
   const [selectedSpells, setSelectedSpells] = useState<string[]>([]);
+
+  // Equipment
+  const [equipmentMethod, setEquipmentMethod] = useState<'pack' | 'shop'>('pack');
+  const [shopCart, setShopCart] = useState<SelectedShopItem[]>([]);
+  const [shopGold, setShopGold] = useState(50); // Starting gold for shopping
+  const [shopCategory, setShopCategory] = useState<string>('all');
 
   // Personality
   const [personalityTraits, setPersonalityTraits] = useState('');
@@ -93,13 +111,26 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     setSelectedSpells([]);
   }, [characterClass, background]);
 
+  // Reset rolled HP when class changes
+  useEffect(() => {
+    setRolledHp(null);
+    setHpMethod('standard');
+  }, [characterClass]);
+
+  // Reset equipment when class changes
+  useEffect(() => {
+    setEquipmentMethod('pack');
+    setShopCart([]);
+    setShopGold(50);
+  }, [characterClass]);
+
   const classInfo = CLASS_INFO[characterClass];
   const speciesInfo = SPECIES_INFO[species];
   const backgroundInfo = BACKGROUND_INFO[background];
 
   const steps: CreationStep[] = classInfo.isSpellcaster
-    ? ['basics', 'abilities', 'skills', 'spells', 'details', 'review']
-    : ['basics', 'abilities', 'skills', 'details', 'review'];
+    ? ['basics', 'abilities', 'skills', 'spells', 'equipment', 'details', 'review']
+    : ['basics', 'abilities', 'skills', 'equipment', 'details', 'review'];
   const currentStepIndex = steps.indexOf(step);
 
   const canProceed = () => {
@@ -130,8 +161,9 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
   };
 
   const handleRollAbilities = () => {
+    // Roll 4d6 drop lowest for each ability score
+    // Each ability gets its own independent roll - no sorting
     const rolled = rollAllAbilityScores();
-    rolled.sort((a, b) => b - a); // Sort descending
     const abilities: (keyof AbilityScores)[] = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
     const newScores: AbilityScores = { strength: 10, dexterity: 10, constitution: 10, intelligence: 10, wisdom: 10, charisma: 10 };
     abilities.forEach((ability, idx) => {
@@ -139,6 +171,26 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     });
     setAbilityScores(newScores);
     setAbilityMethod('roll');
+  };
+
+  const handleRollHp = () => {
+    // Roll hit die for HP (D&D 5e: at level 1, you can roll or take max)
+    const hitDie = CLASS_HIT_DICE[characterClass];
+    const roll = Math.floor(Math.random() * hitDie) + 1;
+    setRolledHp(roll);
+    setHpMethod('roll');
+  };
+
+  const getCalculatedHp = () => {
+    const hitDie = CLASS_HIT_DICE[characterClass];
+    const conMod = getAbilityModifier(abilityScores.constitution);
+
+    if (hpMethod === 'roll' && rolledHp !== null) {
+      // Rolled HP: roll result + CON modifier (minimum 1)
+      return Math.max(1, rolledHp + conMod);
+    }
+    // Standard: max hit die + CON modifier (minimum 1)
+    return Math.max(1, hitDie + conMod);
   };
 
   const swapAbilities = (a: keyof AbilityScores, b: keyof AbilityScores) => {
@@ -187,11 +239,48 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     }
   };
 
+  // Shop functions
+  const addToCart = (item: ShopItem) => {
+    if (shopGold < item.cost) return; // Can't afford
+
+    const existingItem = shopCart.find(i => i.name === item.name);
+    if (existingItem) {
+      setShopCart(prev => prev.map(i =>
+        i.name === item.name ? { ...i, quantity: i.quantity + 1 } : i
+      ));
+    } else {
+      setShopCart(prev => [...prev, {
+        ...item,
+        id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        quantity: 1,
+      }]);
+    }
+    setShopGold(prev => prev - item.cost);
+  };
+
+  const removeFromCart = (itemName: string) => {
+    const item = shopCart.find(i => i.name === itemName);
+    if (!item) return;
+
+    if (item.quantity > 1) {
+      setShopCart(prev => prev.map(i =>
+        i.name === itemName ? { ...i, quantity: i.quantity - 1 } : i
+      ));
+    } else {
+      setShopCart(prev => prev.filter(i => i.name !== itemName));
+    }
+    setShopGold(prev => prev + item.cost);
+  };
+
+  const getFilteredShopItems = () => {
+    if (shopCategory === 'all') return ALL_SHOP_ITEMS;
+    return ALL_SHOP_ITEMS.filter(item => item.category === shopCategory);
+  };
+
   const createCharacter = (): Character => {
     const level = 1;
-    const hitDie = CLASS_HIT_DICE[characterClass];
-    const conMod = getAbilityModifier(abilityScores.constitution);
-    const maxHp = hitDie + conMod;
+    const maxHp = getCalculatedHp();
+    const dexMod = getAbilityModifier(abilityScores.dexterity);
 
     // Combine background and class skill proficiencies
     const finalSkills = { ...getDefaultSkillProficiencies() };
@@ -201,6 +290,102 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     selectedClassSkills.forEach(skill => {
       finalSkills[skill] = 'proficient';
     });
+
+    // Build weapons and equipment based on method
+    let weapons: Character['weapons'] = [];
+    let equipment: Character['equipment'] = [];
+    let startingGold = 0;
+    let baseAC = 10 + dexMod;
+
+    if (equipmentMethod === 'pack') {
+      const pack = CLASS_STARTING_PACKS[characterClass];
+
+      // Convert pack weapons to character weapons
+      weapons = pack.weapons.map((w, idx) => ({
+        id: `weapon-${idx}`,
+        name: w.name,
+        attackBonus: 2, // Base proficiency at level 1
+        damage: w.damage,
+        properties: w.properties,
+        equipped: idx === 0, // First weapon is equipped
+      }));
+
+      // Convert pack equipment to character equipment
+      equipment = pack.equipment.map((e, idx) => ({
+        id: `equip-${idx}`,
+        name: e.name,
+        quantity: e.quantity,
+      }));
+
+      // Add shield if class pack includes one
+      if (pack.shield) {
+        equipment.push({ id: 'equip-shield', name: 'Shield', quantity: 1, equipped: true });
+        baseAC += 2;
+      }
+
+      // Add armor to equipment if class pack includes one
+      if (pack.armor) {
+        equipment.push({
+          id: 'equip-armor',
+          name: pack.armor.name,
+          quantity: 1,
+          description: pack.armor.description,
+          equipped: true,
+        });
+        // Calculate AC with armor
+        baseAC = pack.armor.armorClass + Math.min(dexMod, 2); // Most armor caps Dex at +2
+        if (pack.armor.name.includes('Leather') || pack.armor.name.includes('Studded')) {
+          baseAC = pack.armor.armorClass + dexMod; // Light armor gets full Dex
+        }
+        if (pack.armor.name.includes('Chain Mail') || pack.armor.name.includes('Ring Mail')) {
+          baseAC = pack.armor.armorClass; // Heavy armor no Dex
+        }
+        if (pack.shield) {
+          baseAC += 2;
+        }
+      }
+
+      startingGold = pack.gold;
+    } else {
+      // Shop purchases
+      const weaponItems = shopCart.filter(i => i.category === 'weapon');
+      const nonWeaponItems = shopCart.filter(i => i.category !== 'weapon');
+
+      weapons = weaponItems.map((w, idx) => ({
+        id: w.id,
+        name: w.name,
+        attackBonus: 2,
+        damage: w.damage || '1d4',
+        properties: w.properties,
+        equipped: idx === 0,
+      }));
+
+      equipment = nonWeaponItems.map(e => ({
+        id: e.id,
+        name: e.name,
+        quantity: e.quantity,
+        description: e.description,
+      }));
+
+      // Handle armor AC from shop purchases
+      const armorItem = shopCart.find(i => i.category === 'armor' && i.armorClass && i.armorClass > 2);
+      const shieldItem = shopCart.find(i => i.name === 'Shield');
+
+      if (armorItem && armorItem.armorClass) {
+        if (armorItem.name.includes('Leather') || armorItem.name.includes('Padded') || armorItem.name.includes('Studded')) {
+          baseAC = armorItem.armorClass + dexMod;
+        } else if (armorItem.name.includes('Chain Mail') || armorItem.name.includes('Ring Mail')) {
+          baseAC = armorItem.armorClass;
+        } else {
+          baseAC = armorItem.armorClass + Math.min(dexMod, 2);
+        }
+      }
+      if (shieldItem) {
+        baseAC += 2;
+      }
+
+      startingGold = Math.floor(shopGold); // Remaining gold
+    }
 
     const now = new Date().toISOString();
 
@@ -221,8 +406,8 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       weaponProficiencies: [],
       toolProficiencies: [],
       languages: ['Common'],
-      armorClass: 10 + getAbilityModifier(abilityScores.dexterity),
-      initiative: getAbilityModifier(abilityScores.dexterity),
+      armorClass: baseAC,
+      initiative: dexMod,
       speed: SPECIES_SPEED[species],
       maxHitPoints: Math.max(1, maxHp),
       currentHitPoints: Math.max(1, maxHp),
@@ -230,9 +415,9 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       hitDiceTotal: level,
       hitDiceRemaining: level,
       deathSaves: { successes: 0, failures: 0 },
-      weapons: [],
-      equipment: [],
-      currency: { copper: 0, silver: 0, electrum: 0, gold: 10, platinum: 0 },
+      weapons,
+      equipment,
+      currency: { copper: 0, silver: 0, electrum: 0, gold: startingGold, platinum: 0 },
       features: [],
       cantrips: selectedCantrips,
       spells: selectedSpells,
@@ -406,6 +591,42 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
             </div>
           ))}
         </div>
+
+        {/* HP Options */}
+        <div className="mt-6 pt-4 border-t border-leather">
+          <h4 className="font-medieval text-md text-gold mb-2">Starting Hit Points</h4>
+          <div className="flex gap-2 mb-2">
+            <Button
+              size="sm"
+              variant={hpMethod === 'standard' ? 'primary' : 'secondary'}
+              onClick={() => {
+                setHpMethod('standard');
+                setRolledHp(null);
+              }}
+            >
+              Standard (Max d{CLASS_HIT_DICE[characterClass]})
+            </Button>
+            <Button
+              size="sm"
+              variant={hpMethod === 'roll' ? 'primary' : 'secondary'}
+              onClick={handleRollHp}
+            >
+              {rolledHp !== null ? `Roll Again (got ${rolledHp})` : `Roll d${CLASS_HIT_DICE[characterClass]}`}
+            </Button>
+          </div>
+          <div className="bg-dark-wood p-3 rounded border border-leather">
+            <div className="flex items-center justify-between">
+              <div className="text-parchment/70 text-sm">
+                {hpMethod === 'standard'
+                  ? `Max hit die (${CLASS_HIT_DICE[characterClass]}) + CON modifier (${formatModifier(getAbilityModifier(abilityScores.constitution))})`
+                  : `Rolled ${rolledHp ?? '?'} + CON modifier (${formatModifier(getAbilityModifier(abilityScores.constitution))})`}
+              </div>
+              <div className="text-gold font-bold text-2xl">
+                {getCalculatedHp()} HP
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   };
@@ -539,6 +760,170 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     );
   };
 
+  const renderEquipmentStep = () => {
+    const pack = CLASS_STARTING_PACKS[characterClass];
+    const filteredItems = getFilteredShopItems();
+    const categories = ['all', 'weapon', 'armor', 'gear', 'potion', 'food', 'tool'];
+
+    return (
+      <div className="space-y-4">
+        <h3 className="font-medieval text-lg text-gold">Starting Equipment</h3>
+
+        <div className="flex gap-2 mb-4">
+          <Button
+            size="sm"
+            variant={equipmentMethod === 'pack' ? 'primary' : 'secondary'}
+            onClick={() => {
+              setEquipmentMethod('pack');
+              setShopCart([]);
+              setShopGold(50);
+            }}
+          >
+            Class Pack
+          </Button>
+          <Button
+            size="sm"
+            variant={equipmentMethod === 'shop' ? 'primary' : 'secondary'}
+            onClick={() => setEquipmentMethod('shop')}
+          >
+            Shop (50g)
+          </Button>
+        </div>
+
+        {equipmentMethod === 'pack' ? (
+          <div className="bg-dark-wood p-4 rounded border border-leather space-y-3">
+            <h4 className="text-gold font-semibold">{CLASS_NAMES[characterClass]} Starting Pack</h4>
+
+            {/* Weapons */}
+            <div>
+              <div className="text-parchment/70 text-xs mb-1">Weapons:</div>
+              <div className="flex flex-wrap gap-1">
+                {pack.weapons.map((w, idx) => (
+                  <span key={idx} className="bg-red-900/30 text-parchment px-2 py-0.5 rounded text-xs">
+                    {w.name} ({w.damage})
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Armor */}
+            {pack.armor && (
+              <div>
+                <div className="text-parchment/70 text-xs mb-1">Armor:</div>
+                <span className="bg-blue-900/30 text-parchment px-2 py-0.5 rounded text-xs">
+                  {pack.armor.name} ({pack.armor.description})
+                </span>
+                {pack.shield && (
+                  <span className="ml-1 bg-blue-900/30 text-parchment px-2 py-0.5 rounded text-xs">
+                    Shield (+2 AC)
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Equipment */}
+            <div>
+              <div className="text-parchment/70 text-xs mb-1">Equipment:</div>
+              <div className="flex flex-wrap gap-1">
+                {pack.equipment.map((e, idx) => (
+                  <span key={idx} className="bg-leather/50 text-parchment px-2 py-0.5 rounded text-xs">
+                    {e.name} {e.quantity > 1 && `(x${e.quantity})`}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="text-gold text-sm pt-2 border-t border-leather">
+              Starting Gold: {pack.gold}g
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {/* Gold Counter */}
+            <div className="flex justify-between items-center bg-gold/20 p-2 rounded">
+              <span className="text-parchment">Remaining Gold:</span>
+              <span className="text-gold font-bold text-xl">{shopGold.toFixed(1)}g</span>
+            </div>
+
+            {/* Category Filter */}
+            <div className="flex flex-wrap gap-1">
+              {categories.map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setShopCategory(cat)}
+                  className={`px-2 py-1 rounded text-xs capitalize ${
+                    shopCategory === cat
+                      ? 'bg-gold text-dark-wood'
+                      : 'bg-leather/50 text-parchment hover:bg-leather'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            {/* Cart */}
+            {shopCart.length > 0 && (
+              <div className="bg-dark-wood p-3 rounded border border-leather">
+                <div className="text-gold text-sm mb-2">Your Cart:</div>
+                <div className="space-y-1 max-h-24 overflow-y-auto">
+                  {shopCart.map(item => (
+                    <div key={item.id} className="flex justify-between items-center text-xs">
+                      <span className="text-parchment">
+                        {item.name} {item.quantity > 1 && `x${item.quantity}`}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-gold">{(item.cost * item.quantity).toFixed(1)}g</span>
+                        <button
+                          onClick={() => removeFromCart(item.name)}
+                          className="text-red-400 hover:text-red-300"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Shop Items */}
+            <div className="bg-dark-wood p-3 rounded border border-leather max-h-48 overflow-y-auto">
+              <div className="space-y-1">
+                {filteredItems.map((item, idx) => {
+                  const canAfford = shopGold >= item.cost;
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => canAfford && addToCart(item)}
+                      disabled={!canAfford}
+                      className={`w-full text-left p-2 rounded flex justify-between items-center text-xs ${
+                        canAfford
+                          ? 'hover:bg-leather/50 cursor-pointer'
+                          : 'opacity-50 cursor-not-allowed'
+                      }`}
+                    >
+                      <div>
+                        <span className="text-parchment">{item.name}</span>
+                        {item.damage && (
+                          <span className="text-parchment/50 ml-1">({item.damage})</span>
+                        )}
+                        {item.description && (
+                          <div className="text-parchment/50 text-xs">{item.description}</div>
+                        )}
+                      </div>
+                      <span className="text-gold">{item.cost}g</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderDetailsStep = () => (
     <div className="space-y-4">
       <h3 className="font-medieval text-lg text-gold">Personality & Backstory</h3>
@@ -610,8 +995,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
 
   const renderReviewStep = () => {
     const hitDie = CLASS_HIT_DICE[characterClass];
-    const conMod = getAbilityModifier(abilityScores.constitution);
-    const maxHp = Math.max(1, hitDie + conMod);
+    const maxHp = getCalculatedHp();
     const profBonus = getProficiencyBonus(1);
 
     const allProficientSkills = [
@@ -706,6 +1090,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       case 'abilities': return renderAbilitiesStep();
       case 'skills': return renderSkillsStep();
       case 'spells': return renderSpellsStep();
+      case 'equipment': return renderEquipmentStep();
       case 'details': return renderDetailsStep();
       case 'review': return renderReviewStep();
     }

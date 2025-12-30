@@ -551,6 +551,7 @@ export function DMView() {
               </h2>
               <MonsterPanel
                 onRollDice={handleDiceRoll}
+                onAddToken={handleAddToken}
                 socketId={socket?.id}
               />
             </Panel>

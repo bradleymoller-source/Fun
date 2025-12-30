@@ -81,12 +81,60 @@ export function setDmSocket(roomCode: string, socketId: string): void {
 }
 
 /**
- * Adds a player to a session
+ * Adds a player to a session or reconnects an existing one
+ * Returns { player, isReconnect } to indicate if this is a new join or reconnection
  */
-export function addPlayer(roomCode: string, socketId: string, name: string): Player | null {
+export function addPlayer(roomCode: string, socketId: string, name: string): { player: Player; isReconnect: boolean } | null {
   const session = getSession(roomCode);
   if (!session) return null;
 
+  // Check if there's a disconnected player with the same name (reconnection case)
+  let existingPlayer: Player | undefined;
+  let existingSocketId: string | undefined;
+
+  for (const [id, player] of session.players.entries()) {
+    if (player.name === name && !player.isConnected) {
+      existingPlayer = player;
+      existingSocketId = id;
+      break;
+    }
+  }
+
+  if (existingPlayer && existingSocketId) {
+    // Reconnecting player - update their socket ID
+    session.players.delete(existingSocketId);
+    existingPlayer.id = socketId;
+    existingPlayer.isConnected = true;
+    session.players.set(socketId, existingPlayer);
+
+    // Update token ownerId if they had one
+    const playerToken = session.map.tokens.find(t => t.ownerId === existingSocketId);
+    if (playerToken) {
+      playerToken.ownerId = socketId;
+      playerToken.id = `token-player-${socketId}`;
+    }
+
+    updateActivity(roomCode);
+
+    // Update in database
+    db.prepare('DELETE FROM players WHERE id = ?').run(existingSocketId);
+    db.prepare(`
+      INSERT OR REPLACE INTO players (id, session_room_code, name, joined_at)
+      VALUES (?, ?, ?, ?)
+    `).run(socketId, roomCode, existingPlayer.name, existingPlayer.joinedAt.toISOString());
+
+    return { player: existingPlayer, isReconnect: true };
+  }
+
+  // Check if there's ALREADY a connected player with this name
+  for (const player of session.players.values()) {
+    if (player.name === name && player.isConnected) {
+      // Player with this name is already connected - reject
+      return null;
+    }
+  }
+
+  // New player
   const player: Player = {
     id: socketId,
     name,
@@ -103,7 +151,7 @@ export function addPlayer(roomCode: string, socketId: string, name: string): Pla
     VALUES (?, ?, ?, ?)
   `).run(socketId, roomCode, name, player.joinedAt.toISOString());
 
-  return player;
+  return { player, isReconnect: false };
 }
 
 /**

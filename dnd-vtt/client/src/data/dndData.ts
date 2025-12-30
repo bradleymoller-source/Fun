@@ -764,3 +764,333 @@ export const SPELLS_AT_LEVEL_1: Partial<Record<CharacterClass, number>> = {
   warlock: 2,
   wizard: 6, // In spellbook, prepare Int mod + level
 };
+
+// ============ STARTING EQUIPMENT ============
+
+// Shop item definition
+export interface ShopItem {
+  name: string;
+  cost: number; // in gold pieces
+  weight?: number;
+  description?: string;
+  category: 'weapon' | 'armor' | 'gear' | 'potion' | 'food' | 'tool';
+  damage?: string; // for weapons
+  properties?: string[];
+  armorClass?: number; // for armor
+}
+
+// Weapons available for purchase
+export const SHOP_WEAPONS: ShopItem[] = [
+  // Simple Melee Weapons
+  { name: 'Club', cost: 0.1, weight: 2, category: 'weapon', damage: '1d4 bludgeoning', properties: ['light'] },
+  { name: 'Dagger', cost: 2, weight: 1, category: 'weapon', damage: '1d4 piercing', properties: ['finesse', 'light', 'thrown (20/60)'] },
+  { name: 'Greatclub', cost: 0.2, weight: 10, category: 'weapon', damage: '1d8 bludgeoning', properties: ['two-handed'] },
+  { name: 'Handaxe', cost: 5, weight: 2, category: 'weapon', damage: '1d6 slashing', properties: ['light', 'thrown (20/60)'] },
+  { name: 'Javelin', cost: 0.5, weight: 2, category: 'weapon', damage: '1d6 piercing', properties: ['thrown (30/120)'] },
+  { name: 'Light Hammer', cost: 2, weight: 2, category: 'weapon', damage: '1d4 bludgeoning', properties: ['light', 'thrown (20/60)'] },
+  { name: 'Mace', cost: 5, weight: 4, category: 'weapon', damage: '1d6 bludgeoning' },
+  { name: 'Quarterstaff', cost: 0.2, weight: 4, category: 'weapon', damage: '1d6 bludgeoning', properties: ['versatile (1d8)'] },
+  { name: 'Sickle', cost: 1, weight: 2, category: 'weapon', damage: '1d4 slashing', properties: ['light'] },
+  { name: 'Spear', cost: 1, weight: 3, category: 'weapon', damage: '1d6 piercing', properties: ['thrown (20/60)', 'versatile (1d8)'] },
+  // Simple Ranged Weapons
+  { name: 'Light Crossbow', cost: 25, weight: 5, category: 'weapon', damage: '1d8 piercing', properties: ['ammunition (80/320)', 'loading', 'two-handed'] },
+  { name: 'Shortbow', cost: 25, weight: 2, category: 'weapon', damage: '1d6 piercing', properties: ['ammunition (80/320)', 'two-handed'] },
+  { name: 'Sling', cost: 0.1, weight: 0, category: 'weapon', damage: '1d4 bludgeoning', properties: ['ammunition (30/120)'] },
+  // Martial Melee Weapons
+  { name: 'Battleaxe', cost: 10, weight: 4, category: 'weapon', damage: '1d8 slashing', properties: ['versatile (1d10)'] },
+  { name: 'Flail', cost: 10, weight: 2, category: 'weapon', damage: '1d8 bludgeoning' },
+  { name: 'Glaive', cost: 20, weight: 6, category: 'weapon', damage: '1d10 slashing', properties: ['heavy', 'reach', 'two-handed'] },
+  { name: 'Greataxe', cost: 30, weight: 7, category: 'weapon', damage: '1d12 slashing', properties: ['heavy', 'two-handed'] },
+  { name: 'Greatsword', cost: 50, weight: 6, category: 'weapon', damage: '2d6 slashing', properties: ['heavy', 'two-handed'] },
+  { name: 'Halberd', cost: 20, weight: 6, category: 'weapon', damage: '1d10 slashing', properties: ['heavy', 'reach', 'two-handed'] },
+  { name: 'Longsword', cost: 15, weight: 3, category: 'weapon', damage: '1d8 slashing', properties: ['versatile (1d10)'] },
+  { name: 'Maul', cost: 10, weight: 10, category: 'weapon', damage: '2d6 bludgeoning', properties: ['heavy', 'two-handed'] },
+  { name: 'Morningstar', cost: 15, weight: 4, category: 'weapon', damage: '1d8 piercing' },
+  { name: 'Rapier', cost: 25, weight: 2, category: 'weapon', damage: '1d8 piercing', properties: ['finesse'] },
+  { name: 'Scimitar', cost: 25, weight: 3, category: 'weapon', damage: '1d6 slashing', properties: ['finesse', 'light'] },
+  { name: 'Shortsword', cost: 10, weight: 2, category: 'weapon', damage: '1d6 piercing', properties: ['finesse', 'light'] },
+  { name: 'Warhammer', cost: 15, weight: 2, category: 'weapon', damage: '1d8 bludgeoning', properties: ['versatile (1d10)'] },
+  { name: 'War Pick', cost: 5, weight: 2, category: 'weapon', damage: '1d8 piercing' },
+  // Martial Ranged Weapons
+  { name: 'Hand Crossbow', cost: 75, weight: 3, category: 'weapon', damage: '1d6 piercing', properties: ['ammunition (30/120)', 'light', 'loading'] },
+  { name: 'Heavy Crossbow', cost: 50, weight: 18, category: 'weapon', damage: '1d10 piercing', properties: ['ammunition (100/400)', 'heavy', 'loading', 'two-handed'] },
+  { name: 'Longbow', cost: 50, weight: 2, category: 'weapon', damage: '1d8 piercing', properties: ['ammunition (150/600)', 'heavy', 'two-handed'] },
+];
+
+// Armor available for purchase
+export const SHOP_ARMOR: ShopItem[] = [
+  // Light Armor
+  { name: 'Padded Armor', cost: 5, weight: 8, category: 'armor', armorClass: 11, description: 'AC 11 + Dex' },
+  { name: 'Leather Armor', cost: 10, weight: 10, category: 'armor', armorClass: 11, description: 'AC 11 + Dex' },
+  { name: 'Studded Leather', cost: 45, weight: 13, category: 'armor', armorClass: 12, description: 'AC 12 + Dex' },
+  // Medium Armor
+  { name: 'Hide Armor', cost: 10, weight: 12, category: 'armor', armorClass: 12, description: 'AC 12 + Dex (max 2)' },
+  { name: 'Chain Shirt', cost: 50, weight: 20, category: 'armor', armorClass: 13, description: 'AC 13 + Dex (max 2)' },
+  { name: 'Scale Mail', cost: 50, weight: 45, category: 'armor', armorClass: 14, description: 'AC 14 + Dex (max 2)' },
+  { name: 'Breastplate', cost: 400, weight: 20, category: 'armor', armorClass: 14, description: 'AC 14 + Dex (max 2)' },
+  // Heavy Armor
+  { name: 'Ring Mail', cost: 30, weight: 40, category: 'armor', armorClass: 14, description: 'AC 14' },
+  { name: 'Chain Mail', cost: 75, weight: 55, category: 'armor', armorClass: 16, description: 'AC 16, Str 13 required' },
+  // Shield
+  { name: 'Shield', cost: 10, weight: 6, category: 'armor', armorClass: 2, description: '+2 AC' },
+];
+
+// Adventuring gear
+export const SHOP_GEAR: ShopItem[] = [
+  { name: 'Backpack', cost: 2, weight: 5, category: 'gear', description: 'Holds 30 lbs' },
+  { name: 'Bedroll', cost: 1, weight: 7, category: 'gear' },
+  { name: 'Blanket', cost: 0.5, weight: 3, category: 'gear' },
+  { name: 'Candle (10)', cost: 0.1, weight: 0, category: 'gear' },
+  { name: 'Chalk (10 pieces)', cost: 0.1, weight: 0, category: 'gear' },
+  { name: 'Climber\'s Kit', cost: 25, weight: 12, category: 'gear', description: 'Advantage on climbing' },
+  { name: 'Crowbar', cost: 2, weight: 5, category: 'gear', description: 'Advantage on Str checks to pry' },
+  { name: 'Grappling Hook', cost: 2, weight: 4, category: 'gear' },
+  { name: 'Healer\'s Kit', cost: 5, weight: 3, category: 'gear', description: '10 uses, stabilize dying' },
+  { name: 'Hempen Rope (50 ft)', cost: 1, weight: 10, category: 'gear' },
+  { name: 'Silk Rope (50 ft)', cost: 10, weight: 5, category: 'gear' },
+  { name: 'Lantern (Hooded)', cost: 5, weight: 2, category: 'gear', description: '30 ft bright, 30 ft dim' },
+  { name: 'Lantern (Bullseye)', cost: 10, weight: 2, category: 'gear', description: '60 ft cone bright, 60 ft dim' },
+  { name: 'Lock', cost: 10, weight: 1, category: 'gear', description: 'DC 15 to pick' },
+  { name: 'Manacles', cost: 2, weight: 6, category: 'gear', description: 'DC 20 to escape' },
+  { name: 'Mirror (Steel)', cost: 5, weight: 0.5, category: 'gear' },
+  { name: 'Oil Flask (10)', cost: 1, weight: 10, category: 'gear', description: '5 ft fire, 1d5 damage' },
+  { name: 'Piton (10)', cost: 0.5, weight: 2.5, category: 'gear' },
+  { name: 'Quiver', cost: 1, weight: 1, category: 'gear', description: 'Holds 20 arrows' },
+  { name: 'Arrows (20)', cost: 1, weight: 1, category: 'gear' },
+  { name: 'Crossbow Bolts (20)', cost: 1, weight: 1.5, category: 'gear' },
+  { name: 'Sling Bullets (20)', cost: 0.04, weight: 1.5, category: 'gear' },
+  { name: 'Tinderbox', cost: 0.5, weight: 1, category: 'gear', description: 'Light fires' },
+  { name: 'Torch (10)', cost: 0.1, weight: 10, category: 'gear', description: '20 ft bright, 20 ft dim' },
+  { name: 'Waterskin', cost: 0.2, weight: 5, category: 'gear', description: 'Holds 4 pints' },
+  { name: 'Component Pouch', cost: 25, weight: 2, category: 'gear', description: 'For spellcasting' },
+  { name: 'Arcane Focus (Wand)', cost: 10, weight: 1, category: 'gear', description: 'For spellcasting' },
+  { name: 'Holy Symbol', cost: 5, weight: 1, category: 'gear', description: 'For divine casting' },
+  { name: 'Druidic Focus (Sprig)', cost: 1, weight: 0, category: 'gear', description: 'For druid casting' },
+];
+
+// Potions and consumables
+export const SHOP_POTIONS: ShopItem[] = [
+  { name: 'Potion of Healing', cost: 50, weight: 0.5, category: 'potion', description: 'Heal 2d4+2 HP' },
+  { name: 'Antitoxin', cost: 50, weight: 0, category: 'potion', description: 'Advantage vs poison for 1 hour' },
+  { name: 'Alchemist\'s Fire', cost: 50, weight: 1, category: 'potion', description: '1d4 fire damage/round' },
+  { name: 'Acid Vial', cost: 25, weight: 1, category: 'potion', description: '2d6 acid damage' },
+  { name: 'Holy Water', cost: 25, weight: 1, category: 'potion', description: '2d6 radiant to undead/fiends' },
+];
+
+// Food and provisions
+export const SHOP_FOOD: ShopItem[] = [
+  { name: 'Rations (10 days)', cost: 5, weight: 20, category: 'food', description: 'Dry provisions' },
+  { name: 'Rations (5 days)', cost: 2.5, weight: 10, category: 'food', description: 'Dry provisions' },
+  { name: 'Ale (Gallon)', cost: 0.2, weight: 8, category: 'food' },
+  { name: 'Wine (Common)', cost: 0.2, weight: 6, category: 'food' },
+  { name: 'Bread Loaf', cost: 0.02, weight: 0.5, category: 'food' },
+  { name: 'Cheese Wheel', cost: 0.1, weight: 2, category: 'food' },
+  { name: 'Meat (Chunk)', cost: 0.3, weight: 2, category: 'food' },
+];
+
+// Tools
+export const SHOP_TOOLS: ShopItem[] = [
+  { name: 'Thieves\' Tools', cost: 25, weight: 1, category: 'tool', description: 'Pick locks and disarm traps' },
+  { name: 'Smith\'s Tools', cost: 20, weight: 8, category: 'tool' },
+  { name: 'Herbalism Kit', cost: 5, weight: 3, category: 'tool', description: 'Create potions' },
+  { name: 'Alchemist\'s Supplies', cost: 50, weight: 8, category: 'tool' },
+  { name: 'Disguise Kit', cost: 25, weight: 3, category: 'tool' },
+  { name: 'Forgery Kit', cost: 15, weight: 5, category: 'tool' },
+  { name: 'Musical Instrument (Lute)', cost: 35, weight: 2, category: 'tool' },
+  { name: 'Musical Instrument (Flute)', cost: 2, weight: 1, category: 'tool' },
+  { name: 'Playing Card Set', cost: 0.5, weight: 0, category: 'tool' },
+  { name: 'Dice Set', cost: 0.1, weight: 0, category: 'tool' },
+];
+
+// All shop items combined
+export const ALL_SHOP_ITEMS: ShopItem[] = [
+  ...SHOP_WEAPONS,
+  ...SHOP_ARMOR,
+  ...SHOP_GEAR,
+  ...SHOP_POTIONS,
+  ...SHOP_FOOD,
+  ...SHOP_TOOLS,
+];
+
+// Starting equipment packs by class
+export interface StartingPack {
+  weapons: { name: string; damage: string; properties?: string[] }[];
+  armor?: { name: string; armorClass: number; description?: string };
+  shield?: boolean;
+  equipment: { name: string; quantity: number }[];
+  gold: number;
+}
+
+export const CLASS_STARTING_PACKS: Record<CharacterClass, StartingPack> = {
+  barbarian: {
+    weapons: [
+      { name: 'Greataxe', damage: '1d12 slashing', properties: ['heavy', 'two-handed'] },
+      { name: 'Handaxe', damage: '1d6 slashing', properties: ['light', 'thrown (20/60)'] },
+      { name: 'Handaxe', damage: '1d6 slashing', properties: ['light', 'thrown (20/60)'] },
+      { name: 'Javelin', damage: '1d6 piercing', properties: ['thrown (30/120)'] },
+      { name: 'Javelin', damage: '1d6 piercing', properties: ['thrown (30/120)'] },
+      { name: 'Javelin', damage: '1d6 piercing', properties: ['thrown (30/120)'] },
+      { name: 'Javelin', damage: '1d6 piercing', properties: ['thrown (30/120)'] },
+    ],
+    equipment: [
+      { name: 'Explorer\'s Pack', quantity: 1 },
+    ],
+    gold: 10,
+  },
+  bard: {
+    weapons: [
+      { name: 'Rapier', damage: '1d8 piercing', properties: ['finesse'] },
+      { name: 'Dagger', damage: '1d4 piercing', properties: ['finesse', 'light', 'thrown (20/60)'] },
+    ],
+    armor: { name: 'Leather Armor', armorClass: 11, description: 'AC 11 + Dex' },
+    equipment: [
+      { name: 'Diplomat\'s Pack', quantity: 1 },
+      { name: 'Lute', quantity: 1 },
+    ],
+    gold: 10,
+  },
+  cleric: {
+    weapons: [
+      { name: 'Mace', damage: '1d6 bludgeoning' },
+      { name: 'Light Crossbow', damage: '1d8 piercing', properties: ['ammunition (80/320)', 'loading', 'two-handed'] },
+    ],
+    armor: { name: 'Scale Mail', armorClass: 14, description: 'AC 14 + Dex (max 2)' },
+    shield: true,
+    equipment: [
+      { name: 'Priest\'s Pack', quantity: 1 },
+      { name: 'Holy Symbol', quantity: 1 },
+      { name: 'Crossbow Bolts (20)', quantity: 1 },
+    ],
+    gold: 10,
+  },
+  druid: {
+    weapons: [
+      { name: 'Scimitar', damage: '1d6 slashing', properties: ['finesse', 'light'] },
+    ],
+    armor: { name: 'Leather Armor', armorClass: 11, description: 'AC 11 + Dex' },
+    shield: true,
+    equipment: [
+      { name: 'Explorer\'s Pack', quantity: 1 },
+      { name: 'Druidic Focus', quantity: 1 },
+    ],
+    gold: 10,
+  },
+  fighter: {
+    weapons: [
+      { name: 'Longsword', damage: '1d8 slashing', properties: ['versatile (1d10)'] },
+      { name: 'Light Crossbow', damage: '1d8 piercing', properties: ['ammunition (80/320)', 'loading', 'two-handed'] },
+    ],
+    armor: { name: 'Chain Mail', armorClass: 16, description: 'AC 16' },
+    shield: true,
+    equipment: [
+      { name: 'Dungeoneer\'s Pack', quantity: 1 },
+      { name: 'Crossbow Bolts (20)', quantity: 1 },
+    ],
+    gold: 10,
+  },
+  monk: {
+    weapons: [
+      { name: 'Shortsword', damage: '1d6 piercing', properties: ['finesse', 'light'] },
+      { name: 'Dart', damage: '1d4 piercing', properties: ['finesse', 'thrown (20/60)'] },
+      { name: 'Dart', damage: '1d4 piercing', properties: ['finesse', 'thrown (20/60)'] },
+      { name: 'Dart', damage: '1d4 piercing', properties: ['finesse', 'thrown (20/60)'] },
+      { name: 'Dart', damage: '1d4 piercing', properties: ['finesse', 'thrown (20/60)'] },
+      { name: 'Dart', damage: '1d4 piercing', properties: ['finesse', 'thrown (20/60)'] },
+      { name: 'Dart', damage: '1d4 piercing', properties: ['finesse', 'thrown (20/60)'] },
+      { name: 'Dart', damage: '1d4 piercing', properties: ['finesse', 'thrown (20/60)'] },
+      { name: 'Dart', damage: '1d4 piercing', properties: ['finesse', 'thrown (20/60)'] },
+      { name: 'Dart', damage: '1d4 piercing', properties: ['finesse', 'thrown (20/60)'] },
+      { name: 'Dart', damage: '1d4 piercing', properties: ['finesse', 'thrown (20/60)'] },
+    ],
+    equipment: [
+      { name: 'Explorer\'s Pack', quantity: 1 },
+    ],
+    gold: 10,
+  },
+  paladin: {
+    weapons: [
+      { name: 'Longsword', damage: '1d8 slashing', properties: ['versatile (1d10)'] },
+      { name: 'Javelin', damage: '1d6 piercing', properties: ['thrown (30/120)'] },
+      { name: 'Javelin', damage: '1d6 piercing', properties: ['thrown (30/120)'] },
+      { name: 'Javelin', damage: '1d6 piercing', properties: ['thrown (30/120)'] },
+      { name: 'Javelin', damage: '1d6 piercing', properties: ['thrown (30/120)'] },
+      { name: 'Javelin', damage: '1d6 piercing', properties: ['thrown (30/120)'] },
+    ],
+    armor: { name: 'Chain Mail', armorClass: 16, description: 'AC 16' },
+    shield: true,
+    equipment: [
+      { name: 'Priest\'s Pack', quantity: 1 },
+      { name: 'Holy Symbol', quantity: 1 },
+    ],
+    gold: 10,
+  },
+  ranger: {
+    weapons: [
+      { name: 'Shortsword', damage: '1d6 piercing', properties: ['finesse', 'light'] },
+      { name: 'Shortsword', damage: '1d6 piercing', properties: ['finesse', 'light'] },
+      { name: 'Longbow', damage: '1d8 piercing', properties: ['ammunition (150/600)', 'heavy', 'two-handed'] },
+    ],
+    armor: { name: 'Scale Mail', armorClass: 14, description: 'AC 14 + Dex (max 2)' },
+    equipment: [
+      { name: 'Explorer\'s Pack', quantity: 1 },
+      { name: 'Quiver', quantity: 1 },
+      { name: 'Arrows (20)', quantity: 1 },
+    ],
+    gold: 10,
+  },
+  rogue: {
+    weapons: [
+      { name: 'Rapier', damage: '1d8 piercing', properties: ['finesse'] },
+      { name: 'Shortbow', damage: '1d6 piercing', properties: ['ammunition (80/320)', 'two-handed'] },
+      { name: 'Dagger', damage: '1d4 piercing', properties: ['finesse', 'light', 'thrown (20/60)'] },
+      { name: 'Dagger', damage: '1d4 piercing', properties: ['finesse', 'light', 'thrown (20/60)'] },
+    ],
+    armor: { name: 'Leather Armor', armorClass: 11, description: 'AC 11 + Dex' },
+    equipment: [
+      { name: 'Burglar\'s Pack', quantity: 1 },
+      { name: 'Thieves\' Tools', quantity: 1 },
+      { name: 'Quiver', quantity: 1 },
+      { name: 'Arrows (20)', quantity: 1 },
+    ],
+    gold: 10,
+  },
+  sorcerer: {
+    weapons: [
+      { name: 'Light Crossbow', damage: '1d8 piercing', properties: ['ammunition (80/320)', 'loading', 'two-handed'] },
+      { name: 'Dagger', damage: '1d4 piercing', properties: ['finesse', 'light', 'thrown (20/60)'] },
+      { name: 'Dagger', damage: '1d4 piercing', properties: ['finesse', 'light', 'thrown (20/60)'] },
+    ],
+    equipment: [
+      { name: 'Dungeoneer\'s Pack', quantity: 1 },
+      { name: 'Component Pouch', quantity: 1 },
+      { name: 'Crossbow Bolts (20)', quantity: 1 },
+    ],
+    gold: 10,
+  },
+  warlock: {
+    weapons: [
+      { name: 'Light Crossbow', damage: '1d8 piercing', properties: ['ammunition (80/320)', 'loading', 'two-handed'] },
+      { name: 'Dagger', damage: '1d4 piercing', properties: ['finesse', 'light', 'thrown (20/60)'] },
+      { name: 'Dagger', damage: '1d4 piercing', properties: ['finesse', 'light', 'thrown (20/60)'] },
+    ],
+    armor: { name: 'Leather Armor', armorClass: 11, description: 'AC 11 + Dex' },
+    equipment: [
+      { name: 'Scholar\'s Pack', quantity: 1 },
+      { name: 'Arcane Focus', quantity: 1 },
+      { name: 'Crossbow Bolts (20)', quantity: 1 },
+    ],
+    gold: 10,
+  },
+  wizard: {
+    weapons: [
+      { name: 'Quarterstaff', damage: '1d6 bludgeoning', properties: ['versatile (1d8)'] },
+      { name: 'Dagger', damage: '1d4 piercing', properties: ['finesse', 'light', 'thrown (20/60)'] },
+    ],
+    equipment: [
+      { name: 'Scholar\'s Pack', quantity: 1 },
+      { name: 'Spellbook', quantity: 1 },
+      { name: 'Arcane Focus', quantity: 1 },
+    ],
+    gold: 10,
+  },
+};
