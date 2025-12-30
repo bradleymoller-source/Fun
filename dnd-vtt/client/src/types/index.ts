@@ -7,6 +7,12 @@ export interface Player {
 // Token sizes in grid squares
 export type TokenSize = 'tiny' | 'small' | 'medium' | 'large' | 'huge' | 'gargantuan';
 
+// Common D&D conditions
+export type Condition =
+  | 'poisoned' | 'stunned' | 'prone' | 'frightened' | 'charmed'
+  | 'paralyzed' | 'restrained' | 'blinded' | 'deafened' | 'invisible'
+  | 'incapacitated' | 'exhausted' | 'concentrating';
+
 export interface Token {
   id: string;
   name: string;
@@ -17,6 +23,10 @@ export interface Token {
   imageUrl?: string;  // Optional token image
   isHidden: boolean;  // Only visible to DM
   ownerId?: string;  // Player who controls this token (socket ID)
+  // Combat stats (optional)
+  maxHp?: number;
+  currentHp?: number;
+  conditions?: Condition[];
 }
 
 export interface MapState {
@@ -82,6 +92,10 @@ export interface InitiativeEntry {
   isActive: boolean;  // Currently has their turn
   tokenId?: string;  // Link to token on map
   playerId?: string;  // Link to player (if not NPC)
+  // Combat stats
+  maxHp?: number;
+  currentHp?: number;
+  conditions?: Condition[];
 }
 
 // ============ PHASE 4: CHARACTER SHEET ============

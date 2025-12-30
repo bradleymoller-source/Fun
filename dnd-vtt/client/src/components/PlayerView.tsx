@@ -19,7 +19,7 @@ const ORIENTATION_SIZES = {
 
 export function PlayerView() {
   const { roomCode, playerName, players, isConnected, playerTab, character, setPlayerTab, setCharacter, updateCharacter } = useSessionStore();
-  const { rollDice, sendChatMessage, socket } = useSocket();
+  const { rollDice, sendChatMessage, moveToken, socket } = useSocket();
   const [showParty, setShowParty] = useState(false);
   const [mapOrientation, setMapOrientation] = useState<MapOrientation>('landscape');
   const [mapDimensions, setMapDimensions] = useState(ORIENTATION_SIZES.landscape);
@@ -87,6 +87,15 @@ export function PlayerView() {
     // TODO: Sync character updates to server
   };
 
+  // Token movement handler (player can move their own token)
+  const handleTokenMove = async (tokenId: string, x: number, y: number) => {
+    try {
+      await moveToken(tokenId, x, y);
+    } catch (error) {
+      console.error('Failed to move token:', error);
+    }
+  };
+
   const renderMapView = () => (
     <>
       {/* Map Display */}
@@ -123,6 +132,8 @@ export function PlayerView() {
             width={mapDimensions.width}
             height={mapDimensions.height}
             isDm={false}
+            playerId={socket?.id}
+            onTokenMove={handleTokenMove}
           />
         </Panel>
       </div>

@@ -66,6 +66,12 @@ export interface ChatMessage {
   type: 'chat' | 'roll' | 'system';
 }
 
+// Common D&D conditions
+export type Condition =
+  | 'poisoned' | 'stunned' | 'prone' | 'frightened' | 'charmed'
+  | 'paralyzed' | 'restrained' | 'blinded' | 'deafened' | 'invisible'
+  | 'incapacitated' | 'exhausted' | 'concentrating';
+
 // Phase 3: Initiative Entry
 export interface InitiativeEntry {
   id: string;
@@ -75,6 +81,10 @@ export interface InitiativeEntry {
   isActive: boolean;
   tokenId?: string;
   playerId?: string;
+  // Combat stats
+  maxHp?: number;
+  currentHp?: number;
+  conditions?: Condition[];
 }
 
 // Represents a game session

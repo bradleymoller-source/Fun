@@ -9,7 +9,7 @@ import { MapLibrary } from './Map/MapLibrary';
 import { DiceRoller } from './DiceRoller';
 import { ChatPanel } from './ChatPanel';
 import { InitiativeTracker } from './InitiativeTracker';
-import type { Token, DiceRoll, ChatMessage, InitiativeEntry } from '../types';
+import type { Token, DiceRoll, ChatMessage, InitiativeEntry, FogArea } from '../types';
 
 type MapOrientation = 'landscape' | 'portrait';
 
@@ -19,7 +19,7 @@ const ORIENTATION_SIZES = {
 };
 
 export function DMView() {
-  const { roomCode, dmKey, players, map, savedMaps, addToken: addTokenLocal } = useSessionStore();
+  const { roomCode, dmKey, players, map, savedMaps, addToken: addTokenLocal, addFogArea, toggleFogArea, setFogOfWar, updateInitiativeEntry: updateInitiativeLocal } = useSessionStore();
   const {
     kickPlayer,
     addToken,
@@ -222,6 +222,22 @@ export function DMView() {
     }
   };
 
+  // Fog of War handlers
+  const handleAddFog = (fog: FogArea) => {
+    addFogArea(fog);
+    // Fog is synced via the debounced map update effect
+  };
+
+  const handleToggleFog = (fogId: string) => {
+    toggleFogArea(fogId);
+    // Fog is synced via the debounced map update effect
+  };
+
+  const handleClearFog = () => {
+    setFogOfWar([]);
+    // Fog is synced via the debounced map update effect
+  };
+
   return (
     <div className="min-h-screen p-4">
       {/* Header */}
@@ -338,6 +354,9 @@ export function DMView() {
                 isDm={true}
                 isLocked={isMapLocked}
                 onTokenMove={handleTokenMove}
+                onAddFog={handleAddFog}
+                onToggleFog={handleToggleFog}
+                onClearFog={handleClearFog}
               />
             </Panel>
           </div>
@@ -419,7 +438,7 @@ export function DMView() {
                 isDm={true}
                 onAddEntry={handleAddInitiativeEntry}
                 onRemoveEntry={handleRemoveInitiativeEntry}
-                onUpdateEntry={() => {}}
+                onUpdateEntry={updateInitiativeLocal}
                 onNextTurn={handleNextTurn}
                 onStartCombat={handleStartCombat}
                 onEndCombat={handleEndCombat}

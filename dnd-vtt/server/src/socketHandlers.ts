@@ -260,9 +260,9 @@ export function setupSocketHandlers(io: Server): void {
         return;
       }
 
-      // Only DM can move tokens for now (later: check ownerId)
-      if (!isDm) {
-        callback({ success: false, error: 'Only the DM can move tokens' });
+      // DM can move any token, players can only move tokens they own
+      if (!isDm && token.ownerId !== socket.id) {
+        callback({ success: false, error: 'You can only move your own token' });
         return;
       }
 
