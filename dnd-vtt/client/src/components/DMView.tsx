@@ -16,7 +16,7 @@ const ORIENTATION_SIZES = {
 };
 
 export function DMView() {
-  const { roomCode, dmKey, players, map, savedMaps } = useSessionStore();
+  const { roomCode, dmKey, players, map, savedMaps, addToken: addTokenLocal } = useSessionStore();
   const { kickPlayer, addToken, moveToken, updateToken, removeToken, updateMap, showMapToPlayers, hideMapFromPlayers } = useSocket();
   const [copied, setCopied] = useState<'code' | 'key' | null>(null);
   const [showPlayers, setShowPlayers] = useState(true);
@@ -72,10 +72,14 @@ export function DMView() {
   };
 
   const handleAddToken = async (token: Token) => {
+    // Optimistic update - add token locally immediately for instant feedback
+    addTokenLocal(token);
+
     try {
       await addToken(token);
     } catch (error) {
       console.error('Failed to add token:', error);
+      // Could remove the token here if socket fails, but for now just log
     }
   };
 

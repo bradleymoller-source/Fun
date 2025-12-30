@@ -50,8 +50,8 @@ export function MapControls({ onAddToken, onUpdateToken, onRemoveToken }: MapCon
     const token: Token = {
       id: `token-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       name: tokenName,
-      x: 5, // Default position
-      y: 5,
+      x: 0, // Place at top-left corner (visible position)
+      y: 0,
       size: tokenSize,
       color: tokenColor,
       isHidden: tokenHidden,
