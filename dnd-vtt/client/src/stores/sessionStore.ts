@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Player, SessionState, MapState, Token, FogArea, SavedMap, DiceRoll, ChatMessage, InitiativeEntry } from '../types';
+import type { Player, SessionState, MapState, Token, FogArea, SavedMap, DiceRoll, ChatMessage, InitiativeEntry, Character } from '../types';
 
 const initialMapState: MapState = {
   imageUrl: null,
@@ -68,6 +68,14 @@ interface SessionStore extends SessionState {
   nextTurn: () => void;
   startCombat: () => void;
   endCombat: () => void;
+
+  // Phase 4: Character Actions
+  setCharacter: (character: Character | null) => void;
+  updateCharacter: (updates: Partial<Character>) => void;
+  setAllCharacters: (characters: Character[]) => void;
+  addCharacterToSession: (character: Character) => void;
+  removeCharacterFromSession: (characterId: string) => void;
+  setPlayerTab: (tab: 'map' | 'character') => void;
 }
 
 const initialState: SessionState = {
@@ -84,7 +92,10 @@ const initialState: SessionState = {
   chatMessages: [],
   initiative: [],
   isInCombat: false,
+  character: null,
+  allCharacters: [],
   view: 'landing',
+  playerTab: 'map',
   error: null,
 };
 
@@ -333,4 +344,28 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       isInCombat: false,
       initiative: [],
     }),
+
+  // Phase 4: Character Actions
+  setCharacter: (character) => set({ character }),
+
+  updateCharacter: (updates) =>
+    set((state) => ({
+      character: state.character
+        ? { ...state.character, ...updates, updatedAt: new Date().toISOString() }
+        : null,
+    })),
+
+  setAllCharacters: (allCharacters) => set({ allCharacters }),
+
+  addCharacterToSession: (character) =>
+    set((state) => ({
+      allCharacters: [...state.allCharacters.filter((c) => c.id !== character.id), character],
+    })),
+
+  removeCharacterFromSession: (characterId) =>
+    set((state) => ({
+      allCharacters: state.allCharacters.filter((c) => c.id !== characterId),
+    })),
+
+  setPlayerTab: (playerTab) => set({ playerTab }),
 }));

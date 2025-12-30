@@ -6,7 +6,9 @@ import { MapCanvas } from './Map/MapCanvas';
 import { DiceRoller } from './DiceRoller';
 import { ChatPanel } from './ChatPanel';
 import { InitiativeTracker } from './InitiativeTracker';
-import type { DiceRoll, ChatMessage } from '../types';
+import { CharacterCreator } from './Character/CharacterCreator';
+import { CharacterSheet } from './Character/CharacterSheet';
+import type { DiceRoll, ChatMessage, Character } from '../types';
 
 type MapOrientation = 'landscape' | 'portrait';
 
@@ -16,11 +18,12 @@ const ORIENTATION_SIZES = {
 };
 
 export function PlayerView() {
-  const { roomCode, playerName, players, isConnected } = useSessionStore();
+  const { roomCode, playerName, players, isConnected, playerTab, character, setPlayerTab, setCharacter, updateCharacter } = useSessionStore();
   const { rollDice, sendChatMessage, socket } = useSocket();
   const [showParty, setShowParty] = useState(false);
   const [mapOrientation, setMapOrientation] = useState<MapOrientation>('landscape');
   const [mapDimensions, setMapDimensions] = useState(ORIENTATION_SIZES.landscape);
+  const [showCharacterCreator, setShowCharacterCreator] = useState(false);
   const mapContainerRef = useRef<HTMLDivElement>(null);
 
   // Update dimensions when orientation changes
@@ -71,6 +74,173 @@ export function PlayerView() {
     }
   };
 
+  // Phase 4: Character Creation Handler
+  const handleCharacterCreated = (newCharacter: Character) => {
+    setCharacter(newCharacter);
+    setShowCharacterCreator(false);
+    // TODO: Sync character to server
+  };
+
+  // Phase 4: Character Update Handler
+  const handleCharacterUpdate = (updates: Partial<Character>) => {
+    updateCharacter(updates);
+    // TODO: Sync character updates to server
+  };
+
+  const renderMapView = () => (
+    <>
+      {/* Map Display */}
+      <div className="flex-1" ref={mapContainerRef}>
+        {/* Map Toolbar */}
+        <div className="flex items-center justify-between mb-2 bg-dark-wood p-2 rounded-lg border border-leather">
+          <div className="flex items-center gap-2">
+            <span className="text-parchment text-sm">View:</span>
+            <button
+              onClick={() => setMapOrientation('landscape')}
+              className={`px-3 py-1 rounded text-sm ${
+                mapOrientation === 'landscape'
+                  ? 'bg-gold text-dark-wood'
+                  : 'bg-leather text-parchment hover:bg-leather/70'
+              }`}
+            >
+              Landscape
+            </button>
+            <button
+              onClick={() => setMapOrientation('portrait')}
+              className={`px-3 py-1 rounded text-sm ${
+                mapOrientation === 'portrait'
+                  ? 'bg-gold text-dark-wood'
+                  : 'bg-leather text-parchment hover:bg-leather/70'
+              }`}
+            >
+              Portrait
+            </button>
+          </div>
+        </div>
+
+        <Panel className="p-2">
+          <MapCanvas
+            width={mapDimensions.width}
+            height={mapDimensions.height}
+            isDm={false}
+          />
+        </Panel>
+      </div>
+
+      {/* Sidebar - Phase 3 Features */}
+      <div className="w-full lg:w-80 space-y-4">
+        {/* Initiative Tracker (view only for players) */}
+        <Panel>
+          <h2 className="font-medieval text-xl text-gold mb-4">
+            Initiative
+          </h2>
+          <InitiativeTracker
+            isDm={false}
+            onAddEntry={() => {}}
+            onRemoveEntry={() => {}}
+            onUpdateEntry={() => {}}
+            onNextTurn={() => {}}
+            onStartCombat={() => {}}
+            onEndCombat={() => {}}
+          />
+        </Panel>
+
+        {/* Dice Roller */}
+        <Panel>
+          <h2 className="font-medieval text-xl text-gold mb-4">
+            Dice Roller
+          </h2>
+          <DiceRoller
+            onRoll={handleDiceRoll}
+            playerId={socket?.id || 'player'}
+            playerName={playerName || 'Player'}
+            isDm={false}
+          />
+        </Panel>
+
+        {/* Chat */}
+        <Panel>
+          <h2 className="font-medieval text-xl text-gold mb-4">
+            Party Chat
+          </h2>
+          <ChatPanel
+            onSendMessage={handleSendMessage}
+            playerId={socket?.id || 'player'}
+            playerName={playerName || 'Player'}
+          />
+        </Panel>
+      </div>
+    </>
+  );
+
+  const renderCharacterView = () => (
+    <div className="flex flex-col lg:flex-row gap-4 w-full">
+      {/* Character Sheet or Creator */}
+      <div className="flex-1">
+        {showCharacterCreator ? (
+          <CharacterCreator
+            onComplete={handleCharacterCreated}
+            onCancel={() => setShowCharacterCreator(false)}
+            playerId={socket?.id || 'player'}
+          />
+        ) : character ? (
+          <Panel>
+            <CharacterSheet
+              character={character}
+              onUpdate={handleCharacterUpdate}
+              isEditable={true}
+            />
+          </Panel>
+        ) : (
+          <Panel>
+            <div className="text-center py-12">
+              <h2 className="font-medieval text-2xl text-gold mb-4">
+                No Character Yet
+              </h2>
+              <p className="text-parchment/70 mb-6">
+                Create a character to begin your adventure!
+              </p>
+              <button
+                onClick={() => setShowCharacterCreator(true)}
+                className="bg-gold text-dark-wood px-6 py-3 rounded-lg font-medieval text-lg hover:bg-gold/90 transition-colors"
+              >
+                Create Character
+              </button>
+            </div>
+          </Panel>
+        )}
+      </div>
+
+      {/* Sidebar - Dice & Chat */}
+      <div className="w-full lg:w-80 space-y-4">
+        {/* Dice Roller */}
+        <Panel>
+          <h2 className="font-medieval text-xl text-gold mb-4">
+            Dice Roller
+          </h2>
+          <DiceRoller
+            onRoll={handleDiceRoll}
+            playerId={socket?.id || 'player'}
+            playerName={character?.name || playerName || 'Player'}
+            isDm={false}
+          />
+        </Panel>
+
+        {/* Chat */}
+        <Panel>
+          <h2 className="font-medieval text-xl text-gold mb-4">
+            Party Chat
+          </h2>
+          <ChatPanel
+            onSendMessage={handleSendMessage}
+            playerId={socket?.id || 'player'}
+            playerName={character?.name || playerName || 'Player'}
+          />
+        </Panel>
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen p-4">
       <div className="max-w-7xl mx-auto">
@@ -79,7 +249,7 @@ export function PlayerView() {
           <div className="flex justify-between items-center">
             <div>
               <h1 className="font-medieval text-2xl text-gold">
-                Welcome, {playerName}!
+                Welcome, {character?.name || playerName}!
               </h1>
               <p className="text-parchment/70">
                 Room: <span className="text-gold font-bold">{roomCode}</span>
@@ -144,89 +314,34 @@ export function PlayerView() {
           )}
         </Panel>
 
-        {/* Main Content: Map + Sidebar */}
+        {/* Tab Navigation */}
+        <div className="flex gap-2 mb-4">
+          <button
+            onClick={() => setPlayerTab('map')}
+            className={`flex-1 py-3 rounded-lg font-medieval text-lg transition-colors ${
+              playerTab === 'map'
+                ? 'bg-gold text-dark-wood'
+                : 'bg-dark-wood text-parchment border border-leather hover:border-gold'
+            }`}
+          >
+            Game Map
+          </button>
+          <button
+            onClick={() => setPlayerTab('character')}
+            className={`flex-1 py-3 rounded-lg font-medieval text-lg transition-colors ${
+              playerTab === 'character'
+                ? 'bg-gold text-dark-wood'
+                : 'bg-dark-wood text-parchment border border-leather hover:border-gold'
+            }`}
+          >
+            Character Sheet
+            {!character && <span className="ml-2 text-sm">(Create)</span>}
+          </button>
+        </div>
+
+        {/* Main Content */}
         <div className="flex flex-col lg:flex-row gap-4">
-          {/* Map Display */}
-          <div className="flex-1" ref={mapContainerRef}>
-            {/* Map Toolbar */}
-            <div className="flex items-center justify-between mb-2 bg-dark-wood p-2 rounded-lg border border-leather">
-              <div className="flex items-center gap-2">
-                <span className="text-parchment text-sm">View:</span>
-                <button
-                  onClick={() => setMapOrientation('landscape')}
-                  className={`px-3 py-1 rounded text-sm ${
-                    mapOrientation === 'landscape'
-                      ? 'bg-gold text-dark-wood'
-                      : 'bg-leather text-parchment hover:bg-leather/70'
-                  }`}
-                >
-                  Landscape
-                </button>
-                <button
-                  onClick={() => setMapOrientation('portrait')}
-                  className={`px-3 py-1 rounded text-sm ${
-                    mapOrientation === 'portrait'
-                      ? 'bg-gold text-dark-wood'
-                      : 'bg-leather text-parchment hover:bg-leather/70'
-                  }`}
-                >
-                  Portrait
-                </button>
-              </div>
-            </div>
-
-            <Panel className="p-2">
-              <MapCanvas
-                width={mapDimensions.width}
-                height={mapDimensions.height}
-                isDm={false}
-              />
-            </Panel>
-          </div>
-
-          {/* Sidebar - Phase 3 Features */}
-          <div className="w-full lg:w-80 space-y-4">
-            {/* Initiative Tracker (view only for players) */}
-            <Panel>
-              <h2 className="font-medieval text-xl text-gold mb-4">
-                Initiative
-              </h2>
-              <InitiativeTracker
-                isDm={false}
-                onAddEntry={() => {}}
-                onRemoveEntry={() => {}}
-                onUpdateEntry={() => {}}
-                onNextTurn={() => {}}
-                onStartCombat={() => {}}
-                onEndCombat={() => {}}
-              />
-            </Panel>
-
-            {/* Dice Roller */}
-            <Panel>
-              <h2 className="font-medieval text-xl text-gold mb-4">
-                Dice Roller
-              </h2>
-              <DiceRoller
-                onRoll={handleDiceRoll}
-                playerId={socket?.id || 'player'}
-                playerName={playerName || 'Player'}
-                isDm={false}
-              />
-            </Panel>
-
-            {/* Chat */}
-            <Panel>
-              <h2 className="font-medieval text-xl text-gold mb-4">
-                Party Chat
-              </h2>
-              <ChatPanel
-                onSendMessage={handleSendMessage}
-                playerId={socket?.id || 'player'}
-                playerName={playerName || 'Player'}
-              />
-            </Panel>
-          </div>
+          {playerTab === 'map' ? renderMapView() : renderCharacterView()}
         </div>
       </div>
     </div>

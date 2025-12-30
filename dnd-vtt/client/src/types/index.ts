@@ -83,6 +83,212 @@ export interface InitiativeEntry {
   playerId?: string;  // Link to player (if not NPC)
 }
 
+// ============ PHASE 4: CHARACTER SHEET ============
+
+// D&D 5e 2024 Species
+export type Species =
+  | 'aasimar'
+  | 'dragonborn'
+  | 'dwarf'
+  | 'elf'
+  | 'gnome'
+  | 'goliath'
+  | 'halfling'
+  | 'human'
+  | 'orc'
+  | 'tiefling';
+
+// D&D 5e Classes with hit dice
+export type CharacterClass =
+  | 'barbarian'   // d12
+  | 'bard'        // d8
+  | 'cleric'      // d8
+  | 'druid'       // d8
+  | 'fighter'     // d10
+  | 'monk'        // d8
+  | 'paladin'     // d10
+  | 'ranger'      // d10
+  | 'rogue'       // d8
+  | 'sorcerer'    // d6
+  | 'warlock'     // d8
+  | 'wizard';     // d6
+
+// Ability scores
+export interface AbilityScores {
+  strength: number;
+  dexterity: number;
+  constitution: number;
+  intelligence: number;
+  wisdom: number;
+  charisma: number;
+}
+
+// Skill names mapped to their ability
+export type SkillName =
+  // Strength
+  | 'athletics'
+  // Dexterity
+  | 'acrobatics'
+  | 'sleightOfHand'
+  | 'stealth'
+  // Intelligence
+  | 'arcana'
+  | 'history'
+  | 'investigation'
+  | 'nature'
+  | 'religion'
+  // Wisdom
+  | 'animalHandling'
+  | 'insight'
+  | 'medicine'
+  | 'perception'
+  | 'survival'
+  // Charisma
+  | 'deception'
+  | 'intimidation'
+  | 'performance'
+  | 'persuasion';
+
+// Skill proficiency type
+export type ProficiencyLevel = 'none' | 'proficient' | 'expertise';
+
+// Equipment item
+export interface EquipmentItem {
+  id: string;
+  name: string;
+  quantity: number;
+  weight?: number;
+  description?: string;
+  equipped?: boolean;
+}
+
+// Weapon with attack info
+export interface Weapon {
+  id: string;
+  name: string;
+  attackBonus: number;
+  damage: string;  // e.g., "1d8+3 slashing"
+  properties?: string[];  // e.g., ["versatile", "finesse"]
+  equipped: boolean;
+}
+
+// Currency
+export interface Currency {
+  copper: number;
+  silver: number;
+  electrum: number;
+  gold: number;
+  platinum: number;
+}
+
+// Spell
+export interface Spell {
+  id: string;
+  name: string;
+  level: number;  // 0 for cantrips
+  school: string;
+  castingTime: string;
+  range: string;
+  components: string;
+  duration: string;
+  description: string;
+  prepared: boolean;
+}
+
+// Character feature or trait
+export interface Feature {
+  id: string;
+  name: string;
+  source: string;  // e.g., "Species", "Class", "Background"
+  description: string;
+}
+
+// Complete character sheet
+export interface Character {
+  id: string;
+  playerId: string;  // Socket ID of owner
+
+  // Basic Info
+  name: string;
+  species: Species;
+  subspecies?: string;  // e.g., "High Elf", "Hill Dwarf"
+  characterClass: CharacterClass;
+  subclass?: string;
+  level: number;
+  background: string;
+  alignment?: string;
+  experiencePoints: number;
+
+  // Ability Scores
+  abilityScores: AbilityScores;
+
+  // Proficiencies
+  savingThrowProficiencies: (keyof AbilityScores)[];
+  skillProficiencies: Record<SkillName, ProficiencyLevel>;
+  armorProficiencies: string[];
+  weaponProficiencies: string[];
+  toolProficiencies: string[];
+  languages: string[];
+
+  // Combat Stats
+  armorClass: number;
+  initiative: number;
+  speed: number;
+  maxHitPoints: number;
+  currentHitPoints: number;
+  temporaryHitPoints: number;
+  hitDiceTotal: number;
+  hitDiceRemaining: number;
+  deathSaves: {
+    successes: number;
+    failures: number;
+  };
+
+  // Equipment
+  weapons: Weapon[];
+  equipment: EquipmentItem[];
+  currency: Currency;
+
+  // Features & Traits
+  features: Feature[];
+
+  // Spellcasting (optional)
+  spellcasting?: {
+    ability: keyof AbilityScores;
+    spellSaveDC: number;
+    spellAttackBonus: number;
+    spells: Spell[];
+    spellSlots: number[];  // Index = spell level - 1
+    spellSlotsUsed: number[];
+  };
+
+  // Personality
+  personalityTraits: string;
+  ideals: string;
+  bonds: string;
+  flaws: string;
+  backstory: string;
+
+  // Appearance
+  age?: string;
+  height?: string;
+  weight?: string;
+  eyes?: string;
+  skin?: string;
+  hair?: string;
+  appearance?: string;
+
+  // Metadata
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Character creation state (partial character during creation)
+export interface CharacterCreationState {
+  step: 'basics' | 'abilities' | 'proficiencies' | 'equipment' | 'personality' | 'review';
+  character: Partial<Character>;
+}
+
 export interface SessionState {
   // Connection state
   isConnected: boolean;
@@ -113,7 +319,12 @@ export interface SessionState {
   initiative: InitiativeEntry[];
   isInCombat: boolean;
 
+  // Phase 4: Character
+  character: Character | null;
+  allCharacters: Character[];  // All characters in session (for DM view)
+
   // UI state
   view: 'landing' | 'create' | 'join' | 'dm' | 'player';
+  playerTab: 'map' | 'character';  // Player view tab
   error: string | null;
 }
