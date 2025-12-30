@@ -8,16 +8,16 @@ import { loadSessionsFromDb, cleanupExpiredSessions } from './sessionManager';
 const app = express();
 const httpServer = createServer(app);
 
-// Configure CORS for development
+// Configure CORS for development (allow all origins for local network access)
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    origin: '*',
     methods: ['GET', 'POST'],
   },
 });
 
-// Middleware
-app.use(cors());
+// Middleware - allow all origins for local network access
+app.use(cors({ origin: '*' }));
 app.use(express.json());
 
 // Health check endpoint
@@ -36,8 +36,9 @@ setInterval(() => {
   cleanupExpiredSessions();
 }, 60 * 60 * 1000);
 
-// Start server
+// Start server on all interfaces (0.0.0.0) for network access
 const PORT = process.env.PORT || 3001;
-httpServer.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+const HOST = '0.0.0.0';
+httpServer.listen(Number(PORT), HOST, () => {
+  console.log(`Server running on http://${HOST}:${PORT}`);
 });
