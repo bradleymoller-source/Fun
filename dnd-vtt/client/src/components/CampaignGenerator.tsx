@@ -160,19 +160,32 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
         }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to generate campaign');
+      // Get response text first to handle non-JSON responses
+      const responseText = await response.text();
+
+      // Try to parse as JSON
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch {
+        // Response is not JSON - likely a server error or HTML error page
+        console.error('Non-JSON response:', responseText.substring(0, 500));
+        throw new Error(`Server error: ${response.status} ${response.statusText}`);
       }
 
-      const generatedCampaign = await response.json();
-      setCampaign(generatedCampaign);
-      if (onCampaignGenerated) onCampaignGenerated(generatedCampaign);
-      if (generatedCampaign.dungeonMap && onDungeonGenerated) {
-        onDungeonGenerated(generatedCampaign.dungeonMap);
+      if (!response.ok) {
+        throw new Error(data.error || data.details || 'Failed to generate campaign');
+      }
+
+      setCampaign(data);
+      if (onCampaignGenerated) onCampaignGenerated(data);
+      if (data.dungeonMap && onDungeonGenerated) {
+        onDungeonGenerated(data.dungeonMap);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error occurred');
+      const message = err instanceof Error ? err.message : 'Unknown error occurred';
+      console.error('Campaign generation error:', message);
+      setError(message);
     } finally {
       setIsGenerating(false);
     }
@@ -193,12 +206,22 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
         }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to generate dungeon');
+      // Get response text first to handle non-JSON responses
+      const responseText = await response.text();
+
+      // Try to parse as JSON
+      let dungeonMap;
+      try {
+        dungeonMap = JSON.parse(responseText);
+      } catch {
+        console.error('Non-JSON response:', responseText.substring(0, 500));
+        throw new Error(`Server error: ${response.status} ${response.statusText}`);
       }
 
-      const dungeonMap = await response.json();
+      if (!response.ok) {
+        throw new Error(dungeonMap.error || dungeonMap.details || 'Failed to generate dungeon');
+      }
+
       if (campaign) {
         setCampaign({ ...campaign, dungeonMap });
       } else {
@@ -217,7 +240,9 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
       if (onDungeonGenerated) onDungeonGenerated(dungeonMap);
       setActiveTab('map');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error occurred');
+      const message = err instanceof Error ? err.message : 'Unknown error occurred';
+      console.error('Dungeon generation error:', message);
+      setError(message);
     } finally {
       setIsGenerating(false);
     }

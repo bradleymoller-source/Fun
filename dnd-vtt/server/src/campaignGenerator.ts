@@ -95,17 +95,42 @@ export async function generateCampaign(req: Request, res: Response) {
       return res.status(500).json({ error: 'GOOGLE_API_KEY not configured. Add it in Render Environment Variables.' });
     }
 
-    console.log('Starting campaign generation with theme:', request.theme);
+    console.log('Starting campaign generation with theme:', request.theme, 'setting:', request.setting);
 
     const prompt = buildCampaignPrompt(request);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+    let model;
+    try {
+      model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    } catch (modelError) {
+      console.error('Failed to get Gemini model:', modelError);
+      return res.status(500).json({
+        error: 'Failed to initialize AI model',
+        details: modelError instanceof Error ? modelError.message : String(modelError)
+      });
+    }
 
     console.log('Calling Gemini API...');
-    const result = await model.generateContent(prompt);
+
+    let result;
+    try {
+      result = await model.generateContent(prompt);
+    } catch (apiError) {
+      console.error('Gemini API call failed:', apiError);
+      const errorMsg = apiError instanceof Error ? apiError.message : String(apiError);
+      return res.status(500).json({
+        error: 'AI API call failed',
+        details: errorMsg.includes('API_KEY') ? 'Invalid or expired API key' : errorMsg
+      });
+    }
+
     const response = result.response;
     const text = response.text();
 
-    console.log('Gemini response length:', text.length);
+    console.log('Gemini response received, length:', text.length);
+    if (text.length < 100) {
+      console.log('Short response content:', text);
+    }
 
     // Try multiple patterns to extract JSON
     let jsonStr = '';
@@ -114,18 +139,22 @@ export async function generateCampaign(req: Request, res: Response) {
     const jsonBlockMatch = text.match(/```json\n?([\s\S]*?)\n?```/);
     if (jsonBlockMatch) {
       jsonStr = jsonBlockMatch[1];
+      console.log('Extracted via json code block');
     } else {
       // Pattern 2: ``` ... ```
       const codeBlockMatch = text.match(/```\n?([\s\S]*?)\n?```/);
       if (codeBlockMatch) {
         jsonStr = codeBlockMatch[1];
+        console.log('Extracted via generic code block');
       } else {
         // Pattern 3: Direct JSON object
         const directMatch = text.match(/\{[\s\S]*\}/);
         if (directMatch) {
           jsonStr = directMatch[0];
+          console.log('Extracted via direct JSON match');
         } else {
           jsonStr = text;
+          console.log('Using raw response as JSON');
         }
       }
     }
@@ -137,14 +166,19 @@ export async function generateCampaign(req: Request, res: Response) {
 
       // Generate dungeon map if requested
       if (request.includeMap) {
-        campaign.dungeonMap = await generateDungeonMap(request, campaign);
+        try {
+          campaign.dungeonMap = await generateDungeonMap(request, campaign);
+        } catch (mapError) {
+          console.error('Dungeon map generation failed, using procedural:', mapError);
+          campaign.dungeonMap = generateProceduralDungeon(request.theme);
+        }
       }
 
       console.log('Campaign generated successfully:', campaign.title);
-      res.json(campaign);
+      return res.json(campaign);
     } catch (parseError) {
       console.error('JSON parse error:', parseError);
-      console.error('Attempted to parse:', jsonStr.substring(0, 500));
+      console.error('First 500 chars of attempted parse:', jsonStr.substring(0, 500));
       return res.status(500).json({
         error: 'Failed to parse AI response as JSON',
         details: String(parseError),
@@ -152,9 +186,9 @@ export async function generateCampaign(req: Request, res: Response) {
       });
     }
   } catch (error) {
-    console.error('Campaign generation error:', error);
+    console.error('Unexpected campaign generation error:', error);
     const errorMessage = error instanceof Error ? error.message : String(error);
-    res.status(500).json({
+    return res.status(500).json({
       error: 'Failed to generate campaign',
       details: errorMessage
     });

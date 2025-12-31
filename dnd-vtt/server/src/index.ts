@@ -26,10 +26,24 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// API config check endpoint
+app.get('/api/config/check', (req, res) => {
+  res.json({
+    geminiConfigured: !!process.env.GOOGLE_API_KEY,
+    keyLength: process.env.GOOGLE_API_KEY?.length || 0,
+  });
+});
+
 // Campaign generation endpoints
 app.post('/api/campaign/generate', generateCampaign);
 app.post('/api/campaign/dungeon', generateDungeonMapEndpoint);
 app.post('/api/campaign/encounter', generateEncounter);
+
+// Global error handler to ensure JSON responses
+app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({ error: 'Internal server error', details: err.message });
+});
 
 // Load existing sessions from database
 loadSessionsFromDb();
