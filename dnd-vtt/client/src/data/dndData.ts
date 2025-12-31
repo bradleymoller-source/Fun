@@ -516,6 +516,109 @@ export const CLASS_SAVING_THROWS: Record<CharacterClass, (keyof AbilityScores)[]
   wizard: ['intelligence', 'wisdom'],
 };
 
+// ============ FIGHTING STYLES (2024 PHB) ============
+
+export interface FightingStyleOption {
+  id: string;
+  name: string;
+  description: string;
+}
+
+export const FIGHTING_STYLES: FightingStyleOption[] = [
+  { id: 'archery', name: 'Archery', description: '+2 bonus to attack rolls with ranged weapons.' },
+  { id: 'blind-fighting', name: 'Blind Fighting', description: 'You have Blindsight with a range of 10 feet.' },
+  { id: 'defense', name: 'Defense', description: '+1 bonus to AC while wearing armor.' },
+  { id: 'dueling', name: 'Dueling', description: '+2 bonus to damage rolls when wielding a melee weapon in one hand and no other weapons.' },
+  { id: 'great-weapon', name: 'Great Weapon Fighting', description: 'Reroll 1s and 2s on damage dice with two-handed or versatile melee weapons (must use new roll).' },
+  { id: 'interception', name: 'Interception', description: 'When creature you can see hits another creature within 5 ft, use reaction to reduce damage by 1d10 + proficiency bonus (requires shield or weapon).' },
+  { id: 'protection', name: 'Protection', description: 'When creature you can see attacks another creature within 5 ft, use reaction to impose disadvantage on the attack (requires shield).' },
+  { id: 'thrown-weapon', name: 'Thrown Weapon Fighting', description: '+2 bonus to damage with thrown weapons. Draw a thrown weapon as part of the attack.' },
+  { id: 'two-weapon', name: 'Two-Weapon Fighting', description: 'Add ability modifier to the damage of your off-hand attack.' },
+  { id: 'unarmed', name: 'Unarmed Fighting', description: 'Unarmed strikes deal 1d6 + STR bludgeoning (or 1d8 if both hands free). At start of turn, deal 1d4 bludgeoning to grappled creature.' },
+];
+
+// Classes that get Fighting Style and at what level
+export const FIGHTING_STYLE_CLASSES: Partial<Record<CharacterClass, { level: number; options: string[] }>> = {
+  fighter: {
+    level: 1,
+    options: ['archery', 'blind-fighting', 'defense', 'dueling', 'great-weapon', 'interception', 'protection', 'thrown-weapon', 'two-weapon', 'unarmed']
+  },
+  paladin: {
+    level: 2,
+    options: ['blind-fighting', 'defense', 'dueling', 'great-weapon', 'interception', 'protection']
+  },
+  ranger: {
+    level: 2,
+    options: ['archery', 'blind-fighting', 'defense', 'dueling', 'thrown-weapon', 'two-weapon']
+  },
+};
+
+// ============ ELDRITCH INVOCATIONS (2024 PHB) ============
+
+export interface EldritchInvocation {
+  id: string;
+  name: string;
+  description: string;
+  prerequisite?: string;  // e.g., "Pact of the Blade", "5th level", "Eldritch Blast cantrip"
+  levelRequired?: number;
+}
+
+export const ELDRITCH_INVOCATIONS: EldritchInvocation[] = [
+  // Level 1 invocations (no prerequisites or just Eldritch Blast)
+  { id: 'agonizing-blast', name: 'Agonizing Blast', description: 'Add CHA modifier to Eldritch Blast damage.', prerequisite: 'Eldritch Blast cantrip' },
+  { id: 'armor-of-shadows', name: 'Armor of Shadows', description: 'Cast Mage Armor on yourself at will without expending a spell slot.' },
+  { id: 'beast-speech', name: 'Beast Speech', description: 'Cast Speak with Animals at will without expending a spell slot.' },
+  { id: 'beguiling-influence', name: 'Beguiling Influence', description: 'Gain proficiency in Deception and Persuasion skills.' },
+  { id: 'devils-sight', name: "Devil's Sight", description: 'See normally in darkness (magical and nonmagical) to 120 feet.' },
+  { id: 'eldritch-mind', name: 'Eldritch Mind', description: 'Advantage on Constitution saving throws to maintain concentration.' },
+  { id: 'eldritch-spear', name: 'Eldritch Spear', description: 'Eldritch Blast has 300-foot range.', prerequisite: 'Eldritch Blast cantrip' },
+  { id: 'eyes-of-the-rune-keeper', name: 'Eyes of the Rune Keeper', description: 'Read all writing.' },
+  { id: 'fiendish-vigor', name: 'Fiendish Vigor', description: 'Cast False Life on yourself at will as a 1st-level spell without expending a spell slot.' },
+  { id: 'gaze-of-two-minds', name: 'Gaze of Two Minds', description: 'Use action to touch willing humanoid and perceive through their senses.' },
+  { id: 'grasp-of-hadar', name: 'Grasp of Hadar', description: 'Once per turn when Eldritch Blast hits, pull creature 10 feet toward you.', prerequisite: 'Eldritch Blast cantrip' },
+  { id: 'investment-of-the-chain-master', name: 'Investment of the Chain Master', description: 'Familiar gains flying or swimming speed of 40 ft, attacks use your spell attack, and its attacks are magical.', prerequisite: 'Pact of the Chain' },
+  { id: 'lance-of-lethargy', name: 'Lance of Lethargy', description: 'Once per turn when Eldritch Blast hits, reduce creature speed by 10 feet until end of your next turn.', prerequisite: 'Eldritch Blast cantrip' },
+  { id: 'lessons-of-the-first-ones', name: 'Lessons of the First Ones', description: 'Learn one cantrip from any spell list. It counts as a warlock cantrip for you.' },
+  { id: 'mask-of-many-faces', name: 'Mask of Many Faces', description: 'Cast Disguise Self at will without expending a spell slot.' },
+  { id: 'misty-visions', name: 'Misty Visions', description: 'Cast Silent Image at will without expending a spell slot.' },
+  { id: 'otherworldly-leap', name: 'Otherworldly Leap', description: 'Cast Jump on yourself at will without expending a spell slot.' },
+  { id: 'pact-of-the-blade', name: 'Pact of the Blade', description: 'Create a pact weapon. You can transform any magic weapon into your pact weapon.' },
+  { id: 'pact-of-the-chain', name: 'Pact of the Chain', description: 'Learn Find Familiar and cast it as a ritual. Your familiar can be an imp, pseudodragon, quasit, or sprite.' },
+  { id: 'pact-of-the-tome', name: 'Pact of the Tome', description: 'Your patron gives you a Book of Shadows with three cantrips from any spell list.' },
+  { id: 'repelling-blast', name: 'Repelling Blast', description: 'When Eldritch Blast hits, push creature 10 feet away.', prerequisite: 'Eldritch Blast cantrip' },
+  { id: 'thief-of-five-fates', name: 'Thief of Five Fates', description: 'Cast Bane once using a warlock spell slot. Regain ability after long rest.' },
+
+  // Higher level invocations
+  { id: 'eldritch-smite', name: 'Eldritch Smite', description: 'Once per turn when you hit with pact weapon, expend spell slot to deal extra 1d8 force damage per slot level + 1d8, and knock Large or smaller creature prone.', prerequisite: 'Pact of the Blade', levelRequired: 5 },
+  { id: 'maddening-hex', name: 'Maddening Hex', description: 'Bonus action to cause psychic damage equal to CHA modifier to cursed target and creatures within 5 feet.', levelRequired: 5 },
+  { id: 'thirsting-blade', name: 'Thirsting Blade', description: 'Attack twice with your pact weapon when you take the Attack action.', prerequisite: 'Pact of the Blade', levelRequired: 5 },
+  { id: 'one-with-shadows', name: 'One with Shadows', description: 'When in dim light or darkness, use action to become invisible until you move or take action.', levelRequired: 5 },
+  { id: 'whispers-of-the-grave', name: 'Whispers of the Grave', description: 'Cast Speak with Dead at will without expending a spell slot.', levelRequired: 9 },
+  { id: 'ascendant-step', name: 'Ascendant Step', description: 'Cast Levitate on yourself at will without expending a spell slot.', levelRequired: 9 },
+  { id: 'lifedrinker', name: 'Lifedrinker', description: 'When you hit with pact weapon, deal extra necrotic damage equal to CHA modifier.', prerequisite: 'Pact of the Blade', levelRequired: 12 },
+  { id: 'witch-sight', name: 'Witch Sight', description: 'See the true form of creatures (shapechangers, illusions, transmutations) within 30 feet.', levelRequired: 15 },
+  { id: 'master-of-myriad-forms', name: 'Master of Myriad Forms', description: 'Cast Alter Self at will without expending a spell slot.', levelRequired: 15 },
+];
+
+// Get invocations available at a given level
+export function getAvailableInvocations(level: number): EldritchInvocation[] {
+  return ELDRITCH_INVOCATIONS.filter(inv => !inv.levelRequired || inv.levelRequired <= level);
+}
+
+// Number of invocations known by warlock level
+export const WARLOCK_INVOCATIONS_KNOWN: Record<number, number> = {
+  1: 1, 2: 3, 3: 3, 4: 3, 5: 5, 6: 5, 7: 6, 8: 6, 9: 7, 10: 7,
+  11: 7, 12: 8, 13: 8, 14: 8, 15: 9, 16: 9, 17: 9, 18: 10, 19: 10, 20: 10,
+};
+
+// ============ EXPERTISE ============
+
+// Classes that get Expertise and at what level
+export const EXPERTISE_CLASSES: Partial<Record<CharacterClass, { level: number; count: number }>> = {
+  bard: { level: 2, count: 2 },   // 2 at level 2, 2 more at level 10
+  rogue: { level: 1, count: 2 },  // 2 at level 1, 2 more at level 6
+};
+
 // Skill to ability mapping
 export const SKILL_ABILITIES: Record<SkillName, keyof AbilityScores> = {
   athletics: 'strength',

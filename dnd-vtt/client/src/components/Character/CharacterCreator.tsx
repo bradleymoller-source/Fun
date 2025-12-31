@@ -50,6 +50,12 @@ import {
   POINT_BUY_COSTS,
   hasLevel1Subclass,
   getAvailableSubclasses,
+  // Class feature choices
+  FIGHTING_STYLES,
+  FIGHTING_STYLE_CLASSES,
+  WARLOCK_INVOCATIONS_KNOWN,
+  getAvailableInvocations,
+  EXPERTISE_CLASSES,
 } from '../../data/dndData';
 import type { ShopItem, OriginFeatName } from '../../data/dndData';
 
@@ -80,6 +86,9 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
   const [characterClass, setCharacterClass] = useState<CharacterClass>('fighter');
   const [subclass, setSubclass] = useState<string>('');
   const [subclassChoices, setSubclassChoices] = useState<Record<string, string[]>>({});
+  const [fightingStyle, setFightingStyle] = useState<string>('');
+  const [eldritchInvocations, setEldritchInvocations] = useState<string[]>([]);
+  const [expertiseSkills, setExpertiseSkills] = useState<SkillName[]>([]);
   const [background, setBackground] = useState('Soldier');
   const [alignment, setAlignment] = useState('True Neutral');
   const [level, setLevel] = useState(1);
@@ -191,6 +200,15 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     }
     // Reset subclass choices when class changes
     setSubclassChoices({});
+    // Reset class feature choices when class changes
+    const fightingStyleData = FIGHTING_STYLE_CLASSES[characterClass];
+    if (fightingStyleData && fightingStyleData.options.length > 0) {
+      setFightingStyle(fightingStyleData.options[0]);
+    } else {
+      setFightingStyle('');
+    }
+    setEldritchInvocations([]);
+    setExpertiseSkills([]);
   }, [characterClass]);
 
   // Reset rolled HP when class changes
@@ -820,6 +838,9 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       characterClass,
       subclass: subclass || undefined,
       subclassChoices: Object.keys(subclassChoices).length > 0 ? subclassChoices : undefined,
+      fightingStyle: fightingStyle || undefined,
+      eldritchInvocations: eldritchInvocations.length > 0 ? eldritchInvocations : undefined,
+      expertiseSkills: expertiseSkills.length > 0 ? expertiseSkills : undefined,
       level: charLevel,
       background,
       alignment,
@@ -898,6 +919,267 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
         </div>
       </div>
 
+      <div>
+        <label className="block text-parchment text-sm mb-1">Class</label>
+        <select
+          value={characterClass}
+          onChange={(e) => setCharacterClass(e.target.value as CharacterClass)}
+          className="w-full bg-parchment text-dark-wood px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-gold"
+        >
+          {CLASS_LIST.map(c => (
+            <option key={c} value={c}>{CLASS_NAMES[c]} (d{CLASS_HIT_DICE[c]})</option>
+          ))}
+        </select>
+        <p className="text-parchment/60 text-xs mt-1">{classInfo.description}</p>
+        <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+          <div className="bg-dark-wood p-2 rounded">
+            <span className="text-parchment/70">Armor: </span>
+            <span className="text-parchment">{formatArmorProficiencies(classProficiencies.armor)}</span>
+          </div>
+          <div className="bg-dark-wood p-2 rounded">
+            <span className="text-parchment/70">Weapons: </span>
+            <span className="text-parchment">{formatWeaponProficiencies(classProficiencies.weapons)}</span>
+          </div>
+        </div>
+        {/* Class Features */}
+        <div className="mt-2 bg-dark-wood p-2 rounded border border-leather">
+          <div className="text-parchment/70 text-xs mb-1">Level 1 Features:</div>
+          {classFeatures.map((feat, i) => (
+            <div key={i} className="text-xs mb-1">
+              <span className="text-gold">{feat.name}: </span>
+              <span className="text-parchment/80">{feat.description}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Fighting Style (Fighter/Paladin/Ranger) */}
+      {FIGHTING_STYLE_CLASSES[characterClass] && level >= FIGHTING_STYLE_CLASSES[characterClass]!.level && (
+        <div className="bg-red-900/20 border border-red-500/50 p-3 rounded">
+          <label className="block text-red-400 text-sm mb-1">Fighting Style</label>
+          <p className="text-parchment/70 text-xs mb-2">Choose a fighting style that defines your combat approach.</p>
+          <select
+            value={fightingStyle}
+            onChange={(e) => setFightingStyle(e.target.value)}
+            className="w-full bg-parchment text-dark-wood px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-gold"
+          >
+            {FIGHTING_STYLE_CLASSES[characterClass]!.options.map(styleId => {
+              const style = FIGHTING_STYLES.find(s => s.id === styleId);
+              return style ? (
+                <option key={style.id} value={style.id}>{style.name}</option>
+              ) : null;
+            })}
+          </select>
+          {fightingStyle && (
+            <p className="text-parchment/70 text-xs mt-2">
+              {FIGHTING_STYLES.find(s => s.id === fightingStyle)?.description}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Subclass selection - show all with availability */}
+      <div>
+        <label className="block text-parchment text-sm mb-1">
+          Subclass
+          {!hasLevel1Subclass(characterClass) && (
+            <span className="text-parchment/50 text-xs ml-2">(Available at level 3)</span>
+          )}
+        </label>
+        <select
+          value={subclass}
+          onChange={(e) => {
+            setSubclass(e.target.value);
+            setSubclassChoices({}); // Reset choices when subclass changes
+          }}
+          disabled={!hasLevel1Subclass(characterClass) && level < 3}
+          className="w-full bg-parchment text-dark-wood px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-gold disabled:opacity-50"
+        >
+          {getAvailableSubclasses(characterClass, 20).map(sc => (
+            <option
+              key={sc.name}
+              value={sc.name}
+              disabled={sc.levelAvailable > level}
+            >
+              {sc.name} {sc.levelAvailable > level ? `(Level ${sc.levelAvailable})` : ''}
+            </option>
+          ))}
+        </select>
+        {subclass && (
+          <>
+            <p className="text-parchment/60 text-xs mt-1">
+              {CLASS_SUBCLASSES[characterClass].find(sc => sc.name === subclass)?.description}
+            </p>
+            <div className="mt-1">
+              {CLASS_SUBCLASSES[characterClass].find(sc => sc.name === subclass)?.features.map((f, i) => (
+                <p key={i} className="text-gold/80 text-xs">• {f}</p>
+              ))}
+            </div>
+            {/* Subclass Choices */}
+            {CLASS_SUBCLASSES[characterClass].find(sc => sc.name === subclass)?.choices?.map(choice => {
+              const selectedOptions = subclassChoices[choice.id] || [];
+              const isComplete = selectedOptions.length === choice.count;
+
+              const toggleOption = (optionId: string) => {
+                const current = subclassChoices[choice.id] || [];
+                if (current.includes(optionId)) {
+                  // Remove
+                  setSubclassChoices({ ...subclassChoices, [choice.id]: current.filter(id => id !== optionId) });
+                } else if (current.length < choice.count) {
+                  // Add (only if we haven't reached the max)
+                  setSubclassChoices({ ...subclassChoices, [choice.id]: [...current, optionId] });
+                }
+              };
+
+              return (
+                <div key={choice.id} className="mt-3 p-2 bg-dark-wood border border-gold/30 rounded">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-gold font-bold text-sm">{choice.name}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded ${isComplete ? 'bg-green-600/80 text-white' : 'bg-leather text-parchment/70'}`}>
+                      {selectedOptions.length}/{choice.count}
+                    </span>
+                  </div>
+                  <p className="text-parchment/60 text-xs mb-2">{choice.description}</p>
+                  <div className="space-y-1 max-h-48 overflow-y-auto">
+                    {choice.options.map(option => {
+                      const isSelected = selectedOptions.includes(option.id);
+                      const isDisabled = !isSelected && selectedOptions.length >= choice.count;
+
+                      return (
+                        <button
+                          key={option.id}
+                          onClick={() => toggleOption(option.id)}
+                          disabled={isDisabled}
+                          className={`w-full text-left p-2 rounded text-xs transition-colors ${
+                            isSelected
+                              ? 'bg-gold/30 border border-gold text-parchment'
+                              : isDisabled
+                              ? 'bg-leather/20 text-parchment/40 cursor-not-allowed'
+                              : 'bg-leather/30 hover:bg-leather/50 text-parchment/80 border border-transparent'
+                          }`}
+                        >
+                          <div className="font-semibold">{isSelected ? '✓ ' : ''}{option.name}</div>
+                          <div className="text-parchment/60 mt-0.5">{option.description}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+            {/* Bonus Spells */}
+            {CLASS_SUBCLASSES[characterClass].find(sc => sc.name === subclass)?.bonusSpells && (
+              <div className="mt-2 p-2 bg-blue-900/30 border border-blue-500/30 rounded">
+                <span className="text-blue-400 text-xs font-semibold">Bonus Spells: </span>
+                <span className="text-parchment/80 text-xs">
+                  {CLASS_SUBCLASSES[characterClass].find(sc => sc.name === subclass)?.bonusSpells?.join(', ')}
+                </span>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Eldritch Invocations (Warlock) */}
+      {characterClass === 'warlock' && (
+        <div className="bg-purple-900/20 border border-purple-500/50 p-3 rounded">
+          <div className="flex items-center gap-2 mb-1">
+            <label className="text-purple-400 text-sm font-semibold">Eldritch Invocations</label>
+            <span className={`text-xs px-2 py-0.5 rounded ${
+              eldritchInvocations.length === WARLOCK_INVOCATIONS_KNOWN[level]
+                ? 'bg-green-600/80 text-white'
+                : 'bg-leather text-parchment/70'
+            }`}>
+              {eldritchInvocations.length}/{WARLOCK_INVOCATIONS_KNOWN[level]}
+            </span>
+          </div>
+          <p className="text-parchment/70 text-xs mb-2">
+            Select {WARLOCK_INVOCATIONS_KNOWN[level]} invocations. Some require prerequisites.
+          </p>
+          <div className="space-y-1 max-h-64 overflow-y-auto">
+            {getAvailableInvocations(level).map(inv => {
+              const isSelected = eldritchInvocations.includes(inv.id);
+              const atMax = eldritchInvocations.length >= WARLOCK_INVOCATIONS_KNOWN[level];
+              const isDisabled = !isSelected && atMax;
+
+              const toggleInvocation = () => {
+                if (isSelected) {
+                  setEldritchInvocations(eldritchInvocations.filter(id => id !== inv.id));
+                } else if (!atMax) {
+                  setEldritchInvocations([...eldritchInvocations, inv.id]);
+                }
+              };
+
+              return (
+                <button
+                  key={inv.id}
+                  onClick={toggleInvocation}
+                  disabled={isDisabled}
+                  className={`w-full text-left p-2 rounded text-xs transition-colors ${
+                    isSelected
+                      ? 'bg-purple-600/30 border border-purple-500 text-parchment'
+                      : isDisabled
+                      ? 'bg-leather/20 text-parchment/40 cursor-not-allowed'
+                      : 'bg-leather/30 hover:bg-leather/50 text-parchment/80 border border-transparent'
+                  }`}
+                >
+                  <div className="font-semibold">
+                    {isSelected ? '✓ ' : ''}{inv.name}
+                    {inv.prerequisite && <span className="text-purple-400/70 ml-1">({inv.prerequisite})</span>}
+                  </div>
+                  <div className="text-parchment/60 mt-0.5">{inv.description}</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <div>
+        <label className="block text-parchment text-sm mb-1">Background</label>
+        <select
+          value={background}
+          onChange={(e) => setBackground(e.target.value)}
+          className="w-full bg-parchment text-dark-wood px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-gold"
+        >
+          {BACKGROUNDS.map(b => (
+            <option key={b} value={b}>{b}</option>
+          ))}
+        </select>
+        <p className="text-parchment/60 text-xs mt-1">{background2024?.description}</p>
+
+        {/* Background Details */}
+        {background2024 && (
+          <div className="mt-2 bg-dark-wood p-2 rounded border border-leather text-xs">
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              <div>
+                <span className="text-parchment/70">Skills: </span>
+                <span className="text-parchment">{background2024.skillProficiencies.map(s => SKILL_NAMES[s]).join(', ')}</span>
+              </div>
+              <div>
+                <span className="text-parchment/70">Tool: </span>
+                <span className="text-parchment">{background2024.toolProficiency}</span>
+              </div>
+            </div>
+            <div className="mb-2">
+              <span className="text-parchment/70">Ability Options: </span>
+              <span className="text-gold">{background2024.abilityScores.map(a => ABILITY_ABBREVIATIONS[a]).join(', ')}</span>
+            </div>
+            {/* Origin Feat */}
+            <div className="bg-gold/10 border border-gold/30 p-2 rounded">
+              <div className="text-gold font-bold mb-1">Origin Feat: {originFeat?.name}</div>
+              <p className="text-parchment/70">{originFeat?.description}</p>
+              <ul className="mt-1 text-parchment/80">
+                {originFeat?.benefits.map((b, i) => (
+                  <li key={i}>• {b}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Species - 2024 PHB order: Class → Background → Species */}
       <div>
         <label className="block text-parchment text-sm mb-1">Species</label>
         <select
@@ -1005,186 +1287,6 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
           )}
         </div>
       )}
-
-      <div>
-        <label className="block text-parchment text-sm mb-1">Class</label>
-        <select
-          value={characterClass}
-          onChange={(e) => setCharacterClass(e.target.value as CharacterClass)}
-          className="w-full bg-parchment text-dark-wood px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-gold"
-        >
-          {CLASS_LIST.map(c => (
-            <option key={c} value={c}>{CLASS_NAMES[c]} (d{CLASS_HIT_DICE[c]})</option>
-          ))}
-        </select>
-        <p className="text-parchment/60 text-xs mt-1">{classInfo.description}</p>
-        <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-          <div className="bg-dark-wood p-2 rounded">
-            <span className="text-parchment/70">Armor: </span>
-            <span className="text-parchment">{formatArmorProficiencies(classProficiencies.armor)}</span>
-          </div>
-          <div className="bg-dark-wood p-2 rounded">
-            <span className="text-parchment/70">Weapons: </span>
-            <span className="text-parchment">{formatWeaponProficiencies(classProficiencies.weapons)}</span>
-          </div>
-        </div>
-        {/* Class Features */}
-        <div className="mt-2 bg-dark-wood p-2 rounded border border-leather">
-          <div className="text-parchment/70 text-xs mb-1">Level 1 Features:</div>
-          {classFeatures.map((feat, i) => (
-            <div key={i} className="text-xs mb-1">
-              <span className="text-gold">{feat.name}: </span>
-              <span className="text-parchment/80">{feat.description}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Subclass selection - show all with availability */}
-      <div>
-        <label className="block text-parchment text-sm mb-1">
-          Subclass
-          {!hasLevel1Subclass(characterClass) && (
-            <span className="text-parchment/50 text-xs ml-2">(Available at level 3)</span>
-          )}
-        </label>
-        <select
-          value={subclass}
-          onChange={(e) => {
-            setSubclass(e.target.value);
-            setSubclassChoices({}); // Reset choices when subclass changes
-          }}
-          disabled={!hasLevel1Subclass(characterClass) && level < 3}
-          className="w-full bg-parchment text-dark-wood px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-gold disabled:opacity-50"
-        >
-          {getAvailableSubclasses(characterClass, 20).map(sc => (
-            <option
-              key={sc.name}
-              value={sc.name}
-              disabled={sc.levelAvailable > level}
-            >
-              {sc.name} {sc.levelAvailable > level ? `(Level ${sc.levelAvailable})` : ''}
-            </option>
-          ))}
-        </select>
-        {subclass && (
-          <>
-            <p className="text-parchment/60 text-xs mt-1">
-              {CLASS_SUBCLASSES[characterClass].find(sc => sc.name === subclass)?.description}
-            </p>
-            <div className="mt-1">
-              {CLASS_SUBCLASSES[characterClass].find(sc => sc.name === subclass)?.features.map((f, i) => (
-                <p key={i} className="text-gold/80 text-xs">• {f}</p>
-              ))}
-            </div>
-            {/* Subclass Choices */}
-            {CLASS_SUBCLASSES[characterClass].find(sc => sc.name === subclass)?.choices?.map(choice => {
-              const selectedOptions = subclassChoices[choice.id] || [];
-              const isComplete = selectedOptions.length === choice.count;
-
-              const toggleOption = (optionId: string) => {
-                const current = subclassChoices[choice.id] || [];
-                if (current.includes(optionId)) {
-                  // Remove
-                  setSubclassChoices({ ...subclassChoices, [choice.id]: current.filter(id => id !== optionId) });
-                } else if (current.length < choice.count) {
-                  // Add (only if we haven't reached the max)
-                  setSubclassChoices({ ...subclassChoices, [choice.id]: [...current, optionId] });
-                }
-              };
-
-              return (
-                <div key={choice.id} className="mt-3 p-2 bg-dark-wood border border-gold/30 rounded">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-gold font-bold text-sm">{choice.name}</span>
-                    <span className={`text-xs px-2 py-0.5 rounded ${isComplete ? 'bg-green-600/80 text-white' : 'bg-leather text-parchment/70'}`}>
-                      {selectedOptions.length}/{choice.count}
-                    </span>
-                  </div>
-                  <p className="text-parchment/60 text-xs mb-2">{choice.description}</p>
-                  <div className="space-y-1 max-h-48 overflow-y-auto">
-                    {choice.options.map(option => {
-                      const isSelected = selectedOptions.includes(option.id);
-                      const isDisabled = !isSelected && selectedOptions.length >= choice.count;
-
-                      return (
-                        <button
-                          key={option.id}
-                          onClick={() => toggleOption(option.id)}
-                          disabled={isDisabled}
-                          className={`w-full text-left p-2 rounded text-xs transition-colors ${
-                            isSelected
-                              ? 'bg-gold/30 border border-gold text-parchment'
-                              : isDisabled
-                              ? 'bg-leather/20 text-parchment/40 cursor-not-allowed'
-                              : 'bg-leather/30 hover:bg-leather/50 text-parchment/80 border border-transparent'
-                          }`}
-                        >
-                          <div className="font-semibold">{isSelected ? '✓ ' : ''}{option.name}</div>
-                          <div className="text-parchment/60 mt-0.5">{option.description}</div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-            {/* Bonus Spells */}
-            {CLASS_SUBCLASSES[characterClass].find(sc => sc.name === subclass)?.bonusSpells && (
-              <div className="mt-2 p-2 bg-blue-900/30 border border-blue-500/30 rounded">
-                <span className="text-blue-400 text-xs font-semibold">Bonus Spells: </span>
-                <span className="text-parchment/80 text-xs">
-                  {CLASS_SUBCLASSES[characterClass].find(sc => sc.name === subclass)?.bonusSpells?.join(', ')}
-                </span>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-
-      <div>
-        <label className="block text-parchment text-sm mb-1">Background</label>
-        <select
-          value={background}
-          onChange={(e) => setBackground(e.target.value)}
-          className="w-full bg-parchment text-dark-wood px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-gold"
-        >
-          {BACKGROUNDS.map(b => (
-            <option key={b} value={b}>{b}</option>
-          ))}
-        </select>
-        <p className="text-parchment/60 text-xs mt-1">{background2024?.description}</p>
-
-        {/* Background Details */}
-        {background2024 && (
-          <div className="mt-2 bg-dark-wood p-2 rounded border border-leather text-xs">
-            <div className="grid grid-cols-2 gap-2 mb-2">
-              <div>
-                <span className="text-parchment/70">Skills: </span>
-                <span className="text-parchment">{background2024.skillProficiencies.map(s => SKILL_NAMES[s]).join(', ')}</span>
-              </div>
-              <div>
-                <span className="text-parchment/70">Tool: </span>
-                <span className="text-parchment">{background2024.toolProficiency}</span>
-              </div>
-            </div>
-            <div className="mb-2">
-              <span className="text-parchment/70">Ability Options: </span>
-              <span className="text-gold">{background2024.abilityScores.map(a => ABILITY_ABBREVIATIONS[a]).join(', ')}</span>
-            </div>
-            {/* Origin Feat */}
-            <div className="bg-gold/10 border border-gold/30 p-2 rounded">
-              <div className="text-gold font-bold mb-1">Origin Feat: {originFeat?.name}</div>
-              <p className="text-parchment/70">{originFeat?.description}</p>
-              <ul className="mt-1 text-parchment/80">
-                {originFeat?.benefits.map((b, i) => (
-                  <li key={i}>• {b}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        )}
-      </div>
 
       {/* Languages */}
       <div>
@@ -1559,6 +1661,57 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
             })}
           </div>
         </div>
+
+        {/* Expertise (Rogue/Bard) */}
+        {EXPERTISE_CLASSES[characterClass] && level >= EXPERTISE_CLASSES[characterClass]!.level && (
+          <div className="bg-cyan-900/20 border border-cyan-500/50 p-3 rounded">
+            <div className="flex items-center gap-2 mb-1">
+              <label className="text-cyan-400 text-sm font-semibold">Expertise</label>
+              <span className={`text-xs px-2 py-0.5 rounded ${
+                expertiseSkills.length === EXPERTISE_CLASSES[characterClass]!.count
+                  ? 'bg-green-600/80 text-white'
+                  : 'bg-leather text-parchment/70'
+              }`}>
+                {expertiseSkills.length}/{EXPERTISE_CLASSES[characterClass]!.count}
+              </span>
+            </div>
+            <p className="text-parchment/70 text-xs mb-2">
+              Choose {EXPERTISE_CLASSES[characterClass]!.count} skills to gain expertise in (double proficiency bonus).
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {[...backgroundInfo.skillProficiencies, ...selectedClassSkills].map(skill => {
+                const isSelected = expertiseSkills.includes(skill);
+                const atMax = expertiseSkills.length >= EXPERTISE_CLASSES[characterClass]!.count;
+                const isDisabled = !isSelected && atMax;
+
+                const toggleExpertise = () => {
+                  if (isSelected) {
+                    setExpertiseSkills(expertiseSkills.filter(s => s !== skill));
+                  } else if (!atMax) {
+                    setExpertiseSkills([...expertiseSkills, skill]);
+                  }
+                };
+
+                return (
+                  <button
+                    key={skill}
+                    onClick={toggleExpertise}
+                    disabled={isDisabled}
+                    className={`p-2 rounded text-left text-sm transition-colors ${
+                      isSelected
+                        ? 'bg-cyan-600/30 border border-cyan-500 text-parchment'
+                        : isDisabled
+                        ? 'bg-leather/20 text-parchment/40 cursor-not-allowed border border-transparent'
+                        : 'bg-leather/30 hover:bg-leather/50 text-parchment/80 border border-transparent'
+                    }`}
+                  >
+                    <span>{isSelected ? '★ ' : ''}{SKILL_NAMES[skill]}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     );
   };

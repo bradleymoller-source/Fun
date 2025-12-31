@@ -251,6 +251,11 @@ export interface Character {
   alignment?: string;
   experiencePoints: number;
 
+  // Class Feature Choices
+  fightingStyle?: string;  // Selected fighting style ID (fighter, paladin, ranger)
+  eldritchInvocations?: string[];  // Selected invocation IDs (warlock)
+  expertiseSkills?: SkillName[];  // Skills with expertise (rogue, bard)
+
   // Ability Scores
   abilityScores: AbilityScores;
 
