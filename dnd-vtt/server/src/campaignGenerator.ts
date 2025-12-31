@@ -759,43 +759,161 @@ Return ONLY valid JSON with this structure:
         "location": "Room 2",
         "type": "combat",
         "readAloud": "Combat begins as guards spot intruders",
-        "enemies": [{"name": "Guard", "count": 3, "cr": "1/8", "hp": 11, "ac": 13}],
-        "tactics": "Guards raise alarm, fight defensively",
+        "enemies": [
+          {
+            "name": "Guard",
+            "count": 3,
+            "cr": "1/8",
+            "hp": 11,
+            "ac": 16,
+            "acType": "chain shirt, shield",
+            "speed": "30 ft.",
+            "size": "Medium",
+            "type": "humanoid",
+            "initiative": 1,
+            "abilities": {"str": 13, "dex": 12, "con": 12, "int": 10, "wis": 11, "cha": 10},
+            "savingThrows": [],
+            "skills": ["Perception +2"],
+            "resistances": [],
+            "immunities": [],
+            "senses": "passive Perception 12",
+            "languages": "Common",
+            "attacks": [
+              {"name": "Spear", "type": "melee", "bonus": 3, "reach": "5 ft.", "damage": "1d6+1", "damageType": "piercing", "notes": "or 1d8+1 if two-handed"}
+            ],
+            "spells": [],
+            "traits": [],
+            "actions": []
+          }
+        ],
+        "tactics": "Guards raise alarm, fight defensively near door",
         "terrain": "Tables for cover",
         "difficulty": "easy",
-        "rewards": {"xp": 75, "loot": ["3 shortswords", "15gp"]}
+        "rewards": {"xp": 75, "loot": ["3 spears", "15gp"]}
       },
       {
         "name": "Ambush",
         "location": "Room 4",
         "type": "combat",
-        "readAloud": "Enemies spring from hiding",
-        "enemies": [{"name": "Cultist", "count": 4, "cr": "1/4", "hp": 9, "ac": 12}, {"name": "Cult Fanatic", "count": 1, "cr": "2", "hp": 33, "ac": 13}],
-        "tactics": "Fanatic casts spells while cultists swarm",
-        "terrain": "Pillars for cover, raised platform",
+        "readAloud": "Enemies spring from hiding behind pillars",
+        "enemies": [
+          {
+            "name": "Cultist",
+            "count": 4,
+            "cr": "1/8",
+            "hp": 9,
+            "ac": 12,
+            "acType": "leather armor",
+            "speed": "30 ft.",
+            "size": "Medium",
+            "type": "humanoid",
+            "initiative": 2,
+            "abilities": {"str": 11, "dex": 12, "con": 10, "int": 10, "wis": 11, "cha": 10},
+            "savingThrows": [],
+            "skills": ["Deception +2", "Religion +2"],
+            "resistances": [],
+            "immunities": [],
+            "senses": "passive Perception 10",
+            "languages": "Common",
+            "attacks": [
+              {"name": "Scimitar", "type": "melee", "bonus": 3, "reach": "5 ft.", "damage": "1d6+1", "damageType": "slashing"}
+            ],
+            "spells": [],
+            "traits": [
+              {"name": "Dark Devotion", "description": "Advantage on saves vs charmed or frightened"}
+            ],
+            "actions": []
+          },
+          {
+            "name": "Cult Fanatic",
+            "count": 1,
+            "cr": "2",
+            "hp": 33,
+            "ac": 13,
+            "acType": "leather armor",
+            "speed": "30 ft.",
+            "size": "Medium",
+            "type": "humanoid",
+            "initiative": 4,
+            "abilities": {"str": 11, "dex": 14, "con": 12, "int": 10, "wis": 13, "cha": 14},
+            "savingThrows": [],
+            "skills": ["Deception +4", "Persuasion +4", "Religion +2"],
+            "resistances": [],
+            "immunities": [],
+            "senses": "passive Perception 11",
+            "languages": "Common",
+            "attacks": [
+              {"name": "Dagger", "type": "melee", "bonus": 4, "reach": "5 ft.", "damage": "1d4+2", "damageType": "piercing"}
+            ],
+            "spells": [
+              {"name": "Sacred Flame", "level": 0, "damage": "1d8 radiant", "save": "DC 12 Dex", "range": "60 ft."},
+              {"name": "Command", "level": 1, "slots": 4, "effect": "Target obeys one-word command", "save": "DC 12 Wis"},
+              {"name": "Inflict Wounds", "level": 1, "damage": "3d10 necrotic", "attack": "+4 melee spell"},
+              {"name": "Hold Person", "level": 2, "slots": 3, "effect": "Target paralyzed", "save": "DC 12 Wis", "concentration": true}
+            ],
+            "traits": [
+              {"name": "Dark Devotion", "description": "Advantage on saves vs charmed or frightened"},
+              {"name": "Spellcasting", "description": "4th-level spellcaster. Spell save DC 12, +4 to hit with spell attacks. Has 4 1st-level and 3 2nd-level slots."}
+            ],
+            "actions": []
+          }
+        ],
+        "tactics": "Fanatic casts Hold Person on armored target, then cultists swarm. Fanatic uses Inflict Wounds on restrained enemies.",
+        "terrain": "Pillars for cover, raised platform gives +2 to hit for ranged",
         "difficulty": "medium",
-        "rewards": {"xp": 250, "loot": ["Ritual dagger (25gp)", "Spell scroll"]}
+        "rewards": {"xp": 250, "loot": ["Ritual dagger (25gp)", "Spell scroll of Shield"]}
       },
       {
         "name": "Elite Guard",
         "location": "Room 5",
         "type": "combat",
-        "readAloud": "The villain's best warriors bar the way",
-        "enemies": [{"name": "Veteran", "count": 2, "cr": "3", "hp": 58, "ac": 17}],
-        "tactics": "Coordinated attacks, one holds chokepoint while other flanks",
-        "terrain": "Narrow doorway, weapon racks",
+        "readAloud": "The villain's best warriors bar the way, weapons drawn",
+        "enemies": [
+          {
+            "name": "Veteran",
+            "count": 2,
+            "cr": "3",
+            "hp": 58,
+            "ac": 17,
+            "acType": "splint armor",
+            "speed": "30 ft.",
+            "size": "Medium",
+            "type": "humanoid",
+            "initiative": 1,
+            "abilities": {"str": 16, "dex": 13, "con": 14, "int": 10, "wis": 11, "cha": 10},
+            "savingThrows": [],
+            "skills": ["Athletics +5", "Perception +2"],
+            "resistances": [],
+            "immunities": [],
+            "senses": "passive Perception 12",
+            "languages": "Common",
+            "attacks": [
+              {"name": "Longsword", "type": "melee", "bonus": 5, "reach": "5 ft.", "damage": "1d8+3", "damageType": "slashing", "notes": "Multiattack: 2 longsword attacks"},
+              {"name": "Heavy Crossbow", "type": "ranged", "bonus": 3, "range": "100/400 ft.", "damage": "1d10+1", "damageType": "piercing"}
+            ],
+            "spells": [],
+            "traits": [
+              {"name": "Multiattack", "description": "Makes two longsword attacks. If has shortsword, can make a third attack with it."}
+            ],
+            "actions": []
+          }
+        ],
+        "tactics": "One holds the chokepoint with longsword while other flanks or uses crossbow. They fight to the death.",
+        "terrain": "Narrow doorway, weapon racks (improvised weapons)",
         "difficulty": "hard",
-        "rewards": {"xp": 400, "loot": ["Quality weapons (100gp)", "Boss chamber key"]}
+        "rewards": {"xp": 400, "loot": ["2 longswords (30gp)", "Splint armor (200gp)", "Boss chamber key"]}
       }
     ],
     "traps": [
       {
         "name": "Pressure Plate Darts",
         "location": "Room 3",
-        "trigger": "Weight on tiles",
-        "detection": "DC 14 Perception",
-        "effect": "2d6 piercing damage, DC 13 Dex save for half",
-        "disarm": "DC 12 Thieves' Tools"
+        "trigger": "Weight on tiles (20+ lbs)",
+        "detection": "DC 14 Perception to notice",
+        "effect": "2d6 piercing damage",
+        "save": "DC 13 Dex save for half",
+        "disarm": "DC 12 Thieves' Tools",
+        "reset": "Resets after 1 round"
       }
     ],
     "puzzles": [
@@ -805,7 +923,8 @@ Return ONLY valid JSON with this structure:
         "readAloud": "An inscription on the door reads...",
         "solution": "The answer is...",
         "hints": [{"method": "DC 12 Investigation", "reveal": "First hint"}],
-        "reward": "Door opens peacefully"
+        "reward": "Door opens peacefully",
+        "failure": "5d6 lightning damage, DC 14 Dex save for half"
       }
     ],
     "transitionToAct3": "Read-aloud text as party approaches the final chamber"
@@ -814,11 +933,13 @@ Return ONLY valid JSON with this structure:
 \`\`\`
 
 REQUIREMENTS:
-- Include exactly 3 COMBAT encounters with full enemy stats (name, count, cr, hp, ac)
+- Include exactly 3 COMBAT encounters with DETAILED enemy stat blocks
+- Each enemy MUST have: hp, ac, initiative, abilities, attacks (with bonus and damage), and relevant spells/traits
 - Encounters should escalate: easy -> medium -> hard
 - Include at least 1 trap and 1 puzzle
 - Create 5-6 interconnected rooms
-- Use SRD monsters appropriate for level ${request.partyLevel}`;
+- Use SRD monsters appropriate for level ${request.partyLevel}
+- Spellcasters must list their spells with damage/effects and save DCs`;
 }
 
 // Build prompt for Act 3 + Epilogue
@@ -856,27 +977,79 @@ Return ONLY valid JSON with this structure:
         "name": "Villain Name",
         "appearance": "Dramatic physical description",
         "motivation": "Why they're doing this",
-        "stats": {"cr": "4", "hp": 85, "ac": 15},
+        "cr": "4",
+        "hp": 85,
+        "ac": 15,
+        "acType": "natural armor or armor type",
+        "speed": "30 ft.",
+        "size": "Medium",
+        "type": "humanoid/undead/fiend/etc",
+        "initiative": 2,
+        "abilities": {"str": 16, "dex": 14, "con": 16, "int": 12, "wis": 14, "cha": 16},
+        "savingThrows": ["Str +6", "Con +6"],
+        "skills": ["Perception +5", "Intimidation +6"],
+        "resistances": ["necrotic"],
+        "immunities": ["poison", "poisoned condition"],
+        "senses": "darkvision 60 ft., passive Perception 15",
+        "languages": "Common, one other",
+        "attacks": [
+          {"name": "Greatsword", "type": "melee", "bonus": 6, "reach": "5 ft.", "damage": "2d6+4", "damageType": "slashing", "notes": "Multiattack: 2 attacks"},
+          {"name": "Dark Bolt", "type": "ranged spell", "bonus": 6, "range": "60 ft.", "damage": "2d8+3", "damageType": "necrotic"}
+        ],
+        "spells": [
+          {"name": "Darkness", "level": 2, "slots": 2, "effect": "15ft radius magical darkness", "concentration": true},
+          {"name": "Fear", "level": 3, "slots": 1, "effect": "30ft cone, targets frightened", "save": "DC 14 Wis"}
+        ],
+        "traits": [
+          {"name": "Multiattack", "description": "Makes two melee attacks"},
+          {"name": "Dark Resilience", "description": "Has advantage on saves vs spells"}
+        ],
+        "legendaryActions": [
+          {"name": "Attack", "cost": 1, "description": "Makes one weapon attack"},
+          {"name": "Dark Pulse", "cost": 2, "description": "All creatures within 10 ft take 2d6 necrotic, DC 14 Con save for half"}
+        ],
+        "legendaryActionCount": 2,
         "dialogue": {
           "onSighting": "What villain says when party enters",
-          "monologue": "Brief villain speech",
-          "duringCombat": ["Taunt 1", "Taunt 2"],
+          "monologue": "Brief villain speech revealing motivation",
+          "duringCombat": ["Taunt when hitting", "Taunt when damaged"],
           "ifDefeated": "Final words"
         },
         "tactics": {
-          "phase1": "Opening tactics (full HP)",
-          "phase2": "Desperate tactics (below half)",
-          "signature": "Their signature move"
+          "phase1": "Opening tactics at full HP",
+          "phase2": "Desperate tactics below half HP",
+          "signature": "Their go-to devastating move"
         },
-        "weakness": "How clever players gain advantage",
-        "morale": "Will they flee or fight to death?"
+        "weakness": "Exploitable weakness for clever players",
+        "morale": "Fight to death or flee at X HP?"
       },
-      "minions": [{"name": "Minion type", "count": 2, "cr": "1/2", "hp": 22, "ac": 13}],
+      "minions": [
+        {
+          "name": "Minion type",
+          "count": 2,
+          "cr": "1/2",
+          "hp": 22,
+          "ac": 13,
+          "acType": "armor type",
+          "speed": "30 ft.",
+          "size": "Medium",
+          "type": "humanoid",
+          "initiative": 1,
+          "abilities": {"str": 12, "dex": 12, "con": 12, "int": 10, "wis": 10, "cha": 10},
+          "attacks": [
+            {"name": "Weapon", "type": "melee", "bonus": 3, "reach": "5 ft.", "damage": "1d6+1", "damageType": "slashing"}
+          ],
+          "spells": [],
+          "traits": [],
+          "resistances": [],
+          "immunities": []
+        }
+      ],
       "rewards": {
         "xp": 1100,
         "gold": "200gp",
-        "items": [{"name": "Magic Item", "description": "What it does"}],
-        "villainLoot": "What's on the villain"
+        "items": [{"name": "Magic Item Name", "description": "What it does, requires attunement?", "rarity": "uncommon"}],
+        "villainLoot": "What's found on the villain's body"
       }
     },
     "aftermath": {
@@ -909,9 +1082,13 @@ Return ONLY valid JSON with this structure:
 
 REQUIREMENTS:
 - Boss should be appropriate CR for level ${request.partyLevel} party of ${request.partySize}
-- Include villain dialogue and multiple combat phases
+- Villain MUST have FULL stat block: hp, ac, initiative, abilities, attacks (with bonus and damage), spells, traits
+- If villain is a spellcaster, list ALL spells with damage, save DC, and effects
+- Minions must also have full stat blocks
+- Include villain dialogue and multiple combat phases (phase1/phase2 tactics)
+- Include legendary actions if boss is CR 4+
 - Create satisfying epilogue with closure and future hooks
-- Include at least one magic item reward`;
+- Include at least one magic item reward with description`;
 }
 
 // Generate campaign using Google Gemini API - SPLIT GENERATION

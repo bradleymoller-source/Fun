@@ -255,6 +255,19 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
     return crMap[cr] || 0;
   };
 
+  // Map monster size string to token size
+  const getTokenSize = (size: string): 'tiny' | 'small' | 'medium' | 'large' | 'huge' | 'gargantuan' => {
+    const sizeMap: Record<string, 'tiny' | 'small' | 'medium' | 'large' | 'huge' | 'gargantuan'> = {
+      'tiny': 'tiny',
+      'small': 'small',
+      'medium': 'medium',
+      'large': 'large',
+      'huge': 'huge',
+      'gargantuan': 'gargantuan',
+    };
+    return sizeMap[size?.toLowerCase()] || 'medium';
+  };
+
   // Start an encounter - add monsters to tokens and combat tracker
   const handleStartEncounter = (encounter: any) => {
     const monsters = encounter.enemies || encounter.monsters || [];
@@ -268,10 +281,34 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
     const gridStartY = 5;
     const tokensPerRow = 4;
 
+    // Build summary of added monsters with their stats
+    const addedMonsters: string[] = [];
+
     monsters.forEach((monster: any, monsterTypeIndex: number) => {
       const count = monster.count || 1;
       const color = MONSTER_COLORS[monsterTypeIndex % MONSTER_COLORS.length];
-      const crMod = getCrModifier(monster.cr || '1');
+
+      // Use initiative modifier from monster data, or fall back to CR-based estimate
+      const initMod = monster.initiative ?? getCrModifier(monster.cr || '1');
+
+      // Get token size from monster data
+      const tokenSize = getTokenSize(monster.size || 'medium');
+
+      // Build stat summary for the alert
+      const attackSummary = monster.attacks?.map((a: any) =>
+        `${a.name}: +${a.bonus} (${a.damage} ${a.damageType})`
+      ).join(', ') || 'No attacks listed';
+
+      const spellSummary = monster.spells?.length > 0 ?
+        monster.spells.map((s: any) =>
+          `${s.name}${s.damage ? ` (${s.damage})` : ''}${s.save ? ` ${s.save}` : ''}`
+        ).join(', ') : null;
+
+      addedMonsters.push(
+        `${count}x ${monster.name} - AC ${monster.ac || '?'}, HP ${monster.hp || '?'}, Init +${initMod}\n` +
+        `  Attacks: ${attackSummary}` +
+        (spellSummary ? `\n  Spells: ${spellSummary}` : '')
+      );
 
       for (let i = 0; i < count; i++) {
         const tokenId = `enc-${Date.now()}-${tokenIndex}`;
@@ -279,16 +316,18 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
         const name = count > 1 ? `${monster.name} ${i + 1}` : monster.name;
 
         // Calculate grid position (arrange in a grid pattern)
+        // Larger creatures need more space
+        const sizeMultiplier = tokenSize === 'large' ? 2 : tokenSize === 'huge' ? 3 : tokenSize === 'gargantuan' ? 4 : 1;
         const row = Math.floor(tokenIndex / tokensPerRow);
-        const col = tokenIndex % tokensPerRow;
+        const col = (tokenIndex % tokensPerRow) * sizeMultiplier;
 
         // Add token to the map
         addToken({
           id: tokenId,
           name,
           x: gridStartX + col,
-          y: gridStartY + row,
-          size: 'medium',
+          y: gridStartY + row * sizeMultiplier,
+          size: tokenSize,
           color,
           isHidden: false,
           maxHp: monster.hp || 20,
@@ -296,8 +335,8 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
           conditions: [],
         });
 
-        // Roll initiative and add to combat tracker
-        const initiativeRoll = rollD20() + crMod;
+        // Roll initiative using the monster's initiative modifier
+        const initiativeRoll = rollD20() + initMod;
         addInitiativeEntry({
           id: initiativeId,
           name,
@@ -319,7 +358,12 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
       startCombat();
     }
 
-    alert(`Added ${tokenIndex} enemies to the map and combat tracker!`);
+    // Show summary alert with stats
+    alert(
+      `⚔️ Encounter Started!\n\n` +
+      `Added ${tokenIndex} enemies to map and combat tracker:\n\n` +
+      addedMonsters.join('\n\n')
+    );
   };
 
   // Save a battle map to the list
@@ -1338,14 +1382,74 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
                     </div>
                   )}
                   {enc.description && <p className="text-parchment/80 text-sm mt-1">{enc.description}</p>}
-                  {enc.enemies && enc.enemies.length > 0 && (
-                    <div className="mt-2 text-xs text-parchment/70">
-                      <strong>Enemies:</strong> {enc.enemies.map((m: any) => `${m.count}x ${m.name} (CR ${m.cr})`).join(', ')}
-                    </div>
-                  )}
-                  {enc.monsters && enc.monsters.length > 0 && (
-                    <div className="mt-2 text-xs text-parchment/70">
-                      <strong>Monsters:</strong> {enc.monsters.map((m: any) => `${m.count}x ${m.name} (CR ${m.cr})`).join(', ')}
+                  {/* Detailed Enemy Stats */}
+                  {(enc.enemies || enc.monsters) && (enc.enemies?.length > 0 || enc.monsters?.length > 0) && (
+                    <div className="mt-2 space-y-2">
+                      <strong className="text-parchment/80 text-xs">Enemies:</strong>
+                      {(enc.enemies || enc.monsters).map((m: any, mIdx: number) => (
+                        <div key={mIdx} className="bg-dark-wood/50 p-2 rounded text-xs border border-parchment/20">
+                          <div className="flex justify-between items-start">
+                            <span className="text-gold font-bold">{m.count}x {m.name}</span>
+                            <span className="text-parchment/60">CR {m.cr}</span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-1 mt-1 text-parchment/70">
+                            <span>AC: <span className="text-white">{m.ac}</span> {m.acType && <span className="text-parchment/40">({m.acType})</span>}</span>
+                            <span>HP: <span className="text-white">{m.hp}</span></span>
+                            <span>Init: <span className="text-white">+{m.initiative ?? '?'}</span></span>
+                          </div>
+                          {m.speed && <div className="text-parchment/50 mt-1">Speed: {m.speed}</div>}
+
+                          {/* Attacks */}
+                          {m.attacks && m.attacks.length > 0 && (
+                            <div className="mt-1 border-t border-parchment/10 pt-1">
+                              <span className="text-red-400">Attacks:</span>
+                              {m.attacks.map((a: any, aIdx: number) => (
+                                <div key={aIdx} className="ml-2 text-parchment/70">
+                                  <span className="text-white">{a.name}</span>: +{a.bonus} to hit, {a.damage} {a.damageType}
+                                  {a.notes && <span className="text-parchment/40"> ({a.notes})</span>}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Spells */}
+                          {m.spells && m.spells.length > 0 && (
+                            <div className="mt-1 border-t border-parchment/10 pt-1">
+                              <span className="text-purple-400">Spells:</span>
+                              {m.spells.map((s: any, sIdx: number) => (
+                                <div key={sIdx} className="ml-2 text-parchment/70">
+                                  <span className="text-white">{s.name}</span>
+                                  {s.level > 0 && <span className="text-parchment/40"> (Lvl {s.level})</span>}
+                                  {s.damage && <span>: {s.damage}</span>}
+                                  {s.effect && <span>: {s.effect}</span>}
+                                  {s.save && <span className="text-yellow-400"> {s.save}</span>}
+                                  {s.attack && <span className="text-yellow-400"> {s.attack}</span>}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Traits */}
+                          {m.traits && m.traits.length > 0 && (
+                            <div className="mt-1 border-t border-parchment/10 pt-1">
+                              <span className="text-blue-400">Traits:</span>
+                              {m.traits.map((t: any, tIdx: number) => (
+                                <div key={tIdx} className="ml-2 text-parchment/70">
+                                  <span className="text-white">{t.name}:</span> {t.description}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Resistances/Immunities */}
+                          {((m.resistances && m.resistances.length > 0) || (m.immunities && m.immunities.length > 0)) && (
+                            <div className="mt-1 border-t border-parchment/10 pt-1 text-parchment/60">
+                              {m.resistances?.length > 0 && <div>Resist: {m.resistances.join(', ')}</div>}
+                              {m.immunities?.length > 0 && <div>Immune: {m.immunities.join(', ')}</div>}
+                            </div>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   )}
                   {enc.tactics && <p className="text-parchment/60 text-xs mt-1"><strong>Tactics:</strong> {enc.tactics}</p>}
