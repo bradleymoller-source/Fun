@@ -13,6 +13,8 @@ import {
   getProficiencyBonus,
   getSkillModifier,
   SPELL_SLOTS_BY_LEVEL,
+  HALF_CASTER_SPELL_SLOTS,
+  WARLOCK_SPELL_SLOTS,
 } from '../../data/dndData';
 import { Tooltip, RULE_TOOLTIPS } from '../ui/Tooltip';
 import { Button } from '../ui/Button';
@@ -52,10 +54,25 @@ export function CharacterSheet({ character, onUpdate, onRoll, onImport, isEditab
     if (character.spellcasting?.spellSlots) {
       return character.spellcasting.spellSlots;
     }
-    // Use simple spell slot calculation based on level for spellcasting classes
+    // Full casters
     const fullCasters: CharacterClass[] = ['bard', 'cleric', 'druid', 'sorcerer', 'wizard'];
     if (fullCasters.includes(character.characterClass)) {
       return SPELL_SLOTS_BY_LEVEL[character.level] || [];
+    }
+    // Half casters (paladin, ranger)
+    const halfCasters: CharacterClass[] = ['paladin', 'ranger'];
+    if (halfCasters.includes(character.characterClass)) {
+      return HALF_CASTER_SPELL_SLOTS[character.level] || [];
+    }
+    // Warlock uses pact magic (different slot system)
+    if (character.characterClass === 'warlock') {
+      const warlockSlots = WARLOCK_SPELL_SLOTS[character.level];
+      if (warlockSlots) {
+        // Convert warlock pact magic to array format (slots at one level)
+        const slots = new Array(9).fill(0);
+        slots[warlockSlots.level - 1] = warlockSlots.slots;
+        return slots;
+      }
     }
     return [];
   };
@@ -795,43 +812,152 @@ export function CharacterSheet({ character, onUpdate, onRoll, onImport, isEditab
     </div>
   );
 
-  const renderEquipmentTab = () => (
-    <div className="space-y-4">
-      {/* Currency */}
-      <div>
-        <h4 className="text-gold font-semibold mb-2">Currency</h4>
-        <div className="grid grid-cols-5 gap-1 text-center">
-          {(['copper', 'silver', 'electrum', 'gold', 'platinum'] as const).map(coin => (
-            <div key={coin} className="bg-dark-wood p-2 rounded border border-leather">
-              <div className="text-gold font-bold">{character.currency[coin]}</div>
-              <div className="text-parchment/70 text-xs uppercase">{coin.slice(0, 2)}</div>
-            </div>
-          ))}
-        </div>
-      </div>
+  // Handle equipping/unequipping items
+  const handleToggleEquipped = (itemId: string) => {
+    if (!onUpdate) return;
+    const updatedEquipment = character.equipment.map(item => {
+      if (item.id === itemId) {
+        return { ...item, equipped: !item.equipped };
+      }
+      // Unequip other armor if equipping new armor
+      if (item.category === 'armor' && character.equipment.find(e => e.id === itemId)?.category === 'armor') {
+        return { ...item, equipped: false };
+      }
+      return item;
+    });
+    onUpdate({ equipment: updatedEquipment });
+  };
 
-      {/* Equipment */}
-      <div>
-        <h4 className="text-gold font-semibold mb-2">Equipment</h4>
-        {character.equipment.length === 0 ? (
-          <p className="text-parchment/50 text-sm text-center py-4">
-            No equipment yet
-          </p>
-        ) : (
-          <div className="space-y-1">
-            {character.equipment.map(item => (
-              <div key={item.id} className="bg-dark-wood p-2 rounded border border-leather flex justify-between">
-                <span className="text-parchment">{item.name}</span>
-                {item.quantity > 1 && (
-                  <span className="text-parchment/70">×{item.quantity}</span>
-                )}
+  // Calculate AC based on equipped armor
+  const calculateAC = () => {
+    const dexMod = getAbilityModifier(character.abilityScores.dexterity);
+    const equippedArmor = character.equipment.find(e => e.category === 'armor' && e.equipped);
+    const equippedShield = character.equipment.find(e => e.category === 'shield' && e.equipped);
+
+    let baseAC = 10 + dexMod; // Unarmored
+    let acDetails = 'Unarmored: 10 + DEX';
+
+    if (equippedArmor) {
+      const armorAC = equippedArmor.armorClass || 10;
+      if (equippedArmor.armorType === 'light') {
+        baseAC = armorAC + dexMod;
+        acDetails = `${equippedArmor.name}: ${armorAC} + DEX`;
+      } else if (equippedArmor.armorType === 'medium') {
+        const maxDex = equippedArmor.maxDexBonus ?? 2;
+        baseAC = armorAC + Math.min(dexMod, maxDex);
+        acDetails = `${equippedArmor.name}: ${armorAC} + DEX (max ${maxDex})`;
+      } else if (equippedArmor.armorType === 'heavy') {
+        baseAC = armorAC;
+        acDetails = `${equippedArmor.name}: ${armorAC}`;
+      }
+    }
+
+    if (equippedShield) {
+      baseAC += equippedShield.armorClass || 2;
+      acDetails += ' + Shield (+2)';
+    }
+
+    return { ac: baseAC, details: acDetails };
+  };
+
+  const renderEquipmentTab = () => {
+    const armorItems = character.equipment.filter(e => e.category === 'armor' || e.category === 'shield');
+    const otherItems = character.equipment.filter(e => e.category !== 'armor' && e.category !== 'shield');
+    const acInfo = calculateAC();
+
+    return (
+      <div className="space-y-4">
+        {/* Currency */}
+        <div>
+          <h4 className="text-gold font-semibold mb-2">Currency</h4>
+          <div className="grid grid-cols-5 gap-1 text-center">
+            {(['copper', 'silver', 'electrum', 'gold', 'platinum'] as const).map(coin => (
+              <div key={coin} className="bg-dark-wood p-2 rounded border border-leather">
+                <div className="text-gold font-bold">{character.currency[coin]}</div>
+                <div className="text-parchment/70 text-xs uppercase">{coin.slice(0, 2)}</div>
               </div>
             ))}
           </div>
-        )}
+        </div>
+
+        {/* Armor & Defense */}
+        <div>
+          <h4 className="text-gold font-semibold mb-2">Armor & Defense</h4>
+          <Tooltip content={acInfo.details}>
+            <div className="bg-dark-wood p-3 rounded border border-leather mb-2 text-center cursor-help">
+              <span className="text-parchment/70 text-sm">Calculated AC: </span>
+              <span className="text-gold font-bold text-xl">{acInfo.ac}</span>
+              <span className="text-parchment/50 text-xs block">(Hover for details)</span>
+            </div>
+          </Tooltip>
+
+          {armorItems.length === 0 ? (
+            <p className="text-parchment/50 text-sm text-center py-2">No armor in inventory</p>
+          ) : (
+            <div className="space-y-1">
+              {armorItems.map(item => (
+                <div key={item.id} className="bg-dark-wood p-2 rounded border border-leather">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {isEditable && (
+                        <button
+                          onClick={() => handleToggleEquipped(item.id)}
+                          className={`w-5 h-5 rounded border transition-colors ${
+                            item.equipped
+                              ? 'bg-gold border-gold text-dark-wood'
+                              : 'border-parchment/50 hover:border-gold'
+                          }`}
+                          title={item.equipped ? 'Unequip' : 'Equip'}
+                        >
+                          {item.equipped && '✓'}
+                        </button>
+                      )}
+                      <Tooltip content={item.description || `AC: ${item.armorClass || '?'}`}>
+                        <span className={`cursor-help ${item.equipped ? 'text-gold' : 'text-parchment'}`}>
+                          {item.name}
+                        </span>
+                      </Tooltip>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-parchment/70 text-xs">
+                        {item.category === 'shield' ? '+2 AC' : `AC ${item.armorClass}`}
+                      </span>
+                      {item.equipped && (
+                        <span className="ml-2 text-green-400 text-xs">Equipped</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Other Equipment */}
+        <div>
+          <h4 className="text-gold font-semibold mb-2">Equipment</h4>
+          {otherItems.length === 0 ? (
+            <p className="text-parchment/50 text-sm text-center py-4">
+              No other equipment
+            </p>
+          ) : (
+            <div className="space-y-1">
+              {otherItems.map(item => (
+                <div key={item.id} className="bg-dark-wood p-2 rounded border border-leather flex justify-between">
+                  <Tooltip content={item.description || item.name}>
+                    <span className="text-parchment cursor-help">{item.name}</span>
+                  </Tooltip>
+                  {item.quantity > 1 && (
+                    <span className="text-parchment/70">×{item.quantity}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderSpellSlots = () => {
     const hasSlots = spellSlots.some(s => s > 0);

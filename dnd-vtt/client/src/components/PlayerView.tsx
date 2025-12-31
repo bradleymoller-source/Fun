@@ -21,7 +21,7 @@ const ORIENTATION_SIZES = {
 
 export function PlayerView() {
   const { roomCode, playerName, players, isConnected, playerTab, character, setPlayerTab, setCharacter, updateCharacter } = useSessionStore();
-  const { rollDice, sendChatMessage, moveToken, socket } = useSocket();
+  const { rollDice, sendChatMessage, moveToken, saveCharacter, socket } = useSocket();
   const [showParty, setShowParty] = useState(false);
   const [mapOrientation, setMapOrientation] = useState<MapOrientation>('landscape');
   const [mapDimensions, setMapDimensions] = useState(ORIENTATION_SIZES.landscape);
@@ -112,16 +112,39 @@ export function PlayerView() {
   };
 
   // Phase 4: Character Creation Handler
-  const handleCharacterCreated = (newCharacter: Character) => {
+  const handleCharacterCreated = async (newCharacter: Character) => {
     setCharacter(newCharacter);
     setShowCharacterCreator(false);
-    // TODO: Sync character to server
+    // Sync character to server
+    try {
+      await saveCharacter(newCharacter);
+      console.log('Character saved to server:', newCharacter.name);
+    } catch (error) {
+      console.error('Failed to save character:', error);
+    }
   };
 
   // Phase 4: Character Update Handler
-  const handleCharacterUpdate = (updates: Partial<Character>) => {
+  const handleCharacterUpdate = async (updates: Partial<Character>) => {
     updateCharacter(updates);
-    // TODO: Sync character updates to server
+    // Sync character updates to server
+    const updatedCharacter = { ...character, ...updates, updatedAt: new Date().toISOString() } as Character;
+    try {
+      await saveCharacter(updatedCharacter);
+    } catch (error) {
+      console.error('Failed to sync character update:', error);
+    }
+  };
+
+  // Phase 4: Character Import Handler
+  const handleCharacterImport = async (importedCharacter: Character) => {
+    setCharacter(importedCharacter);
+    try {
+      await saveCharacter(importedCharacter);
+      console.log('Imported character saved to server:', importedCharacter.name);
+    } catch (error) {
+      console.error('Failed to save imported character:', error);
+    }
   };
 
   // Token movement handler (player can move their own token)
@@ -244,6 +267,7 @@ export function PlayerView() {
             <CharacterSheet
               character={character}
               onUpdate={handleCharacterUpdate}
+              onImport={handleCharacterImport}
               isEditable={true}
             />
           </Panel>

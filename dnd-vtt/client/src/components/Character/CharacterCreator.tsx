@@ -430,6 +430,115 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     }
   };
 
+  // Randomize physical appearance based on species
+  const randomizeAppearance = () => {
+    const pick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+
+    // Age ranges by species
+    const ageRanges: Record<Species, { min: number; max: number }> = {
+      human: { min: 18, max: 80 },
+      elf: { min: 100, max: 750 },
+      dwarf: { min: 50, max: 350 },
+      halfling: { min: 20, max: 150 },
+      dragonborn: { min: 15, max: 80 },
+      gnome: { min: 40, max: 425 },
+      tiefling: { min: 18, max: 105 },
+      aasimar: { min: 18, max: 160 },
+      goliath: { min: 16, max: 80 },
+      orc: { min: 12, max: 50 },
+    };
+
+    // Height ranges (in inches) by species
+    const heightRanges: Record<Species, { min: number; max: number }> = {
+      human: { min: 60, max: 78 },
+      elf: { min: 58, max: 78 },
+      dwarf: { min: 44, max: 56 },
+      halfling: { min: 30, max: 42 },
+      dragonborn: { min: 66, max: 80 },
+      gnome: { min: 36, max: 44 },
+      tiefling: { min: 60, max: 78 },
+      aasimar: { min: 60, max: 78 },
+      goliath: { min: 84, max: 102 },
+      orc: { min: 64, max: 80 },
+    };
+
+    // Weight ranges by species
+    const weightRanges: Record<Species, { min: number; max: number }> = {
+      human: { min: 110, max: 250 },
+      elf: { min: 90, max: 180 },
+      dwarf: { min: 130, max: 220 },
+      halfling: { min: 35, max: 50 },
+      dragonborn: { min: 200, max: 320 },
+      gnome: { min: 35, max: 50 },
+      tiefling: { min: 110, max: 220 },
+      aasimar: { min: 110, max: 250 },
+      goliath: { min: 280, max: 400 },
+      orc: { min: 180, max: 300 },
+    };
+
+    // Eye colors by species
+    const eyeColors: Record<Species, string[]> = {
+      human: ['Brown', 'Blue', 'Green', 'Hazel', 'Gray', 'Amber'],
+      elf: ['Blue', 'Green', 'Violet', 'Gold', 'Silver', 'Amber', 'Gray'],
+      dwarf: ['Brown', 'Blue', 'Gray', 'Green', 'Amber'],
+      halfling: ['Brown', 'Blue', 'Green', 'Hazel'],
+      dragonborn: ['Red', 'Gold', 'Green', 'Blue', 'Black', 'White', 'Amber'],
+      gnome: ['Blue', 'Green', 'Brown', 'Turquoise', 'Violet'],
+      tiefling: ['Red', 'Gold', 'Silver', 'Black', 'Pale Yellow', 'Purple'],
+      aasimar: ['Gold', 'Silver', 'White', 'Pale Blue', 'Topaz'],
+      goliath: ['Blue', 'Green', 'Gray', 'Brown'],
+      orc: ['Red', 'Gray', 'Brown', 'Yellow', 'Amber'],
+    };
+
+    // Hair colors by species
+    const hairColors: Record<Species, string[]> = {
+      human: ['Black', 'Brown', 'Blonde', 'Red', 'Auburn', 'Gray', 'White'],
+      elf: ['Black', 'Silver', 'Blonde', 'Gold', 'Copper', 'White', 'Green', 'Blue'],
+      dwarf: ['Black', 'Brown', 'Red', 'Gray', 'White', 'Ginger'],
+      halfling: ['Brown', 'Black', 'Auburn', 'Blonde', 'Sandy'],
+      dragonborn: ['None (scales)', 'None', 'Frill', 'Crest'],
+      gnome: ['Red', 'Blonde', 'White', 'Brown', 'Orange', 'Pink'],
+      tiefling: ['Black', 'Dark Red', 'Purple', 'Blue', 'White', 'Orange'],
+      aasimar: ['Golden', 'Silver', 'White', 'Pale Blonde', 'Copper'],
+      goliath: ['Black', 'Dark Brown', 'None (bald)'],
+      orc: ['Black', 'Brown', 'Gray', 'None (bald)'],
+    };
+
+    // Skin tones by species
+    const skinTones: Record<Species, string[]> = {
+      human: ['Fair', 'Light', 'Olive', 'Tan', 'Brown', 'Dark Brown', 'Ebony'],
+      elf: ['Pale', 'Fair', 'Bronze', 'Copper', 'Dusk Gray', 'Obsidian'],
+      dwarf: ['Tan', 'Fair', 'Light Brown', 'Brown', 'Gray'],
+      halfling: ['Fair', 'Tan', 'Light Brown', 'Ruddy'],
+      dragonborn: ['Brass', 'Bronze', 'Copper', 'Gold', 'Silver', 'Blue', 'Green', 'Red', 'White', 'Black'],
+      gnome: ['Fair', 'Tan', 'Ruddy', 'Light Brown', 'Wood Brown'],
+      tiefling: ['Red', 'Purple', 'Blue', 'Pale', 'Ashen', 'Normal Human Range'],
+      aasimar: ['Fair', 'Golden', 'Pale', 'Silver-touched', 'Bronze'],
+      goliath: ['Gray', 'Light Gray', 'Stone Gray', 'Brown-Gray'],
+      orc: ['Gray-Green', 'Green', 'Gray', 'Brown'],
+    };
+
+    const ageRange = ageRanges[species];
+    const heightRange = heightRanges[species];
+    const weightRange = weightRanges[species];
+
+    const age = Math.floor(Math.random() * (ageRange.max - ageRange.min) + ageRange.min);
+    const heightInches = Math.floor(Math.random() * (heightRange.max - heightRange.min) + heightRange.min);
+    const weight = Math.floor(Math.random() * (weightRange.max - weightRange.min) + weightRange.min);
+
+    const feet = Math.floor(heightInches / 12);
+    const inches = heightInches % 12;
+
+    setAppearance({
+      age: age.toString(),
+      height: `${feet}'${inches}"`,
+      weight: `${weight} lbs`,
+      eyes: pick(eyeColors[species]),
+      hair: pick(hairColors[species]),
+      skin: pick(skinTones[species]),
+    });
+  };
+
   const toggleCantrip = (cantrip: string) => {
     const max = CANTRIPS_KNOWN[characterClass] || 0;
     if (selectedCantrips.includes(cantrip)) {
@@ -529,26 +638,52 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
 
       // Add shield if class pack includes one
       if (pack.shield) {
-        equipment.push({ id: 'equip-shield', name: 'Shield', quantity: 1, equipped: true });
+        equipment.push({
+          id: 'equip-shield',
+          name: 'Shield',
+          quantity: 1,
+          equipped: true,
+          category: 'shield' as const,
+          armorClass: 2,
+          armorType: 'shield' as const,
+          description: '+2 AC',
+        });
         baseAC += 2;
       }
 
       // Add armor to equipment if class pack includes one
       if (pack.armor) {
+        // Determine armor type
+        let armorType: 'light' | 'medium' | 'heavy' = 'medium';
+        let maxDexBonus: number | undefined = 2;
+
+        if (pack.armor.name.includes('Leather') || pack.armor.name.includes('Padded') || pack.armor.name.includes('Studded')) {
+          armorType = 'light';
+          maxDexBonus = undefined; // Full Dex for light armor
+        } else if (pack.armor.name.includes('Chain Mail') || pack.armor.name.includes('Ring Mail') || pack.armor.name.includes('Splint') || pack.armor.name.includes('Plate')) {
+          armorType = 'heavy';
+          maxDexBonus = 0;
+        }
+
         equipment.push({
           id: 'equip-armor',
           name: pack.armor.name,
           quantity: 1,
           description: pack.armor.description,
           equipped: true,
+          category: 'armor' as const,
+          armorClass: pack.armor.armorClass,
+          armorType,
+          maxDexBonus,
+          stealthDisadvantage: armorType === 'heavy' || pack.armor.name.includes('Scale') || pack.armor.name.includes('Ring') || pack.armor.name.includes('Chain Shirt'),
         });
         // Calculate AC with armor
-        baseAC = pack.armor.armorClass + Math.min(dexMod, 2); // Most armor caps Dex at +2
-        if (pack.armor.name.includes('Leather') || pack.armor.name.includes('Studded')) {
-          baseAC = pack.armor.armorClass + dexMod; // Light armor gets full Dex
-        }
-        if (pack.armor.name.includes('Chain Mail') || pack.armor.name.includes('Ring Mail')) {
-          baseAC = pack.armor.armorClass; // Heavy armor no Dex
+        if (armorType === 'light') {
+          baseAC = pack.armor.armorClass + dexMod;
+        } else if (armorType === 'medium') {
+          baseAC = pack.armor.armorClass + Math.min(dexMod, 2);
+        } else {
+          baseAC = pack.armor.armorClass;
         }
         if (pack.shield) {
           baseAC += 2;
@@ -570,12 +705,44 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
         equipped: idx === 0,
       }));
 
-      equipment = nonWeaponItems.map(e => ({
-        id: e.id,
-        name: e.name,
-        quantity: e.quantity,
-        description: e.description,
-      }));
+      // Map non-weapon items with proper armor properties
+      equipment = nonWeaponItems.map(e => {
+        const item: typeof equipment[number] = {
+          id: e.id,
+          name: e.name,
+          quantity: e.quantity,
+          description: e.description,
+        };
+
+        // Add armor properties for armor items
+        if (e.category === 'armor') {
+          if (e.name === 'Shield') {
+            item.category = 'shield';
+            item.armorType = 'shield';
+            item.armorClass = 2;
+            item.equipped = true;
+          } else {
+            item.category = 'armor';
+            item.armorClass = e.armorClass;
+
+            // Determine armor type based on name
+            if (e.name.includes('Leather') || e.name.includes('Padded') || e.name.includes('Studded')) {
+              item.armorType = 'light';
+            } else if (e.name.includes('Chain Mail') || e.name.includes('Ring Mail') || e.name.includes('Splint') || e.name.includes('Plate')) {
+              item.armorType = 'heavy';
+              item.maxDexBonus = 0;
+              item.stealthDisadvantage = true;
+            } else {
+              item.armorType = 'medium';
+              item.maxDexBonus = 2;
+              item.stealthDisadvantage = e.name.includes('Scale') || e.name.includes('Half Plate');
+            }
+            item.equipped = true;
+          }
+        }
+
+        return item;
+      });
 
       // Handle armor AC from shop purchases
       const armorItem = shopCart.find(i => i.category === 'armor' && i.armorClass && i.armorClass > 2);
@@ -1544,7 +1711,10 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
 
       {/* Appearance Fields */}
       <div className="bg-dark-wood p-3 rounded border border-leather">
-        <h4 className="text-gold text-sm mb-2">Physical Appearance</h4>
+        <div className="flex justify-between items-center mb-2">
+          <h4 className="text-gold text-sm">Physical Appearance</h4>
+          <Button size="sm" variant="secondary" onClick={randomizeAppearance}>Randomize</Button>
+        </div>
         <div className="grid grid-cols-3 gap-2">
           <div>
             <label className="text-parchment/70 text-xs block mb-1">Age</label>

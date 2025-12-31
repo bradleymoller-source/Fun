@@ -177,6 +177,12 @@ export interface EquipmentItem {
   weight?: number;
   description?: string;
   equipped?: boolean;
+  category?: 'weapon' | 'armor' | 'shield' | 'gear' | 'potion' | 'food' | 'tool';
+  armorClass?: number;  // Base AC for armor, or AC bonus for shields
+  armorType?: 'light' | 'medium' | 'heavy' | 'shield';
+  maxDexBonus?: number;  // Max Dex bonus for medium armor (usually 2)
+  strengthRequired?: number;  // Minimum strength for heavy armor
+  stealthDisadvantage?: boolean;  // Does this armor impose stealth disadvantage?
 }
 
 // Weapon with attack info
