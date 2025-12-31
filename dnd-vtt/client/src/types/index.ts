@@ -9,9 +9,10 @@ export type TokenSize = 'tiny' | 'small' | 'medium' | 'large' | 'huge' | 'gargan
 
 // Common D&D conditions
 export type Condition =
-  | 'poisoned' | 'stunned' | 'prone' | 'frightened' | 'charmed'
-  | 'paralyzed' | 'restrained' | 'blinded' | 'deafened' | 'invisible'
-  | 'incapacitated' | 'exhausted' | 'concentrating';
+  | 'blinded' | 'charmed' | 'deafened' | 'frightened' | 'grappled'
+  | 'incapacitated' | 'invisible' | 'paralyzed' | 'petrified' | 'poisoned'
+  | 'prone' | 'restrained' | 'stunned' | 'unconscious'
+  | 'exhausted' | 'concentrating';
 
 export interface Token {
   id: string;
@@ -219,6 +220,13 @@ export interface Feature {
   description: string;
 }
 
+// Feature use tracking (for rage, channel divinity, etc.)
+export interface FeatureUse {
+  used: number;
+  max: number;
+  restoreOn: 'short' | 'long' | 'dawn';
+}
+
 // Complete character sheet
 export interface Character {
   id: string;
@@ -259,6 +267,16 @@ export interface Character {
     successes: number;
     failures: number;
   };
+
+  // Session State (combat tracking)
+  conditions?: Condition[];
+  inspiration?: boolean;
+  exhaustionLevel?: number;  // 0-6, 2024 rules: -2 to d20 rolls per level
+  concentratingOn?: string | null;
+
+  // Resource Tracking
+  spellSlotsUsed?: number[];  // Index = spell level - 1
+  featureUses?: Record<string, FeatureUse>;
 
   // Equipment
   weapons: Weapon[];

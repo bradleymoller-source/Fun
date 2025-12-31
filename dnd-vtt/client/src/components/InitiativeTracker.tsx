@@ -6,25 +6,28 @@ import type { InitiativeEntry, Condition } from '../types';
 
 // Condition colors and icons for visual display
 const CONDITION_INFO: Record<Condition, { icon: string; color: string; description: string }> = {
-  poisoned: { icon: '🤢', color: 'bg-green-700', description: 'Disadvantage on attacks and ability checks' },
-  stunned: { icon: '💫', color: 'bg-yellow-600', description: 'Incapacitated, auto-fail STR/DEX saves' },
-  prone: { icon: '🔻', color: 'bg-gray-600', description: 'Disadvantage on attacks, advantage for adjacent melee' },
-  frightened: { icon: '😨', color: 'bg-purple-700', description: 'Disadvantage while source is in sight' },
-  charmed: { icon: '💕', color: 'bg-pink-600', description: 'Cannot attack charmer, charmer has advantage on social checks' },
-  paralyzed: { icon: '⚡', color: 'bg-yellow-500', description: 'Incapacitated, auto-fail STR/DEX saves, crits within 5ft' },
-  restrained: { icon: '🔗', color: 'bg-orange-600', description: 'Speed 0, disadvantage on attacks and DEX saves' },
   blinded: { icon: '👁️', color: 'bg-gray-700', description: 'Auto-fail sight checks, disadvantage on attacks' },
+  charmed: { icon: '💕', color: 'bg-pink-600', description: 'Cannot attack charmer, charmer has advantage on social checks' },
   deafened: { icon: '🔇', color: 'bg-blue-700', description: 'Cannot hear, auto-fail hearing checks' },
-  invisible: { icon: '👻', color: 'bg-indigo-600', description: 'Cannot be seen, advantage on attacks, attacks have disadvantage' },
+  frightened: { icon: '😨', color: 'bg-purple-700', description: 'Disadvantage while source is in sight' },
+  grappled: { icon: '🤝', color: 'bg-orange-500', description: 'Speed 0, ends if grappler incapacitated' },
   incapacitated: { icon: '❌', color: 'bg-red-700', description: 'Cannot take actions or reactions' },
+  invisible: { icon: '👻', color: 'bg-indigo-600', description: 'Cannot be seen, advantage on attacks, attacks have disadvantage' },
+  paralyzed: { icon: '⚡', color: 'bg-yellow-500', description: 'Incapacitated, auto-fail STR/DEX saves, crits within 5ft' },
+  petrified: { icon: '🗿', color: 'bg-stone-600', description: 'Turned to stone, incapacitated, resist all damage' },
+  poisoned: { icon: '🤢', color: 'bg-green-700', description: 'Disadvantage on attacks and ability checks' },
+  prone: { icon: '🔻', color: 'bg-gray-600', description: 'Disadvantage on attacks, advantage for adjacent melee' },
+  restrained: { icon: '🔗', color: 'bg-orange-600', description: 'Speed 0, disadvantage on attacks and DEX saves' },
+  stunned: { icon: '💫', color: 'bg-yellow-600', description: 'Incapacitated, auto-fail STR/DEX saves' },
+  unconscious: { icon: '💤', color: 'bg-slate-700', description: 'Incapacitated, drop items, prone, auto-fail STR/DEX saves' },
   exhausted: { icon: '😫', color: 'bg-amber-700', description: 'Cumulative penalties' },
   concentrating: { icon: '🔮', color: 'bg-blue-500', description: 'Maintaining concentration on a spell' },
 };
 
 const ALL_CONDITIONS: Condition[] = [
-  'poisoned', 'stunned', 'prone', 'frightened', 'charmed',
-  'paralyzed', 'restrained', 'blinded', 'deafened', 'invisible',
-  'incapacitated', 'exhausted', 'concentrating',
+  'blinded', 'charmed', 'deafened', 'frightened', 'grappled',
+  'incapacitated', 'invisible', 'paralyzed', 'petrified', 'poisoned',
+  'prone', 'restrained', 'stunned', 'unconscious', 'exhausted', 'concentrating',
 ];
 
 interface InitiativeTrackerProps {
