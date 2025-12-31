@@ -284,14 +284,15 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
     environment: string,
     theme: string,
     features: string[] = [],
-    lighting: string = 'torchlit'
+    lighting: string = 'torchlit',
+    description: string = ''
   ) => {
     setGeneratingMapId(id);
     try {
       const response = await fetch(`${SERVER_URL}/api/campaign/battlemap`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ environment, theme, features, lighting, roomName: environment }),
+        body: JSON.stringify({ environment, theme, features, lighting, roomName: environment, description }),
       });
 
       const data = await response.json();
@@ -1164,7 +1165,8 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
                               room.name,
                               campaign.act2?.dungeonOverview?.name || 'dungeon',
                               room.contents?.obvious || [],
-                              room.lighting || 'dim torchlight'
+                              room.lighting || 'dim torchlight',
+                              room.readAloud || ''
                             )}
                             disabled={generatingMapId === mapId}
                           >
@@ -1226,7 +1228,8 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
                         `${campaign.act3?.bossEncounter?.villain?.name || 'Boss'} lair boss chamber`,
                         'dark ominous evil',
                         campaign.act3?.bossEncounter?.chamberDescription?.terrain || ['throne', 'pillars'],
-                        'dramatic red lighting'
+                        'dramatic red lighting',
+                        campaign.act3?.bossEncounter?.chamberDescription?.readAloud || ''
                       )}
                       disabled={generatingMapId === 'boss-chamber'}
                     >
@@ -1283,7 +1286,8 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
                         'forest road ambush site wilderness',
                         'natural outdoor forest',
                         ['trees', 'rocks', 'path', 'bushes'],
-                        'natural daylight'
+                        'natural daylight',
+                        campaign.act1?.travelToDestination?.readAloud || campaign.act1?.travelToDestination?.description || ''
                       )}
                       disabled={generatingMapId === 'travel-encounter'}
                     >

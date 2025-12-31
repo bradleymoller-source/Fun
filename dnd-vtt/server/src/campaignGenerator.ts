@@ -794,12 +794,24 @@ export function generateBattleMapUrl(
   environment: string,
   theme: string,
   features: string[] = [],
-  lighting: string = 'torchlit'
+  lighting: string = 'torchlit',
+  narrativeDescription: string = ''
 ): string {
   // Build a detailed prompt optimized for top-down battle map generation
   const featureList = features.length > 0 ? features.join(', ') : 'detailed terrain';
 
-  const prompt = `top-down battle map for dungeons and dragons, ${environment}, ${theme} theme, ${lighting} lighting, ${featureList}, highly detailed, fantasy rpg style, gridded tactical map, painted illustration style, vibrant colors, no text, no labels, professional quality`;
+  // Extract key visual elements from the narrative description if provided
+  let narrativeElements = '';
+  if (narrativeDescription) {
+    // Take first 200 chars of narrative to include key visual details
+    const cleanNarrative = narrativeDescription
+      .replace(/["\n\r]/g, ' ')
+      .substring(0, 200)
+      .trim();
+    narrativeElements = `, ${cleanNarrative}`;
+  }
+
+  const prompt = `top-down battle map for dungeons and dragons, ${environment}, ${theme} theme, ${lighting} lighting, ${featureList}${narrativeElements}, highly detailed, fantasy rpg style, gridded tactical map, painted illustration style, vibrant colors, no text, no labels, professional quality`;
 
   // Pollinations.ai is free and doesn't require an API key
   const encodedPrompt = encodeURIComponent(prompt);
@@ -852,7 +864,7 @@ export async function generateSceneImage(req: Request, res: Response) {
 // Battle map generation endpoint
 export async function generateBattleMap(req: Request, res: Response) {
   try {
-    const { environment, theme, features, lighting, roomName } = req.body;
+    const { environment, theme, features, lighting, roomName, description } = req.body;
 
     if (!environment) {
       return res.status(400).json({ error: 'Environment is required' });
@@ -862,7 +874,8 @@ export async function generateBattleMap(req: Request, res: Response) {
       environment,
       theme || 'fantasy dungeon',
       features || [],
-      lighting || 'torchlit'
+      lighting || 'torchlit',
+      description || ''
     );
 
     res.json({
@@ -892,11 +905,13 @@ export async function generateActBattleMaps(req: Request, res: Response) {
       const environment = room.name || 'dungeon room';
       const features = room.contents?.obvious || room.features || [];
       const lighting = room.lighting || 'torchlit';
+      // Use the room's readAloud description for more accurate map generation
+      const description = room.readAloud || room.description || '';
 
       return {
         roomId: room.id,
         roomName: room.name,
-        imageUrl: generateBattleMapUrl(environment, dungeonTheme || 'dark dungeon', features, lighting)
+        imageUrl: generateBattleMapUrl(environment, dungeonTheme || 'dark dungeon', features, lighting, description)
       };
     });
 
