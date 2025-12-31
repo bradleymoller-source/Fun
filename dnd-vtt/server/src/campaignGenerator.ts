@@ -95,39 +95,69 @@ export async function generateCampaign(req: Request, res: Response) {
       return res.status(500).json({ error: 'GOOGLE_API_KEY not configured. Add it in Render Environment Variables.' });
     }
 
+    console.log('Starting campaign generation with theme:', request.theme);
+
     const prompt = buildCampaignPrompt(request);
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
+    console.log('Calling Gemini API...');
     const result = await model.generateContent(prompt);
     const response = result.response;
     const text = response.text();
 
-    // Parse the JSON response
-    const jsonMatch = text.match(/```json\n?([\s\S]*?)\n?```/);
-    if (!jsonMatch) {
-      // Try to parse directly if no code block
-      try {
-        const campaign = JSON.parse(text);
-        if (request.includeMap) {
-          campaign.dungeonMap = await generateDungeonMap(request, campaign);
+    console.log('Gemini response length:', text.length);
+
+    // Try multiple patterns to extract JSON
+    let jsonStr = '';
+
+    // Pattern 1: ```json ... ```
+    const jsonBlockMatch = text.match(/```json\n?([\s\S]*?)\n?```/);
+    if (jsonBlockMatch) {
+      jsonStr = jsonBlockMatch[1];
+    } else {
+      // Pattern 2: ``` ... ```
+      const codeBlockMatch = text.match(/```\n?([\s\S]*?)\n?```/);
+      if (codeBlockMatch) {
+        jsonStr = codeBlockMatch[1];
+      } else {
+        // Pattern 3: Direct JSON object
+        const directMatch = text.match(/\{[\s\S]*\}/);
+        if (directMatch) {
+          jsonStr = directMatch[0];
+        } else {
+          jsonStr = text;
         }
-        return res.json(campaign);
-      } catch {
-        return res.status(500).json({ error: 'Failed to parse campaign response', raw: text });
       }
     }
 
-    const campaign: GeneratedCampaign = JSON.parse(jsonMatch[1]);
+    console.log('Extracted JSON length:', jsonStr.length);
 
-    // Generate dungeon map if requested
-    if (request.includeMap) {
-      campaign.dungeonMap = await generateDungeonMap(request, campaign);
+    try {
+      const campaign: GeneratedCampaign = JSON.parse(jsonStr);
+
+      // Generate dungeon map if requested
+      if (request.includeMap) {
+        campaign.dungeonMap = await generateDungeonMap(request, campaign);
+      }
+
+      console.log('Campaign generated successfully:', campaign.title);
+      res.json(campaign);
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      console.error('Attempted to parse:', jsonStr.substring(0, 500));
+      return res.status(500).json({
+        error: 'Failed to parse AI response as JSON',
+        details: String(parseError),
+        rawPreview: text.substring(0, 300)
+      });
     }
-
-    res.json(campaign);
   } catch (error) {
     console.error('Campaign generation error:', error);
-    res.status(500).json({ error: 'Failed to generate campaign', details: String(error) });
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    res.status(500).json({
+      error: 'Failed to generate campaign',
+      details: errorMessage
+    });
   }
 }
 
