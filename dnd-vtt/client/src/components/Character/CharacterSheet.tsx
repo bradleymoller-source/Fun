@@ -1115,6 +1115,30 @@ export function CharacterSheet({ character, onUpdate, onRoll, onImport, isEditab
             {/* Description */}
             <p className="text-parchment/80 text-xs leading-relaxed">{details.description}</p>
 
+            {/* Eldritch Blast Invocation Effects */}
+            {spellName === 'Eldritch Blast' && character.eldritchInvocations && character.eldritchInvocations.length > 0 && (
+              <div className="bg-purple-900/40 border border-purple-500/50 rounded p-2 space-y-1">
+                <span className="text-purple-300 text-xs font-semibold">Invocation Effects:</span>
+                <div className="space-y-0.5">
+                  {character.eldritchInvocations.includes('agonizing-blast') && (
+                    <div className="text-parchment/80 text-xs">• <span className="text-gold">Agonizing Blast:</span> +CHA modifier to damage</div>
+                  )}
+                  {character.eldritchInvocations.includes('eldritch-spear') && (
+                    <div className="text-parchment/80 text-xs">• <span className="text-gold">Eldritch Spear:</span> Range increased to 300 ft</div>
+                  )}
+                  {character.eldritchInvocations.includes('repelling-blast') && (
+                    <div className="text-parchment/80 text-xs">• <span className="text-gold">Repelling Blast:</span> Push target 10 ft on hit</div>
+                  )}
+                  {character.eldritchInvocations.includes('grasp-of-hadar') && (
+                    <div className="text-parchment/80 text-xs">• <span className="text-gold">Grasp of Hadar:</span> Pull target 10 ft (1/turn)</div>
+                  )}
+                  {character.eldritchInvocations.includes('lance-of-lethargy') && (
+                    <div className="text-parchment/80 text-xs">• <span className="text-gold">Lance of Lethargy:</span> Reduce speed by 10 ft (1/turn)</div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Higher levels */}
             {details.higherLevels && (
               <div className="text-xs">

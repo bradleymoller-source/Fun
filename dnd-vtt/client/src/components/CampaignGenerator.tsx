@@ -1369,13 +1369,15 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
           allEncounters.push(...campaign.encounters);
         }
 
-        // Potential conflicts from Act 1
+        // Potential conflicts from Act 1 - only include if they have combat data
         if (campaign.act1?.potentialConflicts) {
-          allEncounters.push(...campaign.act1.potentialConflicts.map((c: any) => ({
-            ...c,
-            difficulty: 'optional',
-            _type: 'conflict'
-          })));
+          allEncounters.push(...campaign.act1.potentialConflicts
+            .filter((c: any) => c.enemies?.length > 0 || c.monsters?.length > 0)
+            .map((c: any) => ({
+              ...c,
+              difficulty: 'optional',
+              _type: 'conflict'
+            })));
         }
 
         return (

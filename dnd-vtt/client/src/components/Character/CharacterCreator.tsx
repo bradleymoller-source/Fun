@@ -146,6 +146,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
   const [shopCart, setShopCart] = useState<SelectedShopItem[]>([]);
   const [shopGold, setShopGold] = useState(50); // Starting gold for shopping
   const [shopCategory, setShopCategory] = useState<string>('all');
+  const [showOnlyProficient, setShowOnlyProficient] = useState(true); // Filter to show only proficient gear
 
   // Personality
   const [personalityTraits, setPersonalityTraits] = useState('');
@@ -640,8 +641,45 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
   };
 
   const getFilteredShopItems = () => {
-    if (shopCategory === 'all') return ALL_SHOP_ITEMS;
-    return ALL_SHOP_ITEMS.filter(item => item.category === shopCategory);
+    let items = shopCategory === 'all' ? ALL_SHOP_ITEMS : ALL_SHOP_ITEMS.filter(item => item.category === shopCategory);
+
+    if (showOnlyProficient) {
+      const profs = CLASS_PROFICIENCIES[characterClass];
+
+      items = items.filter(item => {
+        // Non-weapon/armor items always pass
+        if (item.category !== 'weapon' && item.category !== 'armor') {
+          return true;
+        }
+
+        // Filter armor by proficiency
+        if (item.category === 'armor' && item.armorType) {
+          return profs.armor.includes(item.armorType);
+        }
+
+        // Filter weapons by proficiency
+        if (item.category === 'weapon' && item.weaponType) {
+          // Check if class has simple or martial weapon proficiency
+          const hasSimple = profs.weapons.some(w => w.type === 'simple');
+          const hasMartial = profs.weapons.some(w => w.type === 'martial');
+
+          if (item.weaponType === 'simple' && hasSimple) return true;
+          if (item.weaponType === 'martial' && hasMartial) return true;
+
+          // Check for specific weapon proficiency (Bards, Rogues, etc.)
+          const specificWeapons = profs.weapons
+            .filter(w => w.type === 'specific')
+            .flatMap(w => w.specific || []);
+          if (specificWeapons.includes(item.name)) return true;
+
+          return false;
+        }
+
+        return true;
+      });
+    }
+
+    return items;
   };
 
   const createCharacter = (): Character => {
@@ -885,8 +923,16 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       equipment,
       currency: { copper: 0, silver: 0, electrum: 0, gold: startingGold, platinum: 0 },
       features,
-      cantrips: highElfCantrip ? [...selectedCantrips, highElfCantrip] : selectedCantrips,
-      spells: selectedSpells,
+      cantrips: [
+        ...selectedCantrips,
+        ...(highElfCantrip ? [highElfCantrip] : []),
+        ...originFeatCantrips,
+      ],
+      spells: [
+        ...selectedSpells,
+        ...originFeatSpells,
+        ...(CLASS_SUBCLASSES[characterClass]?.find(sc => sc.name === subclass)?.bonusSpells || []),
+      ],
       personalityTraits,
       ideals,
       bonds,
@@ -1900,6 +1946,29 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     const cantripsNeeded = CANTRIPS_KNOWN[characterClass] || 0;
     const spellsNeeded = SPELLS_AT_LEVEL_1[characterClass] || 2;
 
+    // Gather acquired cantrips and spells from various sources
+    const acquiredCantrips: { name: string; source: string }[] = [];
+    const acquiredSpells: { name: string; source: string }[] = [];
+
+    // High Elf cantrip
+    if (highElfCantrip) {
+      acquiredCantrips.push({ name: highElfCantrip, source: 'High Elf' });
+    }
+
+    // Origin feat cantrips and spells
+    originFeatCantrips.forEach(c => {
+      acquiredCantrips.push({ name: c, source: 'Origin Feat' });
+    });
+    originFeatSpells.forEach(s => {
+      acquiredSpells.push({ name: s, source: 'Origin Feat' });
+    });
+
+    // Subclass bonus spells
+    const subclassBonusSpells = CLASS_SUBCLASSES[characterClass]?.find(sc => sc.name === subclass)?.bonusSpells || [];
+    subclassBonusSpells.forEach(s => {
+      acquiredSpells.push({ name: s, source: subclass || 'Subclass' });
+    });
+
     return (
       <div className="space-y-4">
         <h3 className="font-medieval text-lg text-gold">Spellcasting</h3>
@@ -1907,10 +1976,33 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
           Spellcasting Ability: {classInfo.spellcastingAbility ? ABILITY_NAMES[classInfo.spellcastingAbility] : 'None'}
         </p>
 
+        {/* Acquired Cantrips/Spells from Race/Background/Subclass */}
+        {(acquiredCantrips.length > 0 || acquiredSpells.length > 0) && (
+          <div className="bg-green-900/20 border border-green-500/50 rounded p-3 space-y-2">
+            <h4 className="text-green-400 text-sm font-semibold">✓ Already Acquired</h4>
+            {acquiredCantrips.length > 0 && (
+              <div>
+                <span className="text-parchment/70 text-xs">Cantrips: </span>
+                <span className="text-purple-300 text-xs">
+                  {acquiredCantrips.map(c => `${c.name} (${c.source})`).join(', ')}
+                </span>
+              </div>
+            )}
+            {acquiredSpells.length > 0 && (
+              <div>
+                <span className="text-parchment/70 text-xs">Spells: </span>
+                <span className="text-blue-300 text-xs">
+                  {acquiredSpells.map(s => `${s.name} (${s.source})`).join(', ')}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
         {cantrips.length > 0 && (
           <div>
             <h4 className="text-purple-400 text-sm mb-2">
-              Cantrips ({selectedCantrips.length}/{cantripsNeeded})
+              Class Cantrips ({selectedCantrips.length}/{cantripsNeeded})
             </h4>
             <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
               {cantrips.map(cantrip => {
@@ -1938,7 +2030,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
         {spells.length > 0 && (
           <div>
             <h4 className="text-blue-400 text-sm mb-2">
-              1st Level Spells ({selectedSpells.length}/{Math.min(spellsNeeded, spells.length)})
+              Class 1st Level Spells ({selectedSpells.length}/{Math.min(spellsNeeded, spells.length)})
             </h4>
             <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
               {spells.map(spell => {
@@ -2067,6 +2159,17 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
                 </button>
               ))}
             </div>
+
+            {/* Proficiency Filter */}
+            <label className="flex items-center gap-2 text-parchment text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showOnlyProficient}
+                onChange={(e) => setShowOnlyProficient(e.target.checked)}
+                className="w-4 h-4 accent-gold"
+              />
+              <span>Show only proficient weapons/armor</span>
+            </label>
 
             {/* Cart */}
             {shopCart.length > 0 && (

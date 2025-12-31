@@ -3255,62 +3255,64 @@ export interface ShopItem {
   damage?: string; // for weapons
   properties?: string[];
   armorClass?: number; // for armor
+  armorType?: 'light' | 'medium' | 'heavy' | 'shields'; // for armor proficiency filtering
+  weaponType?: 'simple' | 'martial'; // for weapon proficiency filtering
 }
 
 // Weapons available for purchase
 export const SHOP_WEAPONS: ShopItem[] = [
   // Simple Melee Weapons
-  { name: 'Club', cost: 0.1, weight: 2, category: 'weapon', damage: '1d4 bludgeoning', properties: ['light'] },
-  { name: 'Dagger', cost: 2, weight: 1, category: 'weapon', damage: '1d4 piercing', properties: ['finesse', 'light', 'thrown (20/60)'] },
-  { name: 'Greatclub', cost: 0.2, weight: 10, category: 'weapon', damage: '1d8 bludgeoning', properties: ['two-handed'] },
-  { name: 'Handaxe', cost: 5, weight: 2, category: 'weapon', damage: '1d6 slashing', properties: ['light', 'thrown (20/60)'] },
-  { name: 'Javelin', cost: 0.5, weight: 2, category: 'weapon', damage: '1d6 piercing', properties: ['thrown (30/120)'] },
-  { name: 'Light Hammer', cost: 2, weight: 2, category: 'weapon', damage: '1d4 bludgeoning', properties: ['light', 'thrown (20/60)'] },
-  { name: 'Mace', cost: 5, weight: 4, category: 'weapon', damage: '1d6 bludgeoning' },
-  { name: 'Quarterstaff', cost: 0.2, weight: 4, category: 'weapon', damage: '1d6 bludgeoning', properties: ['versatile (1d8)'] },
-  { name: 'Sickle', cost: 1, weight: 2, category: 'weapon', damage: '1d4 slashing', properties: ['light'] },
-  { name: 'Spear', cost: 1, weight: 3, category: 'weapon', damage: '1d6 piercing', properties: ['thrown (20/60)', 'versatile (1d8)'] },
+  { name: 'Club', cost: 0.1, weight: 2, category: 'weapon', damage: '1d4 bludgeoning', properties: ['light'], weaponType: 'simple' },
+  { name: 'Dagger', cost: 2, weight: 1, category: 'weapon', damage: '1d4 piercing', properties: ['finesse', 'light', 'thrown (20/60)'], weaponType: 'simple' },
+  { name: 'Greatclub', cost: 0.2, weight: 10, category: 'weapon', damage: '1d8 bludgeoning', properties: ['two-handed'], weaponType: 'simple' },
+  { name: 'Handaxe', cost: 5, weight: 2, category: 'weapon', damage: '1d6 slashing', properties: ['light', 'thrown (20/60)'], weaponType: 'simple' },
+  { name: 'Javelin', cost: 0.5, weight: 2, category: 'weapon', damage: '1d6 piercing', properties: ['thrown (30/120)'], weaponType: 'simple' },
+  { name: 'Light Hammer', cost: 2, weight: 2, category: 'weapon', damage: '1d4 bludgeoning', properties: ['light', 'thrown (20/60)'], weaponType: 'simple' },
+  { name: 'Mace', cost: 5, weight: 4, category: 'weapon', damage: '1d6 bludgeoning', weaponType: 'simple' },
+  { name: 'Quarterstaff', cost: 0.2, weight: 4, category: 'weapon', damage: '1d6 bludgeoning', properties: ['versatile (1d8)'], weaponType: 'simple' },
+  { name: 'Sickle', cost: 1, weight: 2, category: 'weapon', damage: '1d4 slashing', properties: ['light'], weaponType: 'simple' },
+  { name: 'Spear', cost: 1, weight: 3, category: 'weapon', damage: '1d6 piercing', properties: ['thrown (20/60)', 'versatile (1d8)'], weaponType: 'simple' },
   // Simple Ranged Weapons
-  { name: 'Light Crossbow', cost: 25, weight: 5, category: 'weapon', damage: '1d8 piercing', properties: ['ammunition (80/320)', 'loading', 'two-handed'] },
-  { name: 'Shortbow', cost: 25, weight: 2, category: 'weapon', damage: '1d6 piercing', properties: ['ammunition (80/320)', 'two-handed'] },
-  { name: 'Sling', cost: 0.1, weight: 0, category: 'weapon', damage: '1d4 bludgeoning', properties: ['ammunition (30/120)'] },
+  { name: 'Light Crossbow', cost: 25, weight: 5, category: 'weapon', damage: '1d8 piercing', properties: ['ammunition (80/320)', 'loading', 'two-handed'], weaponType: 'simple' },
+  { name: 'Shortbow', cost: 25, weight: 2, category: 'weapon', damage: '1d6 piercing', properties: ['ammunition (80/320)', 'two-handed'], weaponType: 'simple' },
+  { name: 'Sling', cost: 0.1, weight: 0, category: 'weapon', damage: '1d4 bludgeoning', properties: ['ammunition (30/120)'], weaponType: 'simple' },
   // Martial Melee Weapons
-  { name: 'Battleaxe', cost: 10, weight: 4, category: 'weapon', damage: '1d8 slashing', properties: ['versatile (1d10)'] },
-  { name: 'Flail', cost: 10, weight: 2, category: 'weapon', damage: '1d8 bludgeoning' },
-  { name: 'Glaive', cost: 20, weight: 6, category: 'weapon', damage: '1d10 slashing', properties: ['heavy', 'reach', 'two-handed'] },
-  { name: 'Greataxe', cost: 30, weight: 7, category: 'weapon', damage: '1d12 slashing', properties: ['heavy', 'two-handed'] },
-  { name: 'Greatsword', cost: 50, weight: 6, category: 'weapon', damage: '2d6 slashing', properties: ['heavy', 'two-handed'] },
-  { name: 'Halberd', cost: 20, weight: 6, category: 'weapon', damage: '1d10 slashing', properties: ['heavy', 'reach', 'two-handed'] },
-  { name: 'Longsword', cost: 15, weight: 3, category: 'weapon', damage: '1d8 slashing', properties: ['versatile (1d10)'] },
-  { name: 'Maul', cost: 10, weight: 10, category: 'weapon', damage: '2d6 bludgeoning', properties: ['heavy', 'two-handed'] },
-  { name: 'Morningstar', cost: 15, weight: 4, category: 'weapon', damage: '1d8 piercing' },
-  { name: 'Rapier', cost: 25, weight: 2, category: 'weapon', damage: '1d8 piercing', properties: ['finesse'] },
-  { name: 'Scimitar', cost: 25, weight: 3, category: 'weapon', damage: '1d6 slashing', properties: ['finesse', 'light'] },
-  { name: 'Shortsword', cost: 10, weight: 2, category: 'weapon', damage: '1d6 piercing', properties: ['finesse', 'light'] },
-  { name: 'Warhammer', cost: 15, weight: 2, category: 'weapon', damage: '1d8 bludgeoning', properties: ['versatile (1d10)'] },
-  { name: 'War Pick', cost: 5, weight: 2, category: 'weapon', damage: '1d8 piercing' },
+  { name: 'Battleaxe', cost: 10, weight: 4, category: 'weapon', damage: '1d8 slashing', properties: ['versatile (1d10)'], weaponType: 'martial' },
+  { name: 'Flail', cost: 10, weight: 2, category: 'weapon', damage: '1d8 bludgeoning', weaponType: 'martial' },
+  { name: 'Glaive', cost: 20, weight: 6, category: 'weapon', damage: '1d10 slashing', properties: ['heavy', 'reach', 'two-handed'], weaponType: 'martial' },
+  { name: 'Greataxe', cost: 30, weight: 7, category: 'weapon', damage: '1d12 slashing', properties: ['heavy', 'two-handed'], weaponType: 'martial' },
+  { name: 'Greatsword', cost: 50, weight: 6, category: 'weapon', damage: '2d6 slashing', properties: ['heavy', 'two-handed'], weaponType: 'martial' },
+  { name: 'Halberd', cost: 20, weight: 6, category: 'weapon', damage: '1d10 slashing', properties: ['heavy', 'reach', 'two-handed'], weaponType: 'martial' },
+  { name: 'Longsword', cost: 15, weight: 3, category: 'weapon', damage: '1d8 slashing', properties: ['versatile (1d10)'], weaponType: 'martial' },
+  { name: 'Maul', cost: 10, weight: 10, category: 'weapon', damage: '2d6 bludgeoning', properties: ['heavy', 'two-handed'], weaponType: 'martial' },
+  { name: 'Morningstar', cost: 15, weight: 4, category: 'weapon', damage: '1d8 piercing', weaponType: 'martial' },
+  { name: 'Rapier', cost: 25, weight: 2, category: 'weapon', damage: '1d8 piercing', properties: ['finesse'], weaponType: 'martial' },
+  { name: 'Scimitar', cost: 25, weight: 3, category: 'weapon', damage: '1d6 slashing', properties: ['finesse', 'light'], weaponType: 'martial' },
+  { name: 'Shortsword', cost: 10, weight: 2, category: 'weapon', damage: '1d6 piercing', properties: ['finesse', 'light'], weaponType: 'martial' },
+  { name: 'Warhammer', cost: 15, weight: 2, category: 'weapon', damage: '1d8 bludgeoning', properties: ['versatile (1d10)'], weaponType: 'martial' },
+  { name: 'War Pick', cost: 5, weight: 2, category: 'weapon', damage: '1d8 piercing', weaponType: 'martial' },
   // Martial Ranged Weapons
-  { name: 'Hand Crossbow', cost: 75, weight: 3, category: 'weapon', damage: '1d6 piercing', properties: ['ammunition (30/120)', 'light', 'loading'] },
-  { name: 'Heavy Crossbow', cost: 50, weight: 18, category: 'weapon', damage: '1d10 piercing', properties: ['ammunition (100/400)', 'heavy', 'loading', 'two-handed'] },
-  { name: 'Longbow', cost: 50, weight: 2, category: 'weapon', damage: '1d8 piercing', properties: ['ammunition (150/600)', 'heavy', 'two-handed'] },
+  { name: 'Hand Crossbow', cost: 75, weight: 3, category: 'weapon', damage: '1d6 piercing', properties: ['ammunition (30/120)', 'light', 'loading'], weaponType: 'martial' },
+  { name: 'Heavy Crossbow', cost: 50, weight: 18, category: 'weapon', damage: '1d10 piercing', properties: ['ammunition (100/400)', 'heavy', 'loading', 'two-handed'], weaponType: 'martial' },
+  { name: 'Longbow', cost: 50, weight: 2, category: 'weapon', damage: '1d8 piercing', properties: ['ammunition (150/600)', 'heavy', 'two-handed'], weaponType: 'martial' },
 ];
 
 // Armor available for purchase
 export const SHOP_ARMOR: ShopItem[] = [
   // Light Armor
-  { name: 'Padded Armor', cost: 5, weight: 8, category: 'armor', armorClass: 11, description: 'AC 11 + Dex' },
-  { name: 'Leather Armor', cost: 10, weight: 10, category: 'armor', armorClass: 11, description: 'AC 11 + Dex' },
-  { name: 'Studded Leather', cost: 45, weight: 13, category: 'armor', armorClass: 12, description: 'AC 12 + Dex' },
+  { name: 'Padded Armor', cost: 5, weight: 8, category: 'armor', armorClass: 11, description: 'AC 11 + Dex', armorType: 'light' },
+  { name: 'Leather Armor', cost: 10, weight: 10, category: 'armor', armorClass: 11, description: 'AC 11 + Dex', armorType: 'light' },
+  { name: 'Studded Leather', cost: 45, weight: 13, category: 'armor', armorClass: 12, description: 'AC 12 + Dex', armorType: 'light' },
   // Medium Armor
-  { name: 'Hide Armor', cost: 10, weight: 12, category: 'armor', armorClass: 12, description: 'AC 12 + Dex (max 2)' },
-  { name: 'Chain Shirt', cost: 50, weight: 20, category: 'armor', armorClass: 13, description: 'AC 13 + Dex (max 2)' },
-  { name: 'Scale Mail', cost: 50, weight: 45, category: 'armor', armorClass: 14, description: 'AC 14 + Dex (max 2)' },
-  { name: 'Breastplate', cost: 400, weight: 20, category: 'armor', armorClass: 14, description: 'AC 14 + Dex (max 2)' },
+  { name: 'Hide Armor', cost: 10, weight: 12, category: 'armor', armorClass: 12, description: 'AC 12 + Dex (max 2)', armorType: 'medium' },
+  { name: 'Chain Shirt', cost: 50, weight: 20, category: 'armor', armorClass: 13, description: 'AC 13 + Dex (max 2)', armorType: 'medium' },
+  { name: 'Scale Mail', cost: 50, weight: 45, category: 'armor', armorClass: 14, description: 'AC 14 + Dex (max 2)', armorType: 'medium' },
+  { name: 'Breastplate', cost: 400, weight: 20, category: 'armor', armorClass: 14, description: 'AC 14 + Dex (max 2)', armorType: 'medium' },
   // Heavy Armor
-  { name: 'Ring Mail', cost: 30, weight: 40, category: 'armor', armorClass: 14, description: 'AC 14' },
-  { name: 'Chain Mail', cost: 75, weight: 55, category: 'armor', armorClass: 16, description: 'AC 16, Str 13 required' },
+  { name: 'Ring Mail', cost: 30, weight: 40, category: 'armor', armorClass: 14, description: 'AC 14', armorType: 'heavy' },
+  { name: 'Chain Mail', cost: 75, weight: 55, category: 'armor', armorClass: 16, description: 'AC 16, Str 13 required', armorType: 'heavy' },
   // Shield
-  { name: 'Shield', cost: 10, weight: 6, category: 'armor', armorClass: 2, description: '+2 AC' },
+  { name: 'Shield', cost: 10, weight: 6, category: 'armor', armorClass: 2, description: '+2 AC', armorType: 'shields' },
 ];
 
 // Adventuring gear
