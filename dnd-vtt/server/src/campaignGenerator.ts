@@ -470,7 +470,7 @@ Create an immersive adventure using the CLASSIC D&D THREE-ACT STRUCTURE. Return 
   "act2": {
     "title": "Act 2 Title (e.g., 'The Crimson Depths')",
     "estimatedDuration": "60-90 minutes",
-    "overview": "The dungeon/adventure site and its dangers",
+    "overview": "The dungeon/adventure site and its dangers. MUST contain exactly 3 combat encounters.",
 
     "dungeonOverview": {
       "name": "Dungeon Name",
@@ -504,7 +504,7 @@ Create an immersive adventure using the CLASSIC D&D THREE-ACT STRUCTURE. Return 
 
     "encounters": [
       {
-        "name": "Encounter Name",
+        "name": "Combat Encounter 1 - Entry/Guard Fight",
         "location": "Room number/area",
         "type": "combat",
         "readAloud": "What players see as combat begins",
@@ -512,8 +512,32 @@ Create an immersive adventure using the CLASSIC D&D THREE-ACT STRUCTURE. Return 
         "tactics": "How enemies fight: initial actions, fallback plans, morale",
         "terrain": "Combat-relevant terrain features",
         "dynamicElements": "What changes mid-fight (reinforcements, environmental shifts)",
-        "difficulty": "easy/medium/hard",
+        "difficulty": "easy",
         "rewards": {"xp": 100, "loot": ["Item (value)"]}
+      },
+      {
+        "name": "Combat Encounter 2 - Mid-Dungeon Challenge",
+        "location": "Room number/area",
+        "type": "combat",
+        "readAloud": "What players see as combat begins",
+        "enemies": [{"name": "Monster", "count": 3, "cr": "1", "hp": 30, "ac": 14}],
+        "tactics": "How enemies fight with more coordination",
+        "terrain": "Terrain that affects tactics",
+        "dynamicElements": "Environmental hazards or reinforcements",
+        "difficulty": "medium",
+        "rewards": {"xp": 200, "loot": ["Better loot"]}
+      },
+      {
+        "name": "Combat Encounter 3 - Pre-Boss Minions",
+        "location": "Room before boss",
+        "type": "combat",
+        "readAloud": "The villain's elite guards or lieutenants",
+        "enemies": [{"name": "Elite Monster", "count": 2, "cr": "2", "hp": 45, "ac": 15}],
+        "tactics": "Coordinated defense, may alert boss",
+        "terrain": "Tactical terrain features",
+        "dynamicElements": "May trigger alarm or boss awareness",
+        "difficulty": "hard",
+        "rewards": {"xp": 300, "loot": ["Valuable items", "Key or clue"]}
       }
     ],
 
@@ -714,13 +738,14 @@ CRITICAL REQUIREMENTS:
 1. ALL "readAloud" fields must be evocative prose with sensory details (sights, sounds, smells, textures, atmosphere)
 2. Include specific DC checks throughout (Perception, Investigation, Insight, Persuasion, etc.)
 3. NPCs need distinct personalities with actual dialogue lines, not just descriptions
-4. Combat encounters need tactical depth - terrain, enemy tactics, dynamic elements
-5. Puzzles need multiple hint paths and clear solutions
-6. Use D&D 5e SRD monsters with appropriate CR for level ${request.partyLevel}
-7. Balance total XP for a party of ${request.partySize} level ${request.partyLevel} characters
-8. Include specific gold values and item names for all treasure
-9. Boss needs phases, dialogue, and a weakness clever players can exploit
-10. Ensure the adventure can be completed in approximately ${sessionHours} hours`;
+4. **ACT 2 MUST HAVE EXACTLY 3 COMBAT ENCOUNTERS** - an easy entry fight, medium mid-dungeon fight, and hard pre-boss fight
+5. Combat encounters need tactical depth - terrain, enemy tactics, dynamic elements
+6. Puzzles need multiple hint paths and clear solutions
+7. Use D&D 5e SRD monsters with appropriate CR for level ${request.partyLevel}
+8. Balance total XP for a party of ${request.partySize} level ${request.partyLevel} characters
+9. Include specific gold values and item names for all treasure
+10. Boss needs phases, dialogue, and a weakness clever players can exploit
+11. Ensure the adventure can be completed in approximately ${sessionHours} hours`;
 }
 
 // Generate just a dungeon map
