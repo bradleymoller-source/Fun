@@ -145,8 +145,12 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
   const [campaign, setCampaign] = useState<GeneratedCampaign | null>(null);
 
   // View state
-  const [activeTab, setActiveTab] = useState<'overview' | 'act1' | 'act2' | 'act3' | 'epilogue' | 'npcs' | 'locations' | 'encounters' | 'sessions' | 'map'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'act1' | 'act2' | 'act3' | 'epilogue' | 'npcs' | 'locations' | 'encounters' | 'sessions' | 'map' | 'battlemaps'>('overview');
   const [selectedRoom, setSelectedRoom] = useState<DungeonRoom | null>(null);
+
+  // Battle map state
+  const [battleMaps, setBattleMaps] = useState<Record<string, string>>({});
+  const [generatingMapId, setGeneratingMapId] = useState<string | null>(null);
 
   const handleGenerate = async () => {
     setIsGenerating(true);
@@ -252,6 +256,63 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
       setError(message);
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  // Generate a detailed battle map image for a specific location
+  const handleGenerateBattleMap = async (
+    id: string,
+    environment: string,
+    theme: string,
+    features: string[] = [],
+    lighting: string = 'torchlit'
+  ) => {
+    setGeneratingMapId(id);
+    try {
+      const response = await fetch(`${SERVER_URL}/api/campaign/battlemap`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ environment, theme, features, lighting, roomName: environment }),
+      });
+
+      const data = await response.json();
+      if (data.imageUrl) {
+        setBattleMaps(prev => ({ ...prev, [id]: data.imageUrl }));
+      }
+    } catch (err) {
+      console.error('Battle map generation error:', err);
+    } finally {
+      setGeneratingMapId(null);
+    }
+  };
+
+  // Generate all battle maps for Act 2 rooms
+  const handleGenerateAllBattleMaps = async () => {
+    if (!campaign?.act2?.rooms) return;
+
+    setGeneratingMapId('all');
+    try {
+      const response = await fetch(`${SERVER_URL}/api/campaign/battlemaps`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rooms: campaign.act2.rooms,
+          dungeonTheme: campaign.act2.dungeonOverview?.name || campaign.title
+        }),
+      });
+
+      const data = await response.json();
+      if (data.battleMaps) {
+        const newMaps: Record<string, string> = {};
+        data.battleMaps.forEach((map: any) => {
+          newMaps[`room-${map.roomId}`] = map.imageUrl;
+        });
+        setBattleMaps(prev => ({ ...prev, ...newMaps }));
+      }
+    } catch (err) {
+      console.error('Batch battle map generation error:', err);
+    } finally {
+      setGeneratingMapId(null);
     }
   };
 
@@ -426,7 +487,8 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
       ...(campaign?.epilogue ? [{ id: 'epilogue', label: 'Epilogue' }] : []),
       { id: 'npcs', label: 'NPCs' },
       { id: 'encounters', label: 'Encounters' },
-      ...(campaign?.dungeonMap ? [{ id: 'map', label: 'Map' }] : []),
+      ...(campaign?.dungeonMap ? [{ id: 'map', label: 'Overview Map' }] : []),
+      { id: 'battlemaps', label: 'Battle Maps' },
     ];
 
     return (
@@ -922,6 +984,216 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
 
       case 'map':
         return renderDungeonMap();
+
+      case 'battlemaps':
+        return (
+          <div className="space-y-4 max-h-96 overflow-y-auto">
+            <div className="flex justify-between items-center">
+              <h3 className="text-xl font-medieval text-gold">Detailed Battle Maps</h3>
+              {campaign?.act2?.rooms && campaign.act2.rooms.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={handleGenerateAllBattleMaps}
+                  disabled={generatingMapId === 'all'}
+                >
+                  {generatingMapId === 'all' ? 'Generating...' : 'Generate All Room Maps'}
+                </Button>
+              )}
+            </div>
+
+            <p className="text-parchment/60 text-sm">
+              Generate detailed, illustrated battle maps for combat encounters. These AI-generated maps
+              are designed for tactical play.
+            </p>
+
+            {/* Dungeon Rooms from Act 2 */}
+            {campaign?.act2?.rooms && campaign.act2.rooms.length > 0 && (
+              <div>
+                <h4 className="text-gold text-sm font-bold mb-2">Dungeon Rooms</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {campaign.act2.rooms.map((room: any, index: number) => {
+                    const mapId = `room-${room.id}`;
+                    const hasMap = battleMaps[mapId];
+                    return (
+                      <div key={index} className="bg-dark-wood/50 p-3 rounded-lg border border-leather">
+                        <div className="flex justify-between items-start mb-2">
+                          <h5 className="text-gold font-medieval text-sm">{room.name}</h5>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => handleGenerateBattleMap(
+                              mapId,
+                              room.name,
+                              campaign.act2?.dungeonOverview?.name || 'dungeon',
+                              room.contents?.obvious || [],
+                              room.lighting || 'dim torchlight'
+                            )}
+                            disabled={generatingMapId === mapId}
+                          >
+                            {generatingMapId === mapId ? '...' : hasMap ? 'Regen' : 'Generate'}
+                          </Button>
+                        </div>
+                        {hasMap ? (
+                          <div className="relative">
+                            <img
+                              src={battleMaps[mapId]}
+                              alt={`Battle map for ${room.name}`}
+                              className="w-full rounded-lg border border-gold/30"
+                              loading="lazy"
+                            />
+                            <a
+                              href={battleMaps[mapId]}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="absolute bottom-2 right-2 bg-dark-wood/80 text-gold text-xs px-2 py-1 rounded hover:bg-dark-wood"
+                            >
+                              Full Size
+                            </a>
+                          </div>
+                        ) : (
+                          <div className="h-32 bg-leather/20 rounded flex items-center justify-center text-parchment/50 text-sm">
+                            Click Generate to create battle map
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Boss Chamber from Act 3 */}
+            {campaign?.act3?.bossEncounter?.chamberDescription && (
+              <div>
+                <h4 className="text-gold text-sm font-bold mb-2">Boss Chamber</h4>
+                <div className="bg-dark-wood/50 p-3 rounded-lg border border-red-500/50">
+                  <div className="flex justify-between items-start mb-2">
+                    <h5 className="text-red-400 font-medieval text-sm">
+                      {campaign.act3.bossEncounter.villain?.name || 'Boss'} Lair
+                    </h5>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => handleGenerateBattleMap(
+                        'boss-chamber',
+                        `${campaign.act3?.bossEncounter?.villain?.name || 'Boss'} lair boss chamber`,
+                        'dark ominous evil',
+                        campaign.act3?.bossEncounter?.chamberDescription?.terrain || ['throne', 'pillars'],
+                        'dramatic red lighting'
+                      )}
+                      disabled={generatingMapId === 'boss-chamber'}
+                    >
+                      {generatingMapId === 'boss-chamber' ? '...' : battleMaps['boss-chamber'] ? 'Regen' : 'Generate'}
+                    </Button>
+                  </div>
+                  {battleMaps['boss-chamber'] ? (
+                    <div className="relative">
+                      <img
+                        src={battleMaps['boss-chamber']}
+                        alt="Boss chamber battle map"
+                        className="w-full rounded-lg border border-red-500/30"
+                        loading="lazy"
+                      />
+                      <a
+                        href={battleMaps['boss-chamber']}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="absolute bottom-2 right-2 bg-dark-wood/80 text-gold text-xs px-2 py-1 rounded hover:bg-dark-wood"
+                      >
+                        Full Size
+                      </a>
+                    </div>
+                  ) : (
+                    <div className="h-32 bg-red-900/20 rounded flex items-center justify-center text-parchment/50 text-sm">
+                      Click Generate to create boss battle map
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Travel/Wilderness Encounters */}
+            {campaign?.act1?.travelToDestination && (
+              <div>
+                <h4 className="text-gold text-sm font-bold mb-2">Travel Encounter Map</h4>
+                <div className="bg-dark-wood/50 p-3 rounded-lg border border-green-500/50">
+                  <div className="flex justify-between items-start mb-2">
+                    <h5 className="text-green-400 font-medieval text-sm">Wilderness Ambush Site</h5>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => handleGenerateBattleMap(
+                        'travel-encounter',
+                        'forest road ambush site wilderness',
+                        'natural outdoor forest',
+                        ['trees', 'rocks', 'path', 'bushes'],
+                        'natural daylight'
+                      )}
+                      disabled={generatingMapId === 'travel-encounter'}
+                    >
+                      {generatingMapId === 'travel-encounter' ? '...' : battleMaps['travel-encounter'] ? 'Regen' : 'Generate'}
+                    </Button>
+                  </div>
+                  {battleMaps['travel-encounter'] ? (
+                    <div className="relative">
+                      <img
+                        src={battleMaps['travel-encounter']}
+                        alt="Travel encounter battle map"
+                        className="w-full rounded-lg border border-green-500/30"
+                        loading="lazy"
+                      />
+                      <a
+                        href={battleMaps['travel-encounter']}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="absolute bottom-2 right-2 bg-dark-wood/80 text-gold text-xs px-2 py-1 rounded hover:bg-dark-wood"
+                      >
+                        Full Size
+                      </a>
+                    </div>
+                  ) : (
+                    <div className="h-32 bg-green-900/20 rounded flex items-center justify-center text-parchment/50 text-sm">
+                      Click Generate to create travel map
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Custom Battle Map Generator */}
+            <div className="bg-purple-900/20 p-3 rounded-lg border border-purple-500/50">
+              <h4 className="text-purple-400 text-sm font-bold mb-2">Custom Battle Map</h4>
+              <p className="text-parchment/60 text-xs mb-2">Generate a map for any location</p>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Describe the location (e.g., 'ancient temple ruins')"
+                  className="flex-1 text-sm"
+                  id="custom-map-input"
+                />
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => {
+                    const input = document.getElementById('custom-map-input') as HTMLInputElement;
+                    if (input?.value) {
+                      handleGenerateBattleMap(
+                        `custom-${Date.now()}`,
+                        input.value,
+                        'fantasy',
+                        [],
+                        'atmospheric'
+                      );
+                    }
+                  }}
+                  disabled={generatingMapId?.startsWith('custom')}
+                >
+                  Generate
+                </Button>
+              </div>
+            </div>
+          </div>
+        );
 
       default:
         return null;

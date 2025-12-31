@@ -764,6 +764,81 @@ Return the enhanced map as JSON with better room names, descriptions, and featur
   }
 }
 
+// Generate a detailed battle map image URL using Pollinations.ai (free, no API key needed)
+export function generateBattleMapUrl(
+  environment: string,
+  theme: string,
+  features: string[] = [],
+  lighting: string = 'torchlit'
+): string {
+  // Build a detailed prompt optimized for top-down battle map generation
+  const featureList = features.length > 0 ? features.join(', ') : 'detailed terrain';
+
+  const prompt = `top-down battle map for dungeons and dragons, ${environment}, ${theme} theme, ${lighting} lighting, ${featureList}, highly detailed, fantasy rpg style, gridded tactical map, painted illustration style, vibrant colors, no text, no labels, professional quality`;
+
+  // Pollinations.ai is free and doesn't require an API key
+  const encodedPrompt = encodeURIComponent(prompt);
+  return `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true`;
+}
+
+// Battle map generation endpoint
+export async function generateBattleMap(req: Request, res: Response) {
+  try {
+    const { environment, theme, features, lighting, roomName } = req.body;
+
+    if (!environment) {
+      return res.status(400).json({ error: 'Environment is required' });
+    }
+
+    const mapUrl = generateBattleMapUrl(
+      environment,
+      theme || 'fantasy dungeon',
+      features || [],
+      lighting || 'torchlit'
+    );
+
+    res.json({
+      name: roomName || 'Battle Map',
+      imageUrl: mapUrl,
+      environment,
+      theme,
+      features,
+      lighting
+    });
+  } catch (error) {
+    console.error('Battle map generation error:', error);
+    res.status(500).json({ error: 'Failed to generate battle map', details: String(error) });
+  }
+}
+
+// Generate battle maps for all rooms in an act
+export async function generateActBattleMaps(req: Request, res: Response) {
+  try {
+    const { rooms, dungeonTheme } = req.body;
+
+    if (!rooms || !Array.isArray(rooms)) {
+      return res.status(400).json({ error: 'Rooms array is required' });
+    }
+
+    const battleMaps = rooms.map((room: any) => {
+      const environment = room.name || 'dungeon room';
+      const features = room.contents?.obvious || room.features || [];
+      const lighting = room.lighting || 'torchlit';
+
+      return {
+        roomId: room.id,
+        roomName: room.name,
+        imageUrl: generateBattleMapUrl(environment, dungeonTheme || 'dark dungeon', features, lighting)
+      };
+    });
+
+    res.json({ battleMaps });
+  } catch (error) {
+    console.error('Act battle maps generation error:', error);
+    res.status(500).json({ error: 'Failed to generate battle maps', details: String(error) });
+  }
+}
+
 // Quick encounter generation
 export async function generateEncounter(req: Request, res: Response) {
   try {
