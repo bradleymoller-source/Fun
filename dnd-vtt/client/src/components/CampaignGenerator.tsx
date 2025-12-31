@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
+import { useSessionStore } from '../stores/sessionStore';
 
 interface GeneratedNPC {
   name: string;
@@ -159,6 +160,12 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
   // Saved battle maps list
   const [savedMaps, setSavedMaps] = useState<Array<{ id: string; name: string; imageUrl: string; type: string }>>([]);
 
+  // Track which maps were added to the game library
+  const [addedToLibrary, setAddedToLibrary] = useState<Set<string>>(new Set());
+
+  // Get session store for adding maps to the game's Map Library
+  const { addMapToLibrary } = useSessionStore();
+
   // Save a battle map to the list
   const handleSaveMap = (id: string, name: string, imageUrl: string, type: string = 'dungeon') => {
     // Check if already saved
@@ -169,6 +176,12 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
   // Remove a saved map
   const handleRemoveSavedMap = (imageUrl: string) => {
     setSavedMaps(prev => prev.filter(m => m.imageUrl !== imageUrl));
+  };
+
+  // Add a generated map to the game's Map Library
+  const handleAddToGameLibrary = (name: string, imageUrl: string) => {
+    addMapToLibrary(name, imageUrl);
+    setAddedToLibrary(prev => new Set(prev).add(imageUrl));
   };
 
   const handleGenerate = async () => {
@@ -1183,6 +1196,14 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
                             />
                             <div className="absolute bottom-2 right-2 flex gap-1">
                               <button
+                                onClick={() => handleAddToGameLibrary(room.name, battleMaps[mapId])}
+                                className={`text-xs px-2 py-1 rounded ${addedToLibrary.has(battleMaps[mapId]) ? 'bg-green-600 text-white' : 'bg-blue-600 text-white hover:bg-blue-500'}`}
+                                disabled={addedToLibrary.has(battleMaps[mapId])}
+                                title="Add to Map Library for use in game"
+                              >
+                                {addedToLibrary.has(battleMaps[mapId]) ? '✓ In Library' : 'Use in Game'}
+                              </button>
+                              <button
                                 onClick={() => handleSaveMap(mapId, room.name, battleMaps[mapId], 'dungeon')}
                                 className={`text-xs px-2 py-1 rounded ${isSaved ? 'bg-green-600 text-white' : 'bg-gold/80 text-dark-wood hover:bg-gold'}`}
                                 disabled={isSaved}
@@ -1246,6 +1267,14 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
                       />
                       <div className="absolute bottom-2 right-2 flex gap-1">
                         <button
+                          onClick={() => handleAddToGameLibrary(`${campaign.act3?.bossEncounter?.villain?.name || 'Boss'} Lair`, battleMaps['boss-chamber'])}
+                          className={`text-xs px-2 py-1 rounded ${addedToLibrary.has(battleMaps['boss-chamber']) ? 'bg-green-600 text-white' : 'bg-blue-600 text-white hover:bg-blue-500'}`}
+                          disabled={addedToLibrary.has(battleMaps['boss-chamber'])}
+                          title="Add to Map Library for use in game"
+                        >
+                          {addedToLibrary.has(battleMaps['boss-chamber']) ? '✓ In Library' : 'Use in Game'}
+                        </button>
+                        <button
                           onClick={() => handleSaveMap('boss-chamber', `${campaign.act3?.bossEncounter?.villain?.name || 'Boss'} Lair`, battleMaps['boss-chamber'], 'boss')}
                           className={`text-xs px-2 py-1 rounded ${savedMaps.some(m => m.imageUrl === battleMaps['boss-chamber']) ? 'bg-green-600 text-white' : 'bg-gold/80 text-dark-wood hover:bg-gold'}`}
                           disabled={savedMaps.some(m => m.imageUrl === battleMaps['boss-chamber'])}
@@ -1303,6 +1332,14 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
                         loading="lazy"
                       />
                       <div className="absolute bottom-2 right-2 flex gap-1">
+                        <button
+                          onClick={() => handleAddToGameLibrary('Wilderness Ambush Site', battleMaps['travel-encounter'])}
+                          className={`text-xs px-2 py-1 rounded ${addedToLibrary.has(battleMaps['travel-encounter']) ? 'bg-green-600 text-white' : 'bg-blue-600 text-white hover:bg-blue-500'}`}
+                          disabled={addedToLibrary.has(battleMaps['travel-encounter'])}
+                          title="Add to Map Library for use in game"
+                        >
+                          {addedToLibrary.has(battleMaps['travel-encounter']) ? '✓ In Library' : 'Use in Game'}
+                        </button>
                         <button
                           onClick={() => handleSaveMap('travel-encounter', 'Wilderness Ambush Site', battleMaps['travel-encounter'], 'wilderness')}
                           className={`text-xs px-2 py-1 rounded ${savedMaps.some(m => m.imageUrl === battleMaps['travel-encounter']) ? 'bg-green-600 text-white' : 'bg-gold/80 text-dark-wood hover:bg-gold'}`}

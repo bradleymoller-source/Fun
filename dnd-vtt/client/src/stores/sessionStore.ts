@@ -46,6 +46,7 @@ interface SessionStore extends SessionState {
 
   // Map Library Actions
   saveCurrentMap: (name: string) => void;
+  addMapToLibrary: (name: string, imageUrl: string) => void;
   loadSavedMap: (mapId: string) => void;
   deleteSavedMap: (mapId: string) => void;
   setSavedMaps: (maps: SavedMap[]) => void;
@@ -249,6 +250,26 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       gridOffsetX: state.map.gridOffsetX,
       gridOffsetY: state.map.gridOffsetY,
       tokens: [...state.map.tokens], // Save current tokens with the map
+      savedAt: new Date().toISOString(),
+    };
+
+    set({
+      savedMaps: [...state.savedMaps, newMap],
+    });
+  },
+
+  // Add a generated map directly to the library (for AI-generated battle maps)
+  addMapToLibrary: (name, imageUrl) => {
+    const state = get();
+
+    const newMap: SavedMap = {
+      id: `map-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      name,
+      imageUrl,
+      gridSize: 50, // Default grid size
+      gridOffsetX: 0,
+      gridOffsetY: 0,
+      tokens: [], // No tokens initially
       savedAt: new Date().toISOString(),
     };
 
