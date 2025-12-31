@@ -14,7 +14,6 @@ import {
   SKILL_ABILITIES,
   BACKGROUNDS,
   ALIGNMENTS,
-  SPECIES_SPEED,
   SPECIES_INFO,
   CLASS_INFO,
   BACKGROUND_INFO,
@@ -35,8 +34,22 @@ import {
   ALL_SHOP_ITEMS,
   CLASS_STANDARD_ARRAYS,
   CLASS_SUBCLASSES,
+  // 2024 additions
+  BACKGROUNDS_2024,
+  ORIGIN_FEATS,
+  SPECIES_TRAITS,
+  SPECIES_SUGGESTED_LANGUAGES,
+  STANDARD_LANGUAGES,
+  RARE_LANGUAGES,
+  CLASS_FEATURES,
+  CLASS_PROFICIENCIES,
+  formatArmorProficiencies,
+  formatWeaponProficiencies,
+  POINT_BUY_COSTS,
+  hasLevel1Subclass,
+  getAvailableSubclasses,
 } from '../../data/dndData';
-import type { ShopItem } from '../../data/dndData';
+import type { ShopItem, OriginFeatName } from '../../data/dndData';
 
 type CreationStep = 'basics' | 'abilities' | 'skills' | 'spells' | 'equipment' | 'details' | 'review';
 
@@ -63,19 +76,36 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
   const [subspecies, setSubspecies] = useState<string>('');
   const [characterClass, setCharacterClass] = useState<CharacterClass>('fighter');
   const [subclass, setSubclass] = useState<string>('');
-  const [background, setBackground] = useState('Folk Hero');
+  const [background, setBackground] = useState('Soldier');
   const [alignment, setAlignment] = useState('True Neutral');
+  const [level, setLevel] = useState(1);
+
+  // Languages (Common + 2 more, with suggestions from species)
+  const [languages, setLanguages] = useState<string[]>(['Common']);
+
+  // Appearance
+  const [appearance, setAppearance] = useState({
+    age: '',
+    height: '',
+    weight: '',
+    eyes: '',
+    hair: '',
+    skin: '',
+  });
+
+  // Human bonus feat (Versatile trait)
+  const [humanBonusFeat, setHumanBonusFeat] = useState<OriginFeatName | null>(null);
 
   // Ability scores - initialize with fighter's standard array
   const [abilityScores, setAbilityScores] = useState<AbilityScores>(CLASS_STANDARD_ARRAYS['fighter']);
-  const [abilityMethod, setAbilityMethod] = useState<'standard' | 'roll'>('standard');
+  const [abilityMethod, setAbilityMethod] = useState<'standard' | 'roll' | 'pointbuy'>('standard');
+  const [pointBuyPoints, setPointBuyPoints] = useState(27); // Remaining points for point buy
 
   // Ability Score Increases (ASI) from character origin
   // D&D 5e 2024: +2 to one, +1 to another OR +1 to three different
   const [asiMethod, setAsiMethod] = useState<'2-1' | '1-1-1'>('2-1');
   const [asiPlus2, setAsiPlus2] = useState<keyof AbilityScores | null>(null);
   const [asiPlus1, setAsiPlus1] = useState<keyof AbilityScores | null>(null);
-  const [asiTriple, setAsiTriple] = useState<(keyof AbilityScores)[]>([]);
 
   // HP method
   const [hpMethod, setHpMethod] = useState<'standard' | 'roll'>('standard');
@@ -101,7 +131,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
   const [flaws, setFlaws] = useState('');
   const [backstory, setBackstory] = useState('');
 
-  // Reset subspecies when species changes
+  // Reset subspecies and languages when species changes
   useEffect(() => {
     const info = SPECIES_INFO[species];
     if (info.subspecies && info.subspecies.length > 0) {
@@ -109,7 +139,22 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     } else {
       setSubspecies('');
     }
+    // Set suggested languages for the species
+    const suggested = SPECIES_SUGGESTED_LANGUAGES[species];
+    if (suggested && suggested.length > 0) {
+      setLanguages(['Common', ...suggested]);
+    } else {
+      setLanguages(['Common']);
+    }
+    // Reset human bonus feat when species changes
+    setHumanBonusFeat(null);
   }, [species]);
+
+  // Reset ASI selections when background changes (ASI is now tied to background abilities)
+  useEffect(() => {
+    setAsiPlus2(null);
+    setAsiPlus1(null);
+  }, [background]);
 
   // Reset skill selections when class/background changes
   useEffect(() => {
@@ -148,6 +193,16 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
   const classInfo = CLASS_INFO[characterClass];
   const speciesInfo = SPECIES_INFO[species];
   const backgroundInfo = BACKGROUND_INFO[background];
+  const background2024 = BACKGROUNDS_2024[background];
+  const speciesTraits = SPECIES_TRAITS[species];
+  const classFeatures = CLASS_FEATURES[characterClass].filter(f => f.level <= level);
+  const classProficiencies = CLASS_PROFICIENCIES[characterClass];
+
+  // Get origin feat from background
+  const originFeat = background2024 ? ORIGIN_FEATS[background2024.originFeat] : null;
+
+  // Get background ability score options (for restricted ASI)
+  const backgroundAbilities = background2024?.abilityScores || [];
 
   const steps: CreationStep[] = classInfo.isSpellcaster
     ? ['basics', 'abilities', 'skills', 'spells', 'equipment', 'details', 'review']
@@ -194,6 +249,105 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     setAbilityMethod('roll');
   };
 
+  // Point Buy functions
+  const initPointBuy = () => {
+    setAbilityScores({ strength: 8, dexterity: 8, constitution: 8, intelligence: 8, wisdom: 8, charisma: 8 });
+    setPointBuyPoints(27);
+    setAbilityMethod('pointbuy');
+  };
+
+  const getPointBuyCost = (score: number): number => {
+    return POINT_BUY_COSTS[score] ?? 0;
+  };
+
+  const adjustPointBuyScore = (ability: keyof AbilityScores, delta: number) => {
+    const currentScore = abilityScores[ability];
+    const newScore = currentScore + delta;
+
+    // Validate bounds (8-15 for point buy)
+    if (newScore < 8 || newScore > 15) return;
+
+    // Calculate cost difference
+    const currentCost = getPointBuyCost(currentScore);
+    const newCost = getPointBuyCost(newScore);
+    const costDiff = newCost - currentCost;
+
+    // Check if we have enough points
+    if (costDiff > pointBuyPoints) return;
+
+    setAbilityScores(prev => ({ ...prev, [ability]: newScore }));
+    setPointBuyPoints(prev => prev - costDiff);
+  };
+
+  // Quick Build - optimal character based on class
+  const handleQuickBuild = () => {
+    // Set optimal ability scores for class
+    setAbilityScores(CLASS_STANDARD_ARRAYS[characterClass]);
+    setAbilityMethod('standard');
+
+    // Auto-select ASI for primary ability
+    const bg = BACKGROUNDS_2024[background];
+    if (bg) {
+      const primaryAbility = bg.abilityScores[0];
+      const secondaryAbility = bg.abilityScores[1];
+      setAsiMethod('2-1');
+      setAsiPlus2(primaryAbility);
+      setAsiPlus1(secondaryAbility);
+    }
+
+    // Auto-select class skills (first N choices)
+    const availableSkills = classInfo.skillChoices.filter(
+      skill => !backgroundInfo.skillProficiencies.includes(skill)
+    );
+    setSelectedClassSkills(availableSkills.slice(0, classInfo.numSkillChoices));
+
+    // Auto-select cantrips/spells if spellcaster
+    if (classInfo.isSpellcaster) {
+      const cantrips = CLASS_CANTRIPS[characterClass] || [];
+      const spells = CLASS_SPELLS_LEVEL_1[characterClass] || [];
+      const numCantrips = CANTRIPS_KNOWN[characterClass] || 0;
+      const numSpells = SPELLS_AT_LEVEL_1[characterClass] || 2;
+      setSelectedCantrips(cantrips.slice(0, numCantrips).map(c => c.name));
+      setSelectedSpells(spells.slice(0, Math.min(numSpells, 2)).map(s => s.name));
+    }
+
+    // Set equipment to pack
+    setEquipmentMethod('pack');
+  };
+
+  // Randomize - fully random character
+  const handleRandomize = () => {
+    // Random species
+    const randomSpecies = SPECIES_LIST[Math.floor(Math.random() * SPECIES_LIST.length)];
+    setSpecies(randomSpecies);
+
+    // Random class
+    const randomClass = CLASS_LIST[Math.floor(Math.random() * CLASS_LIST.length)];
+    setCharacterClass(randomClass);
+
+    // Random background
+    const bgKeys = Object.keys(BACKGROUNDS_2024);
+    const randomBg = bgKeys[Math.floor(Math.random() * bgKeys.length)];
+    setBackground(randomBg);
+
+    // Roll abilities
+    handleRollAbilities();
+
+    // Random name
+    const randomNames = ['Aldric', 'Brynn', 'Caelum', 'Dara', 'Elara', 'Finn', 'Gwendolyn', 'Hadrian', 'Isolde', 'Jareth'];
+    setName(randomNames[Math.floor(Math.random() * randomNames.length)]);
+  };
+
+  // Toggle language selection
+  const toggleLanguage = (lang: string) => {
+    if (lang === 'Common') return; // Can't remove Common
+    if (languages.includes(lang)) {
+      setLanguages(prev => prev.filter(l => l !== lang));
+    } else if (languages.length < 3) {
+      setLanguages(prev => [...prev, lang]);
+    }
+  };
+
   const handleRollHp = () => {
     // Roll hit die for HP (D&D 5e: at level 1, you can roll or take max)
     const hitDie = CLASS_HIT_DICE[characterClass];
@@ -214,8 +368,8 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
         finalScores[asiPlus1] = Math.min(20, finalScores[asiPlus1] + 1);
       }
     } else {
-      // 1-1-1 method
-      asiTriple.forEach(ability => {
+      // 1-1-1 method - automatically applies +1 to all 3 background abilities
+      backgroundAbilities.forEach(ability => {
         finalScores[ability] = Math.min(20, finalScores[ability] + 1);
       });
     }
@@ -245,21 +399,11 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     }));
   };
 
-  // Toggle an ability for the +1/+1/+1 ASI method
-  const toggleAsiTriple = (ability: keyof AbilityScores) => {
-    if (asiTriple.includes(ability)) {
-      setAsiTriple(prev => prev.filter(a => a !== ability));
-    } else if (asiTriple.length < 3) {
-      setAsiTriple(prev => [...prev, ability]);
-    }
-  };
-
   // Reset ASI selections when method changes
   const handleAsiMethodChange = (method: '2-1' | '1-1-1') => {
     setAsiMethod(method);
     setAsiPlus2(null);
     setAsiPlus1(null);
-    setAsiTriple([]);
   };
 
   const toggleClassSkill = (skill: SkillName) => {
@@ -339,7 +483,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
   };
 
   const createCharacter = (): Character => {
-    const level = 1;
+    const charLevel = level; // Use the state level
     const maxHp = getCalculatedHp();
     const finalScores = getFinalAbilityScores();
     const dexMod = getAbilityModifier(finalScores.dexterity);
@@ -451,6 +595,39 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
 
     const now = new Date().toISOString();
 
+    // Collect features from class and species as Feature[] type
+    const features: { id: string; name: string; source: string; description: string; }[] = [];
+    classFeatures.forEach((f, idx) => features.push({
+      id: `class-${idx}`,
+      name: f.name,
+      source: CLASS_NAMES[characterClass],
+      description: f.description,
+    }));
+    speciesTraits.features.filter(f => !f.level || f.level <= charLevel).forEach((f, idx) => features.push({
+      id: `species-${idx}`,
+      name: f.name,
+      source: SPECIES_NAMES[species],
+      description: f.description,
+    }));
+    if (originFeat) features.push({
+      id: 'origin-feat',
+      name: originFeat.name,
+      source: background,
+      description: originFeat.description,
+    });
+    if (species === 'human' && humanBonusFeat) features.push({
+      id: 'human-bonus-feat',
+      name: humanBonusFeat,
+      source: 'Human Versatile',
+      description: ORIGIN_FEATS[humanBonusFeat].description,
+    });
+
+    // Convert armor proficiencies to strings
+    const armorProfs: string[] = formatArmorProficiencies(classProficiencies.armor).split(', ');
+
+    // Convert weapon proficiencies to strings
+    const weaponProfs: string[] = formatWeaponProficiencies(classProficiencies.weapons).split(', ');
+
     return {
       id: `char-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       playerId,
@@ -458,30 +635,30 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       species,
       characterClass,
       subclass: subclass || undefined,
-      level,
+      level: charLevel,
       background,
       alignment,
       experiencePoints: 0,
       abilityScores: finalScores,
       savingThrowProficiencies: CLASS_SAVING_THROWS[characterClass],
       skillProficiencies: finalSkills,
-      armorProficiencies: [],
-      weaponProficiencies: [],
-      toolProficiencies: [],
-      languages: ['Common'],
+      armorProficiencies: armorProfs,
+      weaponProficiencies: weaponProfs,
+      toolProficiencies: background2024?.toolProficiency ? [background2024.toolProficiency] : [],
+      languages,
       armorClass: baseAC,
       initiative: dexMod,
-      speed: SPECIES_SPEED[species],
+      speed: speciesTraits.speed,
       maxHitPoints: Math.max(1, maxHp),
       currentHitPoints: Math.max(1, maxHp),
       temporaryHitPoints: 0,
-      hitDiceTotal: level,
-      hitDiceRemaining: level,
+      hitDiceTotal: charLevel,
+      hitDiceRemaining: charLevel,
       deathSaves: { successes: 0, failures: 0 },
       weapons,
       equipment,
       currency: { copper: 0, silver: 0, electrum: 0, gold: startingGold, platinum: 0 },
-      features: [],
+      features,
       cantrips: selectedCantrips,
       spells: selectedSpells,
       personalityTraits,
@@ -489,6 +666,13 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       bonds,
       flaws,
       backstory,
+      // Appearance
+      age: appearance.age || undefined,
+      height: appearance.height || undefined,
+      weight: appearance.weight || undefined,
+      eyes: appearance.eyes || undefined,
+      hair: appearance.hair || undefined,
+      skin: appearance.skin || undefined,
       createdAt: now,
       updatedAt: now,
     };
@@ -501,11 +685,31 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
 
   const renderBasicsStep = () => (
     <div className="space-y-4">
-      <h3 className="font-medieval text-lg text-gold">Basic Information</h3>
+      <div className="flex justify-between items-center">
+        <h3 className="font-medieval text-lg text-gold">Basic Information</h3>
+        <div className="flex gap-2">
+          <Button size="sm" variant="secondary" onClick={handleQuickBuild}>Quick Build</Button>
+          <Button size="sm" variant="secondary" onClick={handleRandomize}>Randomize</Button>
+        </div>
+      </div>
 
-      <div>
-        <label className="block text-parchment text-sm mb-1">Character Name</label>
-        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Enter character name" />
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-parchment text-sm mb-1">Character Name</label>
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Enter character name" />
+        </div>
+        <div>
+          <label className="block text-parchment text-sm mb-1">Level</label>
+          <select
+            value={level}
+            onChange={(e) => setLevel(parseInt(e.target.value))}
+            className="w-full bg-parchment text-dark-wood px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-gold"
+          >
+            {Array.from({ length: 20 }, (_, i) => i + 1).map(l => (
+              <option key={l} value={l}>Level {l}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div>
@@ -520,10 +724,31 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
           ))}
         </select>
         <p className="text-parchment/60 text-xs mt-1">{speciesInfo.description}</p>
-        <div className="flex flex-wrap gap-1 mt-1">
-          {speciesInfo.traits.map((trait, i) => (
-            <span key={i} className="bg-leather/50 text-parchment/80 px-2 py-0.5 rounded text-xs">{trait}</span>
-          ))}
+
+        {/* Species Traits - Mechanical */}
+        <div className="mt-2 bg-dark-wood p-2 rounded border border-leather">
+          <div className="grid grid-cols-3 gap-2 text-xs text-center mb-2">
+            <div className="bg-leather/30 p-1 rounded">
+              <div className="text-parchment/70">Speed</div>
+              <div className="text-gold font-bold">{speciesTraits.speed} ft</div>
+            </div>
+            <div className="bg-leather/30 p-1 rounded">
+              <div className="text-parchment/70">Size</div>
+              <div className="text-gold font-bold">{speciesTraits.size}</div>
+            </div>
+            <div className="bg-leather/30 p-1 rounded">
+              <div className="text-parchment/70">Darkvision</div>
+              <div className="text-gold font-bold">{speciesTraits.darkvision > 0 ? `${speciesTraits.darkvision} ft` : 'None'}</div>
+            </div>
+          </div>
+          {speciesTraits.resistances.length > 0 && (
+            <p className="text-green-400 text-xs">Resistances: {speciesTraits.resistances.join(', ')}</p>
+          )}
+          <div className="flex flex-wrap gap-1 mt-1">
+            {speciesTraits.features.filter(f => !f.level || f.level <= level).map((feat, i) => (
+              <span key={i} className="bg-gold/20 text-gold px-2 py-0.5 rounded text-xs">{feat.name}</span>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -545,6 +770,34 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
         </div>
       )}
 
+      {/* Human Bonus Feat */}
+      {species === 'human' && (
+        <div className="bg-gold/10 border border-gold/50 p-3 rounded">
+          <label className="block text-gold text-sm mb-1">Versatile: Bonus Origin Feat</label>
+          <p className="text-parchment/70 text-xs mb-2">Humans gain an additional Origin Feat of their choice.</p>
+          <select
+            value={humanBonusFeat || ''}
+            onChange={(e) => setHumanBonusFeat(e.target.value as OriginFeatName)}
+            className="w-full bg-parchment text-dark-wood px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-gold"
+          >
+            <option value="">Select a feat...</option>
+            {Object.keys(ORIGIN_FEATS).map(feat => (
+              <option key={feat} value={feat}>{feat}</option>
+            ))}
+          </select>
+          {humanBonusFeat && (
+            <div className="mt-2 text-xs">
+              <p className="text-parchment/70">{ORIGIN_FEATS[humanBonusFeat].description}</p>
+              <ul className="mt-1 text-gold/80">
+                {ORIGIN_FEATS[humanBonusFeat].benefits.map((b, i) => (
+                  <li key={i}>• {b}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
       <div>
         <label className="block text-parchment text-sm mb-1">Class</label>
         <select
@@ -557,36 +810,65 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
           ))}
         </select>
         <p className="text-parchment/60 text-xs mt-1">{classInfo.description}</p>
-        <p className="text-parchment/70 text-xs">Primary: {classInfo.primaryAbility} | Saves: {classInfo.savingThrows}</p>
-      </div>
-
-      {/* Subclass selection for classes that choose at level 1 */}
-      {CLASS_SUBCLASSES[characterClass] && (
-        <div>
-          <label className="block text-parchment text-sm mb-1">
-            {characterClass === 'cleric' ? 'Divine Domain' :
-             characterClass === 'sorcerer' ? 'Sorcerous Origin' :
-             characterClass === 'warlock' ? 'Otherworldly Patron' : 'Subclass'}
-          </label>
-          <select
-            value={subclass}
-            onChange={(e) => setSubclass(e.target.value)}
-            className="w-full bg-parchment text-dark-wood px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-gold"
-          >
-            {CLASS_SUBCLASSES[characterClass]!.map(sc => (
-              <option key={sc.name} value={sc.name}>{sc.name}</option>
-            ))}
-          </select>
-          <p className="text-parchment/60 text-xs mt-1">
-            {CLASS_SUBCLASSES[characterClass]!.find(sc => sc.name === subclass)?.description}
-          </p>
-          <div className="mt-1">
-            {CLASS_SUBCLASSES[characterClass]!.find(sc => sc.name === subclass)?.features.map((f, i) => (
-              <p key={i} className="text-gold/80 text-xs">• {f}</p>
-            ))}
+        <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+          <div className="bg-dark-wood p-2 rounded">
+            <span className="text-parchment/70">Armor: </span>
+            <span className="text-parchment">{formatArmorProficiencies(classProficiencies.armor)}</span>
+          </div>
+          <div className="bg-dark-wood p-2 rounded">
+            <span className="text-parchment/70">Weapons: </span>
+            <span className="text-parchment">{formatWeaponProficiencies(classProficiencies.weapons)}</span>
           </div>
         </div>
-      )}
+        {/* Class Features */}
+        <div className="mt-2 bg-dark-wood p-2 rounded border border-leather">
+          <div className="text-parchment/70 text-xs mb-1">Level 1 Features:</div>
+          {classFeatures.map((feat, i) => (
+            <div key={i} className="text-xs mb-1">
+              <span className="text-gold">{feat.name}: </span>
+              <span className="text-parchment/80">{feat.description}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Subclass selection - show all with availability */}
+      <div>
+        <label className="block text-parchment text-sm mb-1">
+          Subclass
+          {!hasLevel1Subclass(characterClass) && (
+            <span className="text-parchment/50 text-xs ml-2">(Available at level 3)</span>
+          )}
+        </label>
+        <select
+          value={subclass}
+          onChange={(e) => setSubclass(e.target.value)}
+          disabled={!hasLevel1Subclass(characterClass) && level < 3}
+          className="w-full bg-parchment text-dark-wood px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-gold disabled:opacity-50"
+        >
+          {getAvailableSubclasses(characterClass, 20).map(sc => (
+            <option
+              key={sc.name}
+              value={sc.name}
+              disabled={sc.levelAvailable > level}
+            >
+              {sc.name} {sc.levelAvailable > level ? `(Level ${sc.levelAvailable})` : ''}
+            </option>
+          ))}
+        </select>
+        {subclass && (
+          <>
+            <p className="text-parchment/60 text-xs mt-1">
+              {CLASS_SUBCLASSES[characterClass].find(sc => sc.name === subclass)?.description}
+            </p>
+            <div className="mt-1">
+              {CLASS_SUBCLASSES[characterClass].find(sc => sc.name === subclass)?.features.map((f, i) => (
+                <p key={i} className="text-gold/80 text-xs">• {f}</p>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
 
       <div>
         <label className="block text-parchment text-sm mb-1">Background</label>
@@ -599,10 +881,75 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
             <option key={b} value={b}>{b}</option>
           ))}
         </select>
-        <p className="text-parchment/60 text-xs mt-1">{backgroundInfo.description}</p>
-        <p className="text-parchment/70 text-xs">
-          Skills: {backgroundInfo.skillProficiencies.map(s => SKILL_NAMES[s]).join(', ')}
-        </p>
+        <p className="text-parchment/60 text-xs mt-1">{background2024?.description}</p>
+
+        {/* Background Details */}
+        {background2024 && (
+          <div className="mt-2 bg-dark-wood p-2 rounded border border-leather text-xs">
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              <div>
+                <span className="text-parchment/70">Skills: </span>
+                <span className="text-parchment">{background2024.skillProficiencies.map(s => SKILL_NAMES[s]).join(', ')}</span>
+              </div>
+              <div>
+                <span className="text-parchment/70">Tool: </span>
+                <span className="text-parchment">{background2024.toolProficiency}</span>
+              </div>
+            </div>
+            <div className="mb-2">
+              <span className="text-parchment/70">Ability Options: </span>
+              <span className="text-gold">{background2024.abilityScores.map(a => ABILITY_ABBREVIATIONS[a]).join(', ')}</span>
+            </div>
+            {/* Origin Feat */}
+            <div className="bg-gold/10 border border-gold/30 p-2 rounded">
+              <div className="text-gold font-bold mb-1">Origin Feat: {originFeat?.name}</div>
+              <p className="text-parchment/70">{originFeat?.description}</p>
+              <ul className="mt-1 text-parchment/80">
+                {originFeat?.benefits.map((b, i) => (
+                  <li key={i}>• {b}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Languages */}
+      <div>
+        <label className="block text-parchment text-sm mb-1">Languages ({languages.length}/3)</label>
+        <p className="text-parchment/60 text-xs mb-2">You know Common plus 2 additional languages.</p>
+        <div className="flex flex-wrap gap-1">
+          {STANDARD_LANGUAGES.map(lang => (
+            <button
+              key={lang}
+              onClick={() => toggleLanguage(lang)}
+              disabled={lang === 'Common'}
+              className={`px-2 py-1 rounded text-xs transition-colors ${
+                languages.includes(lang)
+                  ? 'bg-gold text-dark-wood font-bold'
+                  : 'bg-leather/50 text-parchment hover:bg-leather'
+              } ${lang === 'Common' ? 'opacity-75 cursor-not-allowed' : ''}`}
+            >
+              {lang}
+            </button>
+          ))}
+        </div>
+        <p className="text-parchment/50 text-xs mt-2">Rare Languages:</p>
+        <div className="flex flex-wrap gap-1 mt-1">
+          {RARE_LANGUAGES.map(lang => (
+            <button
+              key={lang}
+              onClick={() => toggleLanguage(lang)}
+              className={`px-2 py-1 rounded text-xs transition-colors ${
+                languages.includes(lang)
+                  ? 'bg-gold text-dark-wood font-bold'
+                  : 'bg-leather/30 text-parchment/70 hover:bg-leather/50'
+              }`}
+            >
+              {lang}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div>
@@ -637,13 +984,28 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
           <Button size="sm" variant={abilityMethod === 'roll' ? 'primary' : 'secondary'} onClick={handleRollAbilities}>
             Roll (4d6 drop lowest)
           </Button>
+          <Button size="sm" variant={abilityMethod === 'pointbuy' ? 'primary' : 'secondary'} onClick={initPointBuy}>
+            Point Buy
+          </Button>
         </div>
 
         <p className="text-parchment/70 text-xs">
           {abilityMethod === 'standard'
             ? `${CLASS_NAMES[characterClass]} Standard Array: Optimized for ${CLASS_NAMES[characterClass]}. Click arrows to swap.`
-            : 'Rolled scores. Click arrows to swap values or re-roll.'}
+            : abilityMethod === 'roll'
+            ? 'Rolled scores. Click arrows to swap values or re-roll.'
+            : `Point Buy: 27 points. Scores 8-15. Points remaining: ${pointBuyPoints}`}
         </p>
+
+        {/* Point Buy remaining points indicator */}
+        {abilityMethod === 'pointbuy' && (
+          <div className="bg-gold/20 p-2 rounded text-center">
+            <span className="text-parchment">Points Remaining: </span>
+            <span className={`font-bold text-xl ${pointBuyPoints > 0 ? 'text-gold' : pointBuyPoints < 0 ? 'text-red-400' : 'text-green-400'}`}>
+              {pointBuyPoints}
+            </span>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-3">
           {abilities.map((ability, idx) => (
@@ -652,33 +1014,65 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
                 {ABILITY_NAMES[ability]} ({ABILITY_ABBREVIATIONS[ability]})
               </label>
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1">
-                  {idx > 0 && (
+                {abilityMethod === 'pointbuy' ? (
+                  /* Point Buy controls */
+                  <div className="flex items-center gap-2">
                     <button
-                      onClick={() => swapAbilities(ability, abilities[idx - 1])}
-                      className="text-parchment/50 hover:text-gold text-xs"
-                      title={`Swap with ${ABILITY_NAMES[abilities[idx - 1]]}`}
+                      onClick={() => adjustPointBuyScore(ability, -1)}
+                      disabled={abilityScores[ability] <= 8}
+                      className="w-8 h-8 bg-leather rounded text-parchment hover:bg-gold hover:text-dark-wood disabled:opacity-30 disabled:hover:bg-leather disabled:hover:text-parchment font-bold"
                     >
-                      ↑
+                      −
                     </button>
-                  )}
-                  {idx < abilities.length - 1 && (
+                    <div className="text-center">
+                      <span className="text-gold font-bold text-2xl">{abilityScores[ability]}</span>
+                      <div className="text-parchment/50 text-xs">cost: {getPointBuyCost(abilityScores[ability])}</div>
+                    </div>
                     <button
-                      onClick={() => swapAbilities(ability, abilities[idx + 1])}
-                      className="text-parchment/50 hover:text-gold text-xs"
-                      title={`Swap with ${ABILITY_NAMES[abilities[idx + 1]]}`}
+                      onClick={() => adjustPointBuyScore(ability, 1)}
+                      disabled={abilityScores[ability] >= 15 || pointBuyPoints < (getPointBuyCost(abilityScores[ability] + 1) - getPointBuyCost(abilityScores[ability]))}
+                      className="w-8 h-8 bg-leather rounded text-parchment hover:bg-gold hover:text-dark-wood disabled:opacity-30 disabled:hover:bg-leather disabled:hover:text-parchment font-bold"
                     >
-                      ↓
+                      +
                     </button>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-gold font-bold text-2xl">{abilityScores[ability]}</span>
-                  <span className="text-parchment text-sm">
-                    ({formatModifier(getAbilityModifier(abilityScores[ability]))})
-                  </span>
-                </div>
+                  </div>
+                ) : (
+                  /* Standard/Roll swap controls */
+                  <>
+                    <div className="flex items-center gap-1">
+                      {idx > 0 && (
+                        <button
+                          onClick={() => swapAbilities(ability, abilities[idx - 1])}
+                          className="text-parchment/50 hover:text-gold text-xs"
+                          title={`Swap with ${ABILITY_NAMES[abilities[idx - 1]]}`}
+                        >
+                          ↑
+                        </button>
+                      )}
+                      {idx < abilities.length - 1 && (
+                        <button
+                          onClick={() => swapAbilities(ability, abilities[idx + 1])}
+                          className="text-parchment/50 hover:text-gold text-xs"
+                          title={`Swap with ${ABILITY_NAMES[abilities[idx + 1]]}`}
+                        >
+                          ↓
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gold font-bold text-2xl">{abilityScores[ability]}</span>
+                      <span className="text-parchment text-sm">
+                        ({formatModifier(getAbilityModifier(abilityScores[ability]))})
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
+              {abilityMethod !== 'pointbuy' && (
+                <div className="text-parchment/50 text-xs text-right">
+                  ({formatModifier(getAbilityModifier(abilityScores[ability]))})
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -722,8 +1116,11 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
         {/* Ability Score Increases (Origin Bonuses) */}
         <div className="mt-6 pt-4 border-t border-leather">
           <h4 className="font-medieval text-md text-gold mb-2">Origin Ability Bonuses</h4>
+          <p className="text-parchment/70 text-xs mb-2">
+            Your background ({background}) allows bonuses to: <span className="text-gold font-semibold">{backgroundAbilities.map(a => ABILITY_ABBREVIATIONS[a]).join(', ')}</span>
+          </p>
           <p className="text-parchment/70 text-xs mb-3">
-            Your character's origin grants ability bonuses. Choose one option:
+            Choose one option:
           </p>
 
           <div className="flex gap-2 mb-3">
@@ -748,7 +1145,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
               <div>
                 <label className="text-parchment/70 text-sm mb-1 block">+2 Bonus:</label>
                 <div className="flex flex-wrap gap-2">
-                  {abilities.map(ability => (
+                  {backgroundAbilities.map(ability => (
                     <button
                       key={`plus2-${ability}`}
                       onClick={() => {
@@ -770,7 +1167,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
               <div>
                 <label className="text-parchment/70 text-sm mb-1 block">+1 Bonus (different ability):</label>
                 <div className="flex flex-wrap gap-2">
-                  {abilities.filter(a => a !== asiPlus2).map(ability => (
+                  {backgroundAbilities.filter(a => a !== asiPlus2).map(ability => (
                     <button
                       key={`plus1-${ability}`}
                       onClick={() => setAsiPlus1(asiPlus1 === ability ? null : ability)}
@@ -790,33 +1187,26 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
           ) : (
             <div>
               <label className="text-parchment/70 text-sm mb-1 block">
-                +1 to three different abilities ({asiTriple.length}/3):
+                +1 to all three abilities:
               </label>
               <div className="flex flex-wrap gap-2">
-                {abilities.map(ability => {
-                  const isSelected = asiTriple.includes(ability);
-                  return (
-                    <button
-                      key={`triple-${ability}`}
-                      onClick={() => toggleAsiTriple(ability)}
-                      disabled={!isSelected && asiTriple.length >= 3}
-                      className={`px-3 py-1 rounded text-sm transition-colors ${
-                        isSelected
-                          ? 'bg-gold text-dark-wood font-bold'
-                          : 'bg-leather/50 text-parchment hover:bg-leather disabled:opacity-50'
-                      }`}
-                    >
-                      {ABILITY_ABBREVIATIONS[ability]}
-                      {isSelected && ' +1'}
-                    </button>
-                  );
-                })}
+                {backgroundAbilities.map(ability => (
+                  <span
+                    key={`triple-${ability}`}
+                    className="px-3 py-1 rounded text-sm bg-gold text-dark-wood font-bold"
+                  >
+                    {ABILITY_ABBREVIATIONS[ability]} +1
+                  </span>
+                ))}
               </div>
+              <p className="text-parchment/50 text-xs mt-2">
+                The +1/+1/+1 option applies +1 to all three of your background's designated abilities.
+              </p>
             </div>
           )}
 
           {/* Final Scores Preview */}
-          {((asiMethod === '2-1' && (asiPlus2 || asiPlus1)) || (asiMethod === '1-1-1' && asiTriple.length > 0)) && (
+          {((asiMethod === '2-1' && (asiPlus2 || asiPlus1)) || asiMethod === '1-1-1') && (
             <div className="mt-4 bg-dark-wood p-3 rounded border border-gold/50">
               <div className="text-gold text-sm mb-2">Final Ability Scores (with bonuses):</div>
               <div className="grid grid-cols-6 gap-1 text-center">
@@ -1141,6 +1531,67 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     <div className="space-y-4">
       <h3 className="font-medieval text-lg text-gold">Personality & Backstory</h3>
 
+      {/* Appearance Fields */}
+      <div className="bg-dark-wood p-3 rounded border border-leather">
+        <h4 className="text-gold text-sm mb-2">Physical Appearance</h4>
+        <div className="grid grid-cols-3 gap-2">
+          <div>
+            <label className="text-parchment/70 text-xs block mb-1">Age</label>
+            <Input
+              value={appearance.age}
+              onChange={(e) => setAppearance(prev => ({ ...prev, age: e.target.value }))}
+              placeholder="e.g. 25"
+              className="text-xs"
+            />
+          </div>
+          <div>
+            <label className="text-parchment/70 text-xs block mb-1">Height</label>
+            <Input
+              value={appearance.height}
+              onChange={(e) => setAppearance(prev => ({ ...prev, height: e.target.value }))}
+              placeholder="e.g. 5'10"
+              className="text-xs"
+            />
+          </div>
+          <div>
+            <label className="text-parchment/70 text-xs block mb-1">Weight</label>
+            <Input
+              value={appearance.weight}
+              onChange={(e) => setAppearance(prev => ({ ...prev, weight: e.target.value }))}
+              placeholder="e.g. 160 lbs"
+              className="text-xs"
+            />
+          </div>
+          <div>
+            <label className="text-parchment/70 text-xs block mb-1">Eyes</label>
+            <Input
+              value={appearance.eyes}
+              onChange={(e) => setAppearance(prev => ({ ...prev, eyes: e.target.value }))}
+              placeholder="e.g. Blue"
+              className="text-xs"
+            />
+          </div>
+          <div>
+            <label className="text-parchment/70 text-xs block mb-1">Hair</label>
+            <Input
+              value={appearance.hair}
+              onChange={(e) => setAppearance(prev => ({ ...prev, hair: e.target.value }))}
+              placeholder="e.g. Black"
+              className="text-xs"
+            />
+          </div>
+          <div>
+            <label className="text-parchment/70 text-xs block mb-1">Skin</label>
+            <Input
+              value={appearance.skin}
+              onChange={(e) => setAppearance(prev => ({ ...prev, skin: e.target.value }))}
+              placeholder="e.g. Tan"
+              className="text-xs"
+            />
+          </div>
+        </div>
+      </div>
+
       <div>
         <div className="flex justify-between items-center mb-1">
           <label className="text-parchment text-sm">Personality Traits</label>
@@ -1209,13 +1660,18 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
   const renderReviewStep = () => {
     const hitDie = CLASS_HIT_DICE[characterClass];
     const maxHp = getCalculatedHp();
-    const profBonus = getProficiencyBonus(1);
+    const profBonus = getProficiencyBonus(level);
     const finalScores = getFinalAbilityScores();
 
     const allProficientSkills = [
       ...backgroundInfo.skillProficiencies,
       ...selectedClassSkills,
     ];
+
+    // Collect all feats
+    const allFeats: string[] = [];
+    if (originFeat) allFeats.push(originFeat.name);
+    if (species === 'human' && humanBonusFeat) allFeats.push(humanBonusFeat);
 
     return (
       <div className="space-y-4">
@@ -1225,12 +1681,15 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
           <div className="text-center border-b border-leather pb-3">
             <h4 className="font-medieval text-2xl text-gold">{name || 'Unnamed Character'}</h4>
             <p className="text-parchment">
-              {SPECIES_NAMES[species]} {subspecies && `(${subspecies})`} {CLASS_NAMES[characterClass]} (Level 1)
+              {SPECIES_NAMES[species]} {subspecies && `(${subspecies})`} {CLASS_NAMES[characterClass]} (Level {level})
             </p>
+            {subclass && (hasLevel1Subclass(characterClass) || level >= 3) && (
+              <p className="text-gold/80 text-sm">{subclass}</p>
+            )}
             <p className="text-parchment/70 text-sm">{background} • {alignment}</p>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="grid grid-cols-4 gap-2 text-center">
             <div className="bg-leather/50 p-2 rounded">
               <div className="text-gold font-bold text-xl">{10 + getAbilityModifier(finalScores.dexterity)}</div>
               <div className="text-parchment/70 text-xs">AC</div>
@@ -1240,10 +1699,30 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
               <div className="text-parchment/70 text-xs">HP</div>
             </div>
             <div className="bg-leather/50 p-2 rounded">
-              <div className="text-gold font-bold text-xl">{SPECIES_SPEED[species]} ft</div>
+              <div className="text-gold font-bold text-xl">{speciesTraits.speed} ft</div>
               <div className="text-parchment/70 text-xs">Speed</div>
             </div>
+            <div className="bg-leather/50 p-2 rounded">
+              <div className="text-gold font-bold text-xl">+{profBonus}</div>
+              <div className="text-parchment/70 text-xs">Prof</div>
+            </div>
           </div>
+
+          {/* Species Traits */}
+          {(speciesTraits.darkvision > 0 || speciesTraits.resistances.length > 0) && (
+            <div className="flex flex-wrap gap-2 text-xs">
+              {speciesTraits.darkvision > 0 && (
+                <span className="bg-purple-900/30 text-purple-300 px-2 py-0.5 rounded">
+                  Darkvision {speciesTraits.darkvision}ft
+                </span>
+              )}
+              {speciesTraits.resistances.map(r => (
+                <span key={r} className="bg-green-900/30 text-green-300 px-2 py-0.5 rounded">
+                  Resist {r}
+                </span>
+              ))}
+            </div>
+          )}
 
           <div className="grid grid-cols-6 gap-1 text-center">
             {(Object.keys(ABILITY_ABBREVIATIONS) as (keyof AbilityScores)[]).map(ability => {
@@ -1273,6 +1752,40 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
             </div>
           </div>
 
+          {/* Languages */}
+          <div>
+            <div className="text-parchment/70 text-xs mb-1">Languages:</div>
+            <div className="flex flex-wrap gap-1">
+              {languages.map(lang => (
+                <span key={lang} className="bg-blue-900/30 text-blue-300 px-2 py-0.5 rounded text-xs">{lang}</span>
+              ))}
+            </div>
+          </div>
+
+          {/* Feats */}
+          {allFeats.length > 0 && (
+            <div>
+              <div className="text-parchment/70 text-xs mb-1">Feats:</div>
+              <div className="flex flex-wrap gap-1">
+                {allFeats.map(feat => (
+                  <span key={feat} className="bg-orange-900/30 text-orange-300 px-2 py-0.5 rounded text-xs">{feat}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Class Features */}
+          {classFeatures.length > 0 && (
+            <div>
+              <div className="text-parchment/70 text-xs mb-1">Class Features:</div>
+              <div className="flex flex-wrap gap-1">
+                {classFeatures.map(f => (
+                  <span key={f.name} className="bg-red-900/30 text-red-300 px-2 py-0.5 rounded text-xs">{f.name}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
           {selectedCantrips.length > 0 && (
             <div>
               <div className="text-parchment/70 text-xs mb-1">Cantrips:</div>
@@ -1295,8 +1808,8 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
             </div>
           )}
 
-          <div className="text-parchment/70 text-xs">
-            Hit Dice: 1d{hitDie} | Proficiency Bonus: +{profBonus}
+          <div className="text-parchment/70 text-xs border-t border-leather pt-2">
+            Hit Dice: {level}d{hitDie} | Proficiency Bonus: +{profBonus}
           </div>
         </div>
       </div>

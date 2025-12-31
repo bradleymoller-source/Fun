@@ -50,106 +50,340 @@ export const CLASS_STANDARD_ARRAYS: Record<CharacterClass, AbilityScores> = {
   wizard: { intelligence: 15, constitution: 14, dexterity: 13, wisdom: 12, charisma: 10, strength: 8 },
 };
 
-// Subclasses available at level 1 (D&D 5e 2024)
+// ============ ALL SUBCLASSES (2024 PHB) ============
+
 export interface SubclassInfo {
   name: string;
   description: string;
   features: string[];
+  levelAvailable: number; // Level when subclass can be chosen
 }
 
-export const CLASS_SUBCLASSES: Partial<Record<CharacterClass, SubclassInfo[]>> = {
+// All 48 subclasses from the 2024 PHB (4 per class)
+export const CLASS_SUBCLASSES: Record<CharacterClass, SubclassInfo[]> = {
+  barbarian: [
+    {
+      name: 'Path of the Berserker',
+      description: 'For some barbarians, rage is a means to an end—that end being violence.',
+      features: ['Frenzy: Bonus action melee attack while raging'],
+      levelAvailable: 3,
+    },
+    {
+      name: 'Path of the Wild Heart',
+      description: 'Many barbarians have a spiritual connection to a powerful animal spirit.',
+      features: ['Animal Speaker: Cast Speak with Animals and Beast Sense as rituals'],
+      levelAvailable: 3,
+    },
+    {
+      name: 'Path of the World Tree',
+      description: 'Barbarians who follow this path draw power from the World Tree.',
+      features: ['Vitality of the Tree: Temp HP when entering rage equal to Barbarian level'],
+      levelAvailable: 3,
+    },
+    {
+      name: 'Path of the Zealot',
+      description: 'Some deities inspire their followers to pitch themselves into a ferocious battle fury.',
+      features: ['Divine Fury: Extra 1d6+half level radiant or necrotic damage on first hit each turn while raging'],
+      levelAvailable: 3,
+    },
+  ],
+  bard: [
+    {
+      name: 'College of Dance',
+      description: 'Bards of the College of Dance are masters of movement and performance.',
+      features: ['Dazzling Footwork: Unarmored Defense (10+DEX+CHA), extra speed while not wearing armor/shield'],
+      levelAvailable: 3,
+    },
+    {
+      name: 'College of Glamour',
+      description: 'Bards who belong to this college have learned to use their magic to delight and captivate.',
+      features: ['Mantle of Inspiration: Bonus action to give temp HP and reaction movement to allies'],
+      levelAvailable: 3,
+    },
+    {
+      name: 'College of Lore',
+      description: 'Bards of the College of Lore know something about most things.',
+      features: ['Cutting Words: Reaction to subtract Bardic Inspiration from enemy roll'],
+      levelAvailable: 3,
+    },
+    {
+      name: 'College of Valor',
+      description: 'Bards of the College of Valor are daring skalds whose tales keep alive the memory of great heroes.',
+      features: ['Combat Inspiration: Bardic Inspiration adds to damage roll or AC'],
+      levelAvailable: 3,
+    },
+  ],
   cleric: [
     {
       name: 'Life Domain',
       description: 'Gods of life promote vitality and health through healing the sick and wounded.',
       features: ['Disciple of Life: Healing spells restore additional HP equal to 2 + spell level'],
+      levelAvailable: 1,
     },
     {
       name: 'Light Domain',
       description: 'Gods of light promote ideals of rebirth, truth, vigilance, and beauty.',
-      features: ['Warding Flare: Impose disadvantage on an attacker as a reaction'],
-    },
-    {
-      name: 'War Domain',
-      description: 'War gods watch over warriors and reward them for great deeds of valor.',
-      features: ['War Priest: Make bonus action weapon attack (uses = WIS mod per long rest)'],
+      features: ['Warding Flare: Reaction to impose disadvantage on an attacker'],
+      levelAvailable: 1,
     },
     {
       name: 'Trickery Domain',
       description: 'Gods of trickery are mischief-makers and instigators who embody chaos.',
-      features: ['Blessing of the Trickster: Grant advantage on Stealth to ally'],
+      features: ['Blessing of the Trickster: Give advantage on Stealth to another creature'],
+      levelAvailable: 1,
     },
     {
-      name: 'Knowledge Domain',
-      description: 'Gods of knowledge value learning and understanding above all.',
-      features: ['Blessings of Knowledge: Proficiency in 2 extra languages and 2 knowledge skills with expertise'],
+      name: 'War Domain',
+      description: 'War gods watch over warriors and reward them for great deeds of valor.',
+      features: ['War Priest: Bonus action weapon attack, uses = WIS mod per long rest'],
+      levelAvailable: 1,
+    },
+  ],
+  druid: [
+    {
+      name: 'Circle of the Land',
+      description: 'Druids of this circle are mystics and sages who safeguard ancient knowledge and rites.',
+      features: ['Natural Recovery: Recover spell slots during short rest'],
+      levelAvailable: 3,
     },
     {
-      name: 'Nature Domain',
-      description: 'Gods of nature are as varied as the natural world itself.',
-      features: ['Acolyte of Nature: Learn one druid cantrip and gain a skill proficiency'],
+      name: 'Circle of the Moon',
+      description: 'Druids of this circle are fierce guardians of the wilds.',
+      features: ['Combat Wild Shape: Bonus action Wild Shape, can use Wild Shape to heal'],
+      levelAvailable: 3,
     },
     {
-      name: 'Tempest Domain',
-      description: 'Gods of tempest govern storms, sea, and sky.',
-      features: ['Wrath of the Storm: Deal 2d8 lightning/thunder damage as reaction when hit'],
+      name: 'Circle of the Sea',
+      description: 'Druids of this circle are tied to the power of the seas and storms.',
+      features: ['Wrath of the Sea: Use Wild Shape to summon water elemental power'],
+      levelAvailable: 3,
+    },
+    {
+      name: 'Circle of the Stars',
+      description: 'Druids of this circle track the stars and cosmic events.',
+      features: ['Star Map: Use Wild Shape to enter a starry form with different benefits'],
+      levelAvailable: 3,
+    },
+  ],
+  fighter: [
+    {
+      name: 'Battle Master',
+      description: 'Battle Masters are supreme martial tacticians on the battlefield.',
+      features: ['Combat Superiority: Learn 3 maneuvers, gain 4 superiority dice (d8)'],
+      levelAvailable: 3,
+    },
+    {
+      name: 'Champion',
+      description: 'The Champion focuses on the development of raw physical power.',
+      features: ['Improved Critical: Weapon attacks score a critical hit on 19-20'],
+      levelAvailable: 3,
+    },
+    {
+      name: 'Eldritch Knight',
+      description: 'Eldritch Knights combine martial mastery with arcane power.',
+      features: ['Spellcasting: Learn wizard spells (abjuration and evocation), INT-based'],
+      levelAvailable: 3,
+    },
+    {
+      name: 'Psi Warrior',
+      description: 'Psi Warriors harness psionic power to enhance combat abilities.',
+      features: ['Psionic Power: Gain psionic energy dice for telekinetic abilities'],
+      levelAvailable: 3,
+    },
+  ],
+  monk: [
+    {
+      name: 'Warrior of Mercy',
+      description: 'These monks learn techniques to manipulate life force.',
+      features: ['Hand of Harm: Spend Focus Point to deal necrotic damage and inflict poisoned'],
+      levelAvailable: 3,
+    },
+    {
+      name: 'Warrior of Shadow',
+      description: 'Monks who follow this tradition weave shadows and darkness.',
+      features: ['Shadow Arts: Spend Focus Points to cast Darkness, Darkvision, Pass without Trace, or Silence'],
+      levelAvailable: 3,
+    },
+    {
+      name: 'Warrior of the Elements',
+      description: 'These monks channel elemental forces through their martial arts.',
+      features: ['Elemental Attunement: Learn to manipulate elemental energy, learn Elementalism cantrip'],
+      levelAvailable: 3,
+    },
+    {
+      name: 'Warrior of the Open Hand',
+      description: 'The Way of the Open Hand is the ultimate path of martial arts mastery.',
+      features: ['Open Hand Technique: Impose effects on Flurry of Blows hits (push, prone, no reactions)'],
+      levelAvailable: 3,
+    },
+  ],
+  paladin: [
+    {
+      name: 'Oath of Devotion',
+      description: 'The Oath of Devotion binds a paladin to the loftiest ideals of justice and virtue.',
+      features: ['Sacred Weapon: Channel Divinity to add CHA to attacks for 10 minutes'],
+      levelAvailable: 3,
+    },
+    {
+      name: 'Oath of Glory',
+      description: 'Paladins who take this oath believe they are destined for glory through heroic deeds.',
+      features: ['Peerless Athlete: Channel Divinity for advantage on Athletics and Acrobatics, extra carrying'],
+      levelAvailable: 3,
+    },
+    {
+      name: 'Oath of the Ancients',
+      description: 'The Oath of the Ancients is as old as the fey and the forces of nature.',
+      features: ['Nature\'s Wrath: Channel Divinity to restrain creature with spectral vines'],
+      levelAvailable: 3,
+    },
+    {
+      name: 'Oath of Vengeance',
+      description: 'The Oath of Vengeance is a solemn commitment to punish those who have committed grievous sins.',
+      features: ['Vow of Enmity: Channel Divinity for advantage on attacks against one creature'],
+      levelAvailable: 3,
+    },
+  ],
+  ranger: [
+    {
+      name: 'Beast Master',
+      description: 'Rangers who emulate this archetype form a bond with a beast companion.',
+      features: ['Primal Companion: Gain a beast companion that obeys your commands'],
+      levelAvailable: 3,
+    },
+    {
+      name: 'Fey Wanderer',
+      description: 'A feywild bargain or brush with its wonders has transformed you.',
+      features: ['Dreadful Strikes: Add WIS mod psychic damage once per turn to weapon attacks'],
+      levelAvailable: 3,
+    },
+    {
+      name: 'Gloom Stalker',
+      description: 'Gloom Stalkers are at home in the darkest places.',
+      features: ['Dread Ambusher: Extra attack on first turn, +WIS to initiative'],
+      levelAvailable: 3,
+    },
+    {
+      name: 'Hunter',
+      description: 'Hunters accept their place as a bulwark between civilization and the terrors of the wilderness.',
+      features: ['Hunter\'s Prey: Choose Colossus Slayer, Horde Breaker, or Giant Killer'],
+      levelAvailable: 3,
+    },
+  ],
+  rogue: [
+    {
+      name: 'Arcane Trickster',
+      description: 'Rogues who combine agile maneuvers with magical abilities.',
+      features: ['Spellcasting: Learn wizard spells (enchantment and illusion), INT-based'],
+      levelAvailable: 3,
+    },
+    {
+      name: 'Assassin',
+      description: 'Rogues who focus on the art of death itself.',
+      features: ['Assassinate: Advantage on creatures that haven\'t acted, auto-crit on surprised creatures'],
+      levelAvailable: 3,
+    },
+    {
+      name: 'Soulknife',
+      description: 'Rogues who harness psionic power to manifest blades of psychic energy.',
+      features: ['Psionic Power: Manifest psychic blades, gain psi-bolstered abilities'],
+      levelAvailable: 3,
+    },
+    {
+      name: 'Thief',
+      description: 'Rogues who are excellent at infiltration and larceny.',
+      features: ['Fast Hands: Use Cunning Action for Sleight of Hand, Disarm Trap, Use Object, Use Thieves\' Tools'],
+      levelAvailable: 3,
     },
   ],
   sorcerer: [
     {
-      name: 'Draconic Bloodline',
+      name: 'Aberrant Sorcery',
+      description: 'An alien influence has left its mark on you, granting you strange powers.',
+      features: ['Telepathic Speech: Speak telepathically with creatures within 30 ft × CHA mod ft'],
+      levelAvailable: 1,
+    },
+    {
+      name: 'Clockwork Sorcery',
+      description: 'The cosmic force of order has suffused you with magic.',
+      features: ['Restore Balance: Reaction to cancel advantage or disadvantage within 60 ft'],
+      levelAvailable: 1,
+    },
+    {
+      name: 'Draconic Sorcery',
       description: 'Your innate magic comes from draconic ancestry.',
-      features: ['Dragon Ancestor: Choose dragon type, speak Draconic, HP max +1 per level'],
+      features: ['Draconic Resilience: HP max +1 per level, AC 13+DEX when not wearing armor'],
+      levelAvailable: 1,
     },
     {
       name: 'Wild Magic',
-      description: 'Your spellcasting triggers surges of untamed magic.',
-      features: ['Wild Magic Surge: Roll on Wild Magic table after casting 1st level+ spells'],
-    },
-    {
-      name: 'Aberrant Mind',
-      description: 'An alien influence has touched your mind.',
-      features: ['Telepathic Speech: Create telepathic link with creature you can see'],
-    },
-    {
-      name: 'Clockwork Soul',
-      description: 'A cosmic force of order has infused you with magic.',
-      features: ['Restore Balance: Cancel advantage or disadvantage as a reaction'],
-    },
-    {
-      name: 'Shadow Magic',
-      description: 'You are a creature of shadow, touched by the Shadowfell.',
-      features: ['Eyes of the Dark: Gain darkvision 120 ft.'],
+      description: 'Your spellcasting can unleash surges of untamed magic.',
+      features: ['Wild Magic Surge: DM can have you roll on Wild Magic Surge table'],
+      levelAvailable: 1,
     },
   ],
   warlock: [
     {
-      name: 'The Archfey',
-      description: 'Your patron is a lord or lady of the fey, creatures of legend.',
-      features: ['Fey Presence: Charm or frighten creatures in 10-ft cube'],
+      name: 'Archfey Patron',
+      description: 'Your patron is a lord or lady of the fey.',
+      features: ['Fey Presence: Charm or frighten creatures in 10-ft cube as action'],
+      levelAvailable: 1,
     },
     {
-      name: 'The Fiend',
-      description: 'You have made a pact with a fiend from the lower planes.',
-      features: ['Dark One\'s Blessing: Gain temp HP equal to CHA mod + warlock level when reducing hostile to 0 HP'],
-    },
-    {
-      name: 'The Great Old One',
-      description: 'Your patron is a mysterious entity from the Far Realm.',
-      features: ['Awakened Mind: Telepathically speak with creatures within 30 ft.'],
-    },
-    {
-      name: 'The Celestial',
+      name: 'Celestial Patron',
       description: 'Your patron is a being of the Upper Planes.',
-      features: ['Healing Light: Heal creatures with bonus action using d6 pool'],
+      features: ['Healing Light: Pool of d6s equal to 1 + warlock level, bonus action heal'],
+      levelAvailable: 1,
     },
     {
-      name: 'The Hexblade',
-      description: 'You have forged a pact with a sentient weapon from the Shadowfell.',
-      features: ['Hexblade\'s Curse: Curse a creature for bonus damage, crit on 19-20, heal on kill'],
+      name: 'Fiend Patron',
+      description: 'You have made a pact with a fiend from the lower planes.',
+      features: ['Dark One\'s Blessing: Gain temp HP = CHA mod + warlock level on killing hostile'],
+      levelAvailable: 1,
+    },
+    {
+      name: 'Great Old One Patron',
+      description: 'Your patron is a mysterious entity from the Far Realm.',
+      features: ['Awakened Mind: Telepathic communication within 30 ft'],
+      levelAvailable: 1,
+    },
+  ],
+  wizard: [
+    {
+      name: 'School of Abjuration',
+      description: 'Abjuration emphasizes magic that blocks, banishes, or protects.',
+      features: ['Arcane Ward: When you cast abjuration spell, create ward with HP = wizard level × 2 + INT mod'],
+      levelAvailable: 3,
+    },
+    {
+      name: 'School of Divination',
+      description: 'Divination reveals secrets hidden within the multiverse.',
+      features: ['Portent: Roll 2d20 after long rest, can replace any roll with portent die'],
+      levelAvailable: 3,
+    },
+    {
+      name: 'School of Evocation',
+      description: 'Evocation focuses on spells that create powerful elemental effects.',
+      features: ['Sculpt Spells: Create safe zones for allies in evocation spells'],
+      levelAvailable: 3,
+    },
+    {
+      name: 'School of Illusion',
+      description: 'Illusion focuses on magic that dazzles the senses, befuddles the mind.',
+      features: ['Improved Minor Illusion: Learn Minor Illusion if you don\'t know it, can create sound and image'],
+      levelAvailable: 3,
     },
   ],
 };
+
+// Helper to get subclasses available at a given level
+export function getAvailableSubclasses(characterClass: CharacterClass, level: number): SubclassInfo[] {
+  return CLASS_SUBCLASSES[characterClass].filter(s => s.levelAvailable <= level);
+}
+
+// Check if class gets subclass at level 1
+export function hasLevel1Subclass(characterClass: CharacterClass): boolean {
+  return CLASS_SUBCLASSES[characterClass].some(s => s.levelAvailable === 1);
+}
 
 // Class saving throw proficiencies
 export const CLASS_SAVING_THROWS: Record<CharacterClass, (keyof AbilityScores)[]> = {
@@ -334,22 +568,309 @@ export const POINT_BUY_COSTS: Record<number, number> = {
   15: 9,
 };
 
-// Background options
-export const BACKGROUNDS = [
-  'Acolyte',
-  'Charlatan',
-  'Criminal',
-  'Entertainer',
-  'Folk Hero',
-  'Guild Artisan',
-  'Hermit',
-  'Noble',
-  'Outlander',
-  'Sage',
-  'Sailor',
-  'Soldier',
-  'Urchin',
-];
+// ============ 2024 BACKGROUNDS ============
+
+// Origin Feat types
+export type OriginFeatName = 'Alert' | 'Crafter' | 'Healer' | 'Lucky' | 'Magic Initiate (Cleric)' | 'Magic Initiate (Druid)' | 'Magic Initiate (Wizard)' | 'Musician' | 'Savage Attacker' | 'Skilled' | 'Tavern Brawler' | 'Tough';
+
+// Origin Feat definitions
+export interface OriginFeat {
+  name: OriginFeatName;
+  description: string;
+  benefits: string[];
+}
+
+export const ORIGIN_FEATS: Record<OriginFeatName, OriginFeat> = {
+  'Alert': {
+    name: 'Alert',
+    description: 'Always on the lookout for danger, you gain benefits that keep you alert.',
+    benefits: [
+      'Add your Proficiency Bonus to Initiative rolls',
+      'You can swap Initiative with a willing ally (neither can be Incapacitated)',
+    ],
+  },
+  'Crafter': {
+    name: 'Crafter',
+    description: 'You are adept at crafting items and bargaining for goods.',
+    benefits: [
+      'Gain proficiency with 3 Artisan\'s Tools of your choice',
+      '20% discount when buying nonmagical items',
+      'Fast Crafting: craft one item from the Fast Crafting table after a Long Rest',
+    ],
+  },
+  'Healer': {
+    name: 'Healer',
+    description: 'You have the training and intuition to administer first aid and other care.',
+    benefits: [
+      'Battle Medic: Use Healer\'s Kit to let target spend one Hit Die + your Proficiency Bonus',
+      'Reroll any 1s on healing dice from this feat or spells',
+    ],
+  },
+  'Lucky': {
+    name: 'Lucky',
+    description: 'You have inexplicable luck that can kick in at just the right moment.',
+    benefits: [
+      'Luck Points equal to your Proficiency Bonus, regained on Long Rest',
+      'Spend 1 point to give yourself Advantage on a D20 Test',
+      'Spend 1 point to impose Disadvantage on an attack against you',
+    ],
+  },
+  'Magic Initiate (Cleric)': {
+    name: 'Magic Initiate (Cleric)',
+    description: 'You have learned the basics of divine magic.',
+    benefits: [
+      'Learn 2 Cleric cantrips of your choice',
+      'Learn 1 first-level Cleric spell (cast once per Long Rest free, or with spell slots)',
+      'Choose INT, WIS, or CHA as your spellcasting ability',
+    ],
+  },
+  'Magic Initiate (Druid)': {
+    name: 'Magic Initiate (Druid)',
+    description: 'You have learned the basics of primal magic.',
+    benefits: [
+      'Learn 2 Druid cantrips of your choice',
+      'Learn 1 first-level Druid spell (cast once per Long Rest free, or with spell slots)',
+      'Choose INT, WIS, or CHA as your spellcasting ability',
+    ],
+  },
+  'Magic Initiate (Wizard)': {
+    name: 'Magic Initiate (Wizard)',
+    description: 'You have learned the basics of arcane magic.',
+    benefits: [
+      'Learn 2 Wizard cantrips of your choice',
+      'Learn 1 first-level Wizard spell (cast once per Long Rest free, or with spell slots)',
+      'Choose INT, WIS, or CHA as your spellcasting ability',
+    ],
+  },
+  'Musician': {
+    name: 'Musician',
+    description: 'You are a practiced musician with the ability to inspire allies.',
+    benefits: [
+      'Gain proficiency with 3 Musical Instruments of your choice',
+      'After a Short or Long Rest, give Heroic Inspiration to allies equal to your Proficiency Bonus',
+    ],
+  },
+  'Savage Attacker': {
+    name: 'Savage Attacker',
+    description: 'You have trained to deal particularly damaging strikes.',
+    benefits: [
+      'Once per turn when you hit with a weapon or Unarmed Strike, roll damage twice and use either roll',
+    ],
+  },
+  'Skilled': {
+    name: 'Skilled',
+    description: 'You have exceptionally broad learning.',
+    benefits: [
+      'Gain proficiency in any combination of 3 skills or tools of your choice',
+    ],
+  },
+  'Tavern Brawler': {
+    name: 'Tavern Brawler',
+    description: 'You are accustomed to rough-and-tumble fighting.',
+    benefits: [
+      'Unarmed Strikes deal 1d4 + Strength modifier damage',
+      'Reroll 1s on Unarmed Strike damage',
+      'Proficiency with Improvised Weapons',
+      'Once per turn on Unarmed Strike hit, push target 5 feet away',
+    ],
+  },
+  'Tough': {
+    name: 'Tough',
+    description: 'You are more resilient than others.',
+    benefits: [
+      'HP maximum increases by 2 for each level you have',
+      'Gain additional 2 HP each time you level up',
+    ],
+  },
+};
+
+// Tool proficiency types
+export type ToolProficiency =
+  | 'Alchemist\'s Supplies' | 'Brewer\'s Supplies' | 'Calligrapher\'s Supplies' | 'Carpenter\'s Tools'
+  | 'Cartographer\'s Tools' | 'Cobbler\'s Tools' | 'Cook\'s Utensils' | 'Glassblower\'s Tools'
+  | 'Jeweler\'s Tools' | 'Leatherworker\'s Tools' | 'Mason\'s Tools' | 'Painter\'s Supplies'
+  | 'Potter\'s Tools' | 'Smith\'s Tools' | 'Tinker\'s Tools' | 'Weaver\'s Tools' | 'Woodcarver\'s Tools'
+  | 'Disguise Kit' | 'Forgery Kit' | 'Gaming Set' | 'Herbalism Kit' | 'Musical Instrument'
+  | 'Navigator\'s Tools' | 'Thieves\' Tools' | 'Poisoner\'s Kit';
+
+// 2024 Background definition
+export interface Background2024 {
+  name: string;
+  description: string;
+  abilityScores: (keyof AbilityScores)[]; // The 3 ability scores to choose from
+  skillProficiencies: SkillName[];
+  toolProficiency: ToolProficiency;
+  originFeat: OriginFeatName;
+  equipment: string[];
+  gold: number;
+}
+
+// All 16 2024 PHB Backgrounds
+export const BACKGROUNDS_2024: Record<string, Background2024> = {
+  'Acolyte': {
+    name: 'Acolyte',
+    description: 'You devoted yourself to service in a temple, either nestled in a town or secluded in a sacred grove.',
+    abilityScores: ['intelligence', 'wisdom', 'charisma'],
+    skillProficiencies: ['insight', 'religion'],
+    toolProficiency: 'Calligrapher\'s Supplies',
+    originFeat: 'Magic Initiate (Cleric)',
+    equipment: ['Book (prayers)', 'Calligrapher\'s Supplies', 'Holy Symbol', 'Parchment (10)', 'Robe'],
+    gold: 8,
+  },
+  'Artisan': {
+    name: 'Artisan',
+    description: 'You began mopping floors and running errands in an artisan\'s workshop for a few coppers per day.',
+    abilityScores: ['strength', 'dexterity', 'intelligence'],
+    skillProficiencies: ['investigation', 'persuasion'],
+    toolProficiency: 'Carpenter\'s Tools',
+    originFeat: 'Crafter',
+    equipment: ['Artisan\'s Tools (one of your choice)', 'Traveler\'s Clothes', 'Pouch (2)'],
+    gold: 32,
+  },
+  'Charlatan': {
+    name: 'Charlatan',
+    description: 'Once you were old enough to order an ale, you soon had a favorite stool in every tavern.',
+    abilityScores: ['dexterity', 'constitution', 'charisma'],
+    skillProficiencies: ['deception', 'sleightOfHand'],
+    toolProficiency: 'Forgery Kit',
+    originFeat: 'Skilled',
+    equipment: ['Costume', 'Fine Clothes', 'Forgery Kit'],
+    gold: 15,
+  },
+  'Criminal': {
+    name: 'Criminal',
+    description: 'You eked out a living in dark alleyways, cutting purses or burgling shops.',
+    abilityScores: ['dexterity', 'constitution', 'intelligence'],
+    skillProficiencies: ['sleightOfHand', 'stealth'],
+    toolProficiency: 'Thieves\' Tools',
+    originFeat: 'Alert',
+    equipment: ['Crowbar', 'Dagger (2)', 'Pouch', 'Thieves\' Tools', 'Traveler\'s Clothes'],
+    gold: 16,
+  },
+  'Entertainer': {
+    name: 'Entertainer',
+    description: 'You spent much of your youth following minstrels and acrobats, learning to perform.',
+    abilityScores: ['strength', 'dexterity', 'charisma'],
+    skillProficiencies: ['acrobatics', 'performance'],
+    toolProficiency: 'Musical Instrument',
+    originFeat: 'Musician',
+    equipment: ['Costume (2)', 'Mirror', 'Musical Instrument (one of your choice)', 'Perfume', 'Traveler\'s Clothes'],
+    gold: 11,
+  },
+  'Farmer': {
+    name: 'Farmer',
+    description: 'You grew up working the land, planting and harvesting crops.',
+    abilityScores: ['strength', 'constitution', 'wisdom'],
+    skillProficiencies: ['animalHandling', 'nature'],
+    toolProficiency: 'Carpenter\'s Tools',
+    originFeat: 'Tough',
+    equipment: ['Healer\'s Kit', 'Iron Pot', 'Shovel', 'Sickle', 'Traveler\'s Clothes'],
+    gold: 30,
+  },
+  'Guard': {
+    name: 'Guard',
+    description: 'You served as an enforcer of law, either for the local authorities or a private security force.',
+    abilityScores: ['strength', 'intelligence', 'wisdom'],
+    skillProficiencies: ['athletics', 'perception'],
+    toolProficiency: 'Gaming Set',
+    originFeat: 'Alert',
+    equipment: ['Gaming Set (one of your choice)', 'Hooded Lantern', 'Manacles', 'Quiver', 'Shortbow', 'Arrows (20)', 'Spear', 'Traveler\'s Clothes'],
+    gold: 12,
+  },
+  'Guide': {
+    name: 'Guide',
+    description: 'You came of age outdoors, far from settled lands, learning the ways of wild places.',
+    abilityScores: ['dexterity', 'constitution', 'wisdom'],
+    skillProficiencies: ['stealth', 'survival'],
+    toolProficiency: 'Cartographer\'s Tools',
+    originFeat: 'Magic Initiate (Druid)',
+    equipment: ['Bedroll', 'Cartographer\'s Tools', 'Quarterstaff', 'Tent', 'Traveler\'s Clothes'],
+    gold: 3,
+  },
+  'Hermit': {
+    name: 'Hermit',
+    description: 'You spent a formative part of your life in seclusion, apart from the rest of the world.',
+    abilityScores: ['intelligence', 'wisdom', 'charisma'],
+    skillProficiencies: ['medicine', 'religion'],
+    toolProficiency: 'Herbalism Kit',
+    originFeat: 'Healer',
+    equipment: ['Bedroll', 'Book (philosophy)', 'Herbalism Kit', 'Lamp', 'Oil (3 flasks)', 'Traveler\'s Clothes'],
+    gold: 16,
+  },
+  'Merchant': {
+    name: 'Merchant',
+    description: 'You were apprenticed to a merchant, learning the art of buying and selling.',
+    abilityScores: ['constitution', 'intelligence', 'charisma'],
+    skillProficiencies: ['animalHandling', 'persuasion'],
+    toolProficiency: 'Navigator\'s Tools',
+    originFeat: 'Lucky',
+    equipment: ['Navigator\'s Tools', 'Traveler\'s Clothes'],
+    gold: 22,
+  },
+  'Noble': {
+    name: 'Noble',
+    description: 'You were raised in a castle, surrounded by wealth, power, and privilege.',
+    abilityScores: ['strength', 'intelligence', 'charisma'],
+    skillProficiencies: ['history', 'persuasion'],
+    toolProficiency: 'Gaming Set',
+    originFeat: 'Skilled',
+    equipment: ['Fine Clothes', 'Gaming Set (one of your choice)', 'Perfume', 'Signet Ring'],
+    gold: 29,
+  },
+  'Sage': {
+    name: 'Sage',
+    description: 'You spent your formative years traveling between manors and keeps, studying under various masters.',
+    abilityScores: ['constitution', 'intelligence', 'wisdom'],
+    skillProficiencies: ['arcana', 'history'],
+    toolProficiency: 'Calligrapher\'s Supplies',
+    originFeat: 'Magic Initiate (Wizard)',
+    equipment: ['Book (history)', 'Calligrapher\'s Supplies', 'Parchment (8)', 'Quarterstaff', 'Robe'],
+    gold: 8,
+  },
+  'Sailor': {
+    name: 'Sailor',
+    description: 'You lived as a seafarer, working on ships from a young age.',
+    abilityScores: ['strength', 'dexterity', 'wisdom'],
+    skillProficiencies: ['acrobatics', 'perception'],
+    toolProficiency: 'Navigator\'s Tools',
+    originFeat: 'Tavern Brawler',
+    equipment: ['Dagger', 'Navigator\'s Tools', 'Rope (50 ft)', 'Traveler\'s Clothes'],
+    gold: 20,
+  },
+  'Scribe': {
+    name: 'Scribe',
+    description: 'You spent formative years in a scriptorium or monastery, copying texts.',
+    abilityScores: ['dexterity', 'intelligence', 'wisdom'],
+    skillProficiencies: ['investigation', 'perception'],
+    toolProficiency: 'Calligrapher\'s Supplies',
+    originFeat: 'Skilled',
+    equipment: ['Calligrapher\'s Supplies', 'Fine Clothes', 'Lamp', 'Oil (3 flasks)', 'Parchment (12)', 'Ink', 'Ink Pen'],
+    gold: 23,
+  },
+  'Soldier': {
+    name: 'Soldier',
+    description: 'You spent your early years in a military structure, training for combat.',
+    abilityScores: ['strength', 'dexterity', 'constitution'],
+    skillProficiencies: ['athletics', 'intimidation'],
+    toolProficiency: 'Gaming Set',
+    originFeat: 'Savage Attacker',
+    equipment: ['Arrow (20)', 'Gaming Set (one of your choice)', 'Healer\'s Kit', 'Quiver', 'Shortbow', 'Spear', 'Traveler\'s Clothes'],
+    gold: 14,
+  },
+  'Wayfarer': {
+    name: 'Wayfarer',
+    description: 'You grew up on the road, traveling from town to town, never settling in one place.',
+    abilityScores: ['dexterity', 'wisdom', 'charisma'],
+    skillProficiencies: ['insight', 'stealth'],
+    toolProficiency: 'Thieves\' Tools',
+    originFeat: 'Lucky',
+    equipment: ['Bedroll', 'Dagger (2)', 'Healer\'s Kit', 'Thieves\' Tools', 'Traveler\'s Clothes', 'Waterskin'],
+    gold: 16,
+  },
+};
+
+// Background names list (for dropdowns)
+export const BACKGROUNDS = Object.keys(BACKGROUNDS_2024);
 
 // Alignment options
 export const ALIGNMENTS = [
@@ -402,9 +923,13 @@ export const SPECIES_SPEED: Record<Species, number> = {
   tiefling: 30,
 };
 
-// Languages commonly known
-export const COMMON_LANGUAGES = [
+// ============ LANGUAGES (2024) ============
+
+// Standard Languages (accessible to all)
+export const STANDARD_LANGUAGES = [
   'Common',
+  'Common Sign Language',
+  'Draconic',
   'Dwarvish',
   'Elvish',
   'Giant',
@@ -414,16 +939,199 @@ export const COMMON_LANGUAGES = [
   'Orc',
 ];
 
-export const EXOTIC_LANGUAGES = [
+// Rare Languages (require special background or DM permission)
+export const RARE_LANGUAGES = [
   'Abyssal',
   'Celestial',
-  'Draconic',
   'Deep Speech',
+  'Druidic',
   'Infernal',
   'Primordial',
   'Sylvan',
+  'Thieves\' Cant',
   'Undercommon',
 ];
+
+export const ALL_LANGUAGES = [...STANDARD_LANGUAGES, ...RARE_LANGUAGES];
+
+// Legacy exports for compatibility
+export const COMMON_LANGUAGES = STANDARD_LANGUAGES;
+export const EXOTIC_LANGUAGES = RARE_LANGUAGES;
+
+// Suggested languages by species
+export const SPECIES_SUGGESTED_LANGUAGES: Record<Species, string[]> = {
+  aasimar: ['Celestial'],
+  dragonborn: ['Draconic'],
+  dwarf: ['Dwarvish'],
+  elf: ['Elvish'],
+  gnome: ['Gnomish'],
+  goliath: ['Giant'],
+  halfling: ['Halfling'],
+  human: [], // Humans can pick any
+  orc: ['Orc'],
+  tiefling: ['Infernal'],
+};
+
+// ============ SPECIES TRAITS (2024) ============
+
+export type DamageType = 'acid' | 'bludgeoning' | 'cold' | 'fire' | 'force' | 'lightning' | 'necrotic' | 'piercing' | 'poison' | 'psychic' | 'radiant' | 'slashing' | 'thunder';
+export type Condition = 'blinded' | 'charmed' | 'deafened' | 'frightened' | 'grappled' | 'incapacitated' | 'invisible' | 'paralyzed' | 'petrified' | 'poisoned' | 'prone' | 'restrained' | 'stunned' | 'unconscious' | 'exhaustion';
+
+export interface SpeciesTraits {
+  darkvision: number; // 0 if none, otherwise distance in feet
+  resistances: DamageType[];
+  conditionAdvantages: Condition[]; // Advantage on saves against these conditions
+  immunities: (DamageType | Condition)[];
+  speed: number;
+  size: 'Small' | 'Medium';
+  features: {
+    name: string;
+    description: string;
+    level?: number; // Level when gained, 1 if not specified
+  }[];
+  cantrips?: string[]; // Innate cantrips
+  spellsAtLevel?: { level: number; spell: string }[]; // Spells gained at certain levels
+  skillProficiencies?: SkillName[];
+  bonusHP?: number; // Per level (e.g., Dwarf Toughness)
+}
+
+export const SPECIES_TRAITS: Record<Species, SpeciesTraits> = {
+  aasimar: {
+    darkvision: 60,
+    resistances: ['necrotic', 'radiant'],
+    conditionAdvantages: [],
+    immunities: [],
+    speed: 30,
+    size: 'Medium',
+    features: [
+      { name: 'Celestial Resistance', description: 'Resistance to necrotic and radiant damage' },
+      { name: 'Healing Hands', description: 'Touch to heal HP equal to Proficiency Bonus, once per Long Rest' },
+      { name: 'Light Bearer', description: 'You know the Light cantrip' },
+      { name: 'Celestial Revelation', description: 'Transform for 1 minute, gaining benefits based on form (Heavenly Wings, Inner Radiance, or Necrotic Shroud)', level: 3 },
+    ],
+    cantrips: ['Light'],
+  },
+  dragonborn: {
+    darkvision: 60,
+    resistances: [], // Depends on ancestry, handled separately
+    conditionAdvantages: [],
+    immunities: [],
+    speed: 30,
+    size: 'Medium',
+    features: [
+      { name: 'Draconic Ancestry', description: 'Choose a dragon type for breath weapon and resistance' },
+      { name: 'Breath Weapon', description: '15-ft cone or 30-ft line, 1d10 damage (scales with level), Dex save for half' },
+      { name: 'Damage Resistance', description: 'Resistance to damage type of your ancestry' },
+      { name: 'Draconic Flight', description: 'Bonus action to sprout spectral wings, fly speed equals walking speed, lasts 10 minutes', level: 5 },
+    ],
+  },
+  dwarf: {
+    darkvision: 120,
+    resistances: ['poison'],
+    conditionAdvantages: ['poisoned'],
+    immunities: [],
+    speed: 30, // 2024 rules: 30ft, not reduced by heavy armor
+    size: 'Medium',
+    features: [
+      { name: 'Dwarven Resilience', description: 'Resistance to poison damage and advantage on saves vs poisoned' },
+      { name: 'Dwarven Toughness', description: 'HP max increases by 1, and by 1 each level' },
+      { name: 'Stonecunning', description: 'Tremorsense 60 ft for 10 minutes as bonus action while touching stone' },
+    ],
+    bonusHP: 1,
+  },
+  elf: {
+    darkvision: 60, // Drow get 120
+    resistances: [],
+    conditionAdvantages: ['charmed'],
+    immunities: [],
+    speed: 30, // Wood elf gets 35
+    size: 'Medium',
+    features: [
+      { name: 'Fey Ancestry', description: 'Advantage on saves vs charmed, magic can\'t put you to sleep' },
+      { name: 'Keen Senses', description: 'Proficiency in Perception' },
+      { name: 'Trance', description: '4 hours of trance equals 8 hours of sleep' },
+      { name: 'Elven Lineage', description: 'Choose High Elf, Wood Elf, or Drow for additional traits' },
+    ],
+    skillProficiencies: ['perception'],
+  },
+  gnome: {
+    darkvision: 60,
+    resistances: [],
+    conditionAdvantages: [],
+    immunities: [],
+    speed: 30,
+    size: 'Small',
+    features: [
+      { name: 'Gnomish Cunning', description: 'Advantage on INT, WIS, CHA saving throws' },
+      { name: 'Gnomish Lineage', description: 'Choose Forest Gnome or Rock Gnome for additional traits' },
+    ],
+  },
+  goliath: {
+    darkvision: 0,
+    resistances: [],
+    conditionAdvantages: [],
+    immunities: [],
+    speed: 35,
+    size: 'Medium',
+    features: [
+      { name: 'Giant Ancestry', description: 'Choose Cloud, Fire, Frost, Hill, Stone, or Storm giant ancestry for a special ability' },
+      { name: 'Large Form', description: 'Become Large for 10 minutes, advantage on STR checks, +10 speed', level: 5 },
+      { name: 'Powerful Build', description: 'Count as one size larger for carrying capacity' },
+    ],
+  },
+  halfling: {
+    darkvision: 0,
+    resistances: [],
+    conditionAdvantages: ['frightened'],
+    immunities: [],
+    speed: 30,
+    size: 'Small',
+    features: [
+      { name: 'Brave', description: 'Advantage on saves against frightened' },
+      { name: 'Halfling Nimbleness', description: 'Move through space of creatures one size larger' },
+      { name: 'Lucky', description: 'Reroll 1s on d20 Tests' },
+      { name: 'Naturally Stealthy', description: 'Hide behind creatures at least Medium size' },
+    ],
+  },
+  human: {
+    darkvision: 0,
+    resistances: [],
+    conditionAdvantages: [],
+    immunities: [],
+    speed: 30,
+    size: 'Medium',
+    features: [
+      { name: 'Resourceful', description: 'Gain Heroic Inspiration after each Long Rest' },
+      { name: 'Skillful', description: 'Gain proficiency in one skill of your choice' },
+      { name: 'Versatile', description: 'Gain an Origin feat of your choice' },
+    ],
+  },
+  orc: {
+    darkvision: 120,
+    resistances: [],
+    conditionAdvantages: [],
+    immunities: [],
+    speed: 30,
+    size: 'Medium',
+    features: [
+      { name: 'Adrenaline Rush', description: 'Bonus action Dash and gain temp HP equal to Proficiency Bonus, uses = Prof Bonus per Long Rest' },
+      { name: 'Relentless Endurance', description: 'Drop to 1 HP instead of 0 once per Long Rest' },
+    ],
+  },
+  tiefling: {
+    darkvision: 60,
+    resistances: [], // Depends on legacy
+    conditionAdvantages: [],
+    immunities: [],
+    speed: 30,
+    size: 'Medium',
+    features: [
+      { name: 'Otherworldly Presence', description: 'You know the Thaumaturgy cantrip' },
+      { name: 'Fiendish Legacy', description: 'Choose Abyssal (poison), Chthonic (necrotic), or Infernal (fire) for resistance and spells' },
+    ],
+    cantrips: ['Thaumaturgy'],
+  },
+};
 
 // Species descriptions and subspecies
 export const SPECIES_INFO: Record<Species, { description: string; traits: string[]; subspecies?: { name: string; description: string }[] }> = {
@@ -580,22 +1288,181 @@ export const CLASS_INFO: Record<CharacterClass, { description: string; hitDie: n
   },
 };
 
-// Background info with skill proficiencies
-export const BACKGROUND_INFO: Record<string, { description: string; skillProficiencies: SkillName[] }> = {
-  'Acolyte': { description: 'You have spent your life in service to a temple.', skillProficiencies: ['insight', 'religion'] },
-  'Charlatan': { description: 'You have always had a way with people.', skillProficiencies: ['deception', 'sleightOfHand'] },
-  'Criminal': { description: 'You are an experienced criminal with contacts.', skillProficiencies: ['deception', 'stealth'] },
-  'Entertainer': { description: 'You thrive in front of an audience.', skillProficiencies: ['acrobatics', 'performance'] },
-  'Folk Hero': { description: 'You come from a humble background.', skillProficiencies: ['animalHandling', 'survival'] },
-  'Guild Artisan': { description: 'You are a member of an artisan guild.', skillProficiencies: ['insight', 'persuasion'] },
-  'Hermit': { description: 'You lived in seclusion for a time.', skillProficiencies: ['medicine', 'religion'] },
-  'Noble': { description: 'You understand wealth and privilege.', skillProficiencies: ['history', 'persuasion'] },
-  'Outlander': { description: 'You grew up in the wilds.', skillProficiencies: ['athletics', 'survival'] },
-  'Sage': { description: 'You spent years learning lore.', skillProficiencies: ['arcana', 'history'] },
-  'Sailor': { description: 'You sailed on a ship for years.', skillProficiencies: ['athletics', 'perception'] },
-  'Soldier': { description: 'You are a trained soldier.', skillProficiencies: ['athletics', 'intimidation'] },
-  'Urchin': { description: 'You grew up on the streets.', skillProficiencies: ['sleightOfHand', 'stealth'] },
+// Legacy background info (kept for compatibility, use BACKGROUNDS_2024 for new features)
+export const BACKGROUND_INFO: Record<string, { description: string; skillProficiencies: SkillName[] }> = Object.fromEntries(
+  Object.entries(BACKGROUNDS_2024).map(([key, bg]) => [key, { description: bg.description, skillProficiencies: bg.skillProficiencies }])
+);
+
+// ============ CLASS FEATURES (Level 1) ============
+
+export interface ClassFeature {
+  name: string;
+  description: string;
+  level: number;
+}
+
+export const CLASS_FEATURES: Record<CharacterClass, ClassFeature[]> = {
+  barbarian: [
+    { name: 'Rage', description: 'Enter a rage as a bonus action: resistance to bludgeoning/piercing/slashing damage, +2 damage on STR attacks, advantage on STR checks/saves. Lasts 10 minutes or until you end it.', level: 1 },
+    { name: 'Unarmored Defense', description: 'AC = 10 + DEX mod + CON mod when not wearing armor', level: 1 },
+    { name: 'Weapon Mastery', description: 'Choose 2 weapon masteries from your proficient weapons', level: 1 },
+  ],
+  bard: [
+    { name: 'Bardic Inspiration', description: 'Bonus action to give ally a d6 to add to one ability check, attack, or save. Uses = CHA mod per long rest.', level: 1 },
+    { name: 'Spellcasting', description: 'Cast bard spells using CHA. Know 4 cantrips and 2 spells at level 1.', level: 1 },
+  ],
+  cleric: [
+    { name: 'Divine Order', description: 'Choose Protector (martial weapon + heavy armor proficiency) or Thaumaturge (extra cantrip)', level: 1 },
+    { name: 'Spellcasting', description: 'Cast cleric spells using WIS. Know 3 cantrips, prepare WIS mod + level spells.', level: 1 },
+  ],
+  druid: [
+    { name: 'Druidic', description: 'You know Druidic, the secret language of druids.', level: 1 },
+    { name: 'Primal Order', description: 'Choose Magician (extra cantrip) or Warden (martial weapon proficiency, +1 AC in medium armor)', level: 1 },
+    { name: 'Spellcasting', description: 'Cast druid spells using WIS. Know 2 cantrips, prepare WIS mod + level spells.', level: 1 },
+  ],
+  fighter: [
+    { name: 'Fighting Style', description: 'Choose a fighting style: Archery (+2 ranged), Defense (+1 AC), Dueling (+2 one-handed), etc.', level: 1 },
+    { name: 'Second Wind', description: 'Bonus action to regain 1d10 + fighter level HP. Uses = 2 per short/long rest.', level: 1 },
+    { name: 'Weapon Mastery', description: 'Choose 3 weapon masteries from your proficient weapons', level: 1 },
+  ],
+  monk: [
+    { name: 'Martial Arts', description: 'Unarmed strikes deal 1d6 damage. DEX for monk weapons. Bonus action unarmed strike after Attack.', level: 1 },
+    { name: 'Unarmored Defense', description: 'AC = 10 + DEX mod + WIS mod when not wearing armor or shield', level: 1 },
+  ],
+  paladin: [
+    { name: 'Lay on Hands', description: 'Pool of HP = paladin level × 5. Touch to heal or cure disease/poison.', level: 1 },
+    { name: 'Spellcasting', description: 'Cast paladin spells using CHA. Prepare CHA mod + half level spells.', level: 1 },
+    { name: 'Weapon Mastery', description: 'Choose 2 weapon masteries from your proficient weapons', level: 1 },
+  ],
+  ranger: [
+    { name: 'Deft Explorer', description: 'Gain expertise in one skill, learn 2 languages, and gain climbing/swimming speed.', level: 1 },
+    { name: 'Favored Enemy', description: 'Know Hunter\'s Mark always prepared, cast free once per long rest.', level: 1 },
+    { name: 'Spellcasting', description: 'Cast ranger spells using WIS. Know 2 spells at level 1.', level: 1 },
+    { name: 'Weapon Mastery', description: 'Choose 2 weapon masteries from your proficient weapons', level: 1 },
+  ],
+  rogue: [
+    { name: 'Expertise', description: 'Double proficiency bonus for 2 skill proficiencies.', level: 1 },
+    { name: 'Sneak Attack', description: 'Once per turn, deal extra 1d6 damage when you have advantage or ally adjacent to target.', level: 1 },
+    { name: 'Thieves\' Cant', description: 'You know Thieves\' Cant, a secret mix of dialect and coded messages.', level: 1 },
+    { name: 'Weapon Mastery', description: 'Choose 2 weapon masteries from your proficient weapons', level: 1 },
+  ],
+  sorcerer: [
+    { name: 'Innate Sorcery', description: 'Bonus action to enter magical state for 1 minute: +1 to spell attack/DC, advantage on CON saves for spells.', level: 1 },
+    { name: 'Spellcasting', description: 'Cast sorcerer spells using CHA. Know 4 cantrips and 2 spells at level 1.', level: 1 },
+  ],
+  warlock: [
+    { name: 'Eldritch Invocations', description: 'Learn 1 invocation at level 1. Customize your warlock with special abilities.', level: 1 },
+    { name: 'Pact Magic', description: 'Cast warlock spells using CHA. Have 1 spell slot (regains on short rest). Know 2 cantrips and 2 spells.', level: 1 },
+  ],
+  wizard: [
+    { name: 'Arcane Recovery', description: 'Once per day during short rest, recover spell slots with combined level ≤ half wizard level (round up).', level: 1 },
+    { name: 'Spellcasting', description: 'Cast wizard spells using INT. Know 3 cantrips. Spellbook has 6 spells, prepare INT mod + level.', level: 1 },
+  ],
 };
+
+// ============ CLASS PROFICIENCIES ============
+
+export type ArmorType = 'light' | 'medium' | 'heavy' | 'shields';
+export type WeaponType = 'simple' | 'martial' | 'specific';
+
+export interface ClassProficiencies {
+  armor: ArmorType[];
+  weapons: { type: WeaponType; specific?: string[] }[];
+  tools: string[];
+  savingThrows: (keyof AbilityScores)[];
+}
+
+export const CLASS_PROFICIENCIES: Record<CharacterClass, ClassProficiencies> = {
+  barbarian: {
+    armor: ['light', 'medium', 'shields'],
+    weapons: [{ type: 'simple' }, { type: 'martial' }],
+    tools: [],
+    savingThrows: ['strength', 'constitution'],
+  },
+  bard: {
+    armor: ['light'],
+    weapons: [{ type: 'simple' }, { type: 'specific', specific: ['Hand Crossbow', 'Longsword', 'Rapier', 'Shortsword'] }],
+    tools: ['Three musical instruments of your choice'],
+    savingThrows: ['dexterity', 'charisma'],
+  },
+  cleric: {
+    armor: ['light', 'medium', 'shields'],
+    weapons: [{ type: 'simple' }],
+    tools: [],
+    savingThrows: ['wisdom', 'charisma'],
+  },
+  druid: {
+    armor: ['light', 'medium', 'shields'],
+    weapons: [{ type: 'specific', specific: ['Club', 'Dagger', 'Dart', 'Javelin', 'Mace', 'Quarterstaff', 'Scimitar', 'Sickle', 'Sling', 'Spear'] }],
+    tools: ['Herbalism Kit'],
+    savingThrows: ['intelligence', 'wisdom'],
+  },
+  fighter: {
+    armor: ['light', 'medium', 'heavy', 'shields'],
+    weapons: [{ type: 'simple' }, { type: 'martial' }],
+    tools: [],
+    savingThrows: ['strength', 'constitution'],
+  },
+  monk: {
+    armor: [],
+    weapons: [{ type: 'simple' }, { type: 'specific', specific: ['Shortsword'] }],
+    tools: ['One artisan\'s tool or musical instrument'],
+    savingThrows: ['strength', 'dexterity'],
+  },
+  paladin: {
+    armor: ['light', 'medium', 'heavy', 'shields'],
+    weapons: [{ type: 'simple' }, { type: 'martial' }],
+    tools: [],
+    savingThrows: ['wisdom', 'charisma'],
+  },
+  ranger: {
+    armor: ['light', 'medium', 'shields'],
+    weapons: [{ type: 'simple' }, { type: 'martial' }],
+    tools: [],
+    savingThrows: ['strength', 'dexterity'],
+  },
+  rogue: {
+    armor: ['light'],
+    weapons: [{ type: 'simple' }, { type: 'specific', specific: ['Hand Crossbow', 'Longsword', 'Rapier', 'Shortsword'] }],
+    tools: ['Thieves\' Tools'],
+    savingThrows: ['dexterity', 'intelligence'],
+  },
+  sorcerer: {
+    armor: [],
+    weapons: [{ type: 'specific', specific: ['Dagger', 'Quarterstaff', 'Sling'] }],
+    tools: [],
+    savingThrows: ['constitution', 'charisma'],
+  },
+  warlock: {
+    armor: ['light'],
+    weapons: [{ type: 'simple' }],
+    tools: [],
+    savingThrows: ['wisdom', 'charisma'],
+  },
+  wizard: {
+    armor: [],
+    weapons: [{ type: 'specific', specific: ['Dagger', 'Dart', 'Sling', 'Quarterstaff', 'Light Crossbow'] }],
+    tools: [],
+    savingThrows: ['intelligence', 'wisdom'],
+  },
+};
+
+// Helper to format armor proficiencies as string
+export function formatArmorProficiencies(armor: ArmorType[]): string {
+  if (armor.length === 0) return 'None';
+  return armor.map(a => a === 'shields' ? 'Shields' : `${a.charAt(0).toUpperCase() + a.slice(1)} armor`).join(', ');
+}
+
+// Helper to format weapon proficiencies as string
+export function formatWeaponProficiencies(weapons: { type: WeaponType; specific?: string[] }[]): string {
+  const parts: string[] = [];
+  for (const w of weapons) {
+    if (w.type === 'simple') parts.push('Simple weapons');
+    else if (w.type === 'martial') parts.push('Martial weapons');
+    else if (w.specific) parts.push(w.specific.join(', '));
+  }
+  return parts.join(', ') || 'None';
+}
 
 // Personality traits for randomization
 export const PERSONALITY_TRAITS = [
