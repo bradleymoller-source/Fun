@@ -71,7 +71,6 @@ interface GeneratedCampaign {
 interface CampaignGeneratorProps {
   onCampaignGenerated?: (campaign: GeneratedCampaign) => void;
   onDungeonGenerated?: (dungeon: DungeonMap) => void;
-  serverUrl?: string;
 }
 
 const THEMES = [
@@ -107,6 +106,9 @@ const TONES = [
   { value: 'epic', label: 'Epic & Heroic' },
 ];
 
+// Server URL - same as socket connection
+const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
+
 // Room type colors for dungeon map
 const ROOM_COLORS: Record<DungeonRoom['type'], string> = {
   entrance: '#4CAF50',
@@ -118,7 +120,7 @@ const ROOM_COLORS: Record<DungeonRoom['type'], string> = {
   secret: '#9C27B0',
 };
 
-export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, serverUrl = 'http://localhost:3001' }: CampaignGeneratorProps) {
+export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: CampaignGeneratorProps) {
   // Form state
   const [theme, setTheme] = useState(THEMES[0]);
   const [customTheme, setCustomTheme] = useState('');
@@ -144,7 +146,7 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, ser
     setError(null);
 
     try {
-      const response = await fetch(`${serverUrl}/api/campaign/generate`, {
+      const response = await fetch(`${SERVER_URL}/api/campaign/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -181,7 +183,7 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, ser
     setError(null);
 
     try {
-      const response = await fetch(`${serverUrl}/api/campaign/dungeon`, {
+      const response = await fetch(`${SERVER_URL}/api/campaign/dungeon`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
