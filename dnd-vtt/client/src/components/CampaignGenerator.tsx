@@ -81,16 +81,37 @@ interface CampaignGeneratorProps {
   onDungeonGenerated?: (dungeon: DungeonMap) => void;
 }
 
+// Adventure Types - the core structure of the adventure
+const ADVENTURE_TYPES = [
+  { value: 'dungeon_crawl', label: 'Dungeon Crawl', description: 'Classic exploration of dangerous underground locations' },
+  { value: 'heist', label: 'Heist & Infiltration', description: 'Planning phase + execution with security obstacles' },
+  { value: 'siege', label: 'Siege Warfare', description: 'Defend or attack a fortified location over multiple days' },
+  { value: 'monster_hunt', label: 'Monster Hunt', description: 'Track a creature through clues before confrontation' },
+  { value: 'naval', label: 'Naval Adventure', description: 'Ship-based exploration with sea combat and islands' },
+  { value: 'caravan', label: 'Caravan Escort', description: 'Protect travelers with survival challenges and ambushes' },
+  { value: 'political', label: 'Political Intrigue', description: 'Court drama, factions, espionage, power struggles' },
+  { value: 'mystery', label: 'Mystery Investigation', description: 'Gather clues, interview suspects, solve puzzles' },
+  { value: 'city_raid', label: 'City Raid', description: 'Urban combat with civilians, vertical terrain' },
+  { value: 'rescue', label: 'Rescue Mission', description: 'Save hostages with time pressure and moral choices' },
+  { value: 'tournament', label: 'Tournament', description: 'Competitions testing combat, wit, and skills' },
+  { value: 'survival', label: 'Wilderness Survival', description: 'Environment as adversary, resource management' },
+];
+
 const THEMES = [
   'Classic Fantasy',
   'Dark Fantasy',
+  'Gothic Horror',
   'Undead Apocalypse',
   'Dragon Tyranny',
   'Demon Invasion',
   'Ancient Ruins',
-  'Political Intrigue',
-  'Heist & Thieves',
-  'Pirates & Sea',
+  'Celestial Conflict',
+  'Time Travel',
+  'Cult Investigation',
+  'Fey Bargains',
+  'Environmental Collapse',
+  'Trade War',
+  'Mythic Quest',
   'Planar Adventure',
 ];
 
@@ -105,6 +126,14 @@ const SETTINGS = [
   'Volcanic Islands',
   'Floating City',
   'Underdark',
+  'Arctic Tundra',
+  'Jungle Rainforest',
+  'Ship at Sea',
+  'Feywild',
+  'Urban Metropolis',
+  'War-torn Countryside',
+  'Festival Grounds',
+  'Airship Fleet',
 ];
 
 const TONES = [
@@ -112,6 +141,33 @@ const TONES = [
   { value: 'lighthearted', label: 'Lighthearted & Fun' },
   { value: 'horror', label: 'Horror & Suspense' },
   { value: 'epic', label: 'Epic & Heroic' },
+];
+
+// Story metrics for more engaging campaigns
+const STAKES_LEVELS = [
+  { value: 'personal', label: 'Personal', description: 'Character goals and relationships' },
+  { value: 'regional', label: 'Regional', description: 'Town or kingdom at risk' },
+  { value: 'world', label: 'World-Ending', description: 'Apocalyptic consequences' },
+];
+
+const MORAL_COMPLEXITY = [
+  { value: 'clear', label: 'Clear Good vs Evil', description: 'Traditional heroic adventure' },
+  { value: 'gray', label: 'Gray Morality', description: 'No perfect choices, nuanced villains' },
+  { value: 'dark', label: 'No Good Options', description: 'Choose the lesser evil' },
+];
+
+const TIME_PRESSURE = [
+  { value: 'relaxed', label: 'Relaxed', description: 'No urgency, explore at will' },
+  { value: 'moderate', label: 'Moderate', description: 'Deadlines but flexibility' },
+  { value: 'urgent', label: 'Urgent', description: 'Clear countdown, tension throughout' },
+  { value: 'critical', label: 'Critical', description: 'Every moment counts' },
+];
+
+const PRIMARY_PILLAR = [
+  { value: 'combat', label: 'Combat-Heavy', description: 'Focus on tactical battles' },
+  { value: 'exploration', label: 'Exploration', description: 'Discovery and environment' },
+  { value: 'social', label: 'Social/RP', description: 'NPCs and dialogue-driven' },
+  { value: 'balanced', label: 'Balanced', description: 'Mix of all three' },
 ];
 
 // Server URL - same as socket connection
@@ -130,6 +186,7 @@ const ROOM_COLORS: Record<DungeonRoom['type'], string> = {
 
 export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: CampaignGeneratorProps) {
   // Form state
+  const [adventureType, setAdventureType] = useState(ADVENTURE_TYPES[0].value);
   const [theme, setTheme] = useState(THEMES[0]);
   const [customTheme, setCustomTheme] = useState('');
   const [setting, setSetting] = useState(SETTINGS[0]);
@@ -138,6 +195,10 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
   const [partySize, setPartySize] = useState(4);
   const [sessionCount, setSessionCount] = useState(1);
   const [tone, setTone] = useState<'serious' | 'lighthearted' | 'horror' | 'epic'>('serious');
+  const [stakes, setStakes] = useState('regional');
+  const [moralComplexity, setMoralComplexity] = useState('gray');
+  const [timePressure, setTimePressure] = useState('moderate');
+  const [primaryPillar, setPrimaryPillar] = useState('balanced');
   const [includeMap, setIncludeMap] = useState(true);
 
   // Generation state
@@ -193,12 +254,17 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          adventureType,
           theme: customTheme || theme,
           setting: customSetting || setting,
           partyLevel,
           partySize,
           sessionCount,
           tone,
+          stakes,
+          moralComplexity,
+          timePressure,
+          primaryPillar,
           includeMap,
         }),
       });
@@ -1410,6 +1476,24 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
       {/* Generation Form */}
       {!campaign && (
         <div className="space-y-3">
+          {/* Adventure Type - Full Width */}
+          <div>
+            <label className="block text-parchment/70 text-xs mb-1">Adventure Type</label>
+            <select
+              value={adventureType}
+              onChange={(e) => setAdventureType(e.target.value)}
+              className="w-full bg-parchment text-dark-wood px-2 py-1 rounded text-sm"
+            >
+              {ADVENTURE_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+            <p className="text-parchment/50 text-xs mt-1">
+              {ADVENTURE_TYPES.find(t => t.value === adventureType)?.description}
+            </p>
+          </div>
+
+          {/* Theme and Setting */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-parchment/70 text-xs mb-1">Theme</label>
@@ -1449,6 +1533,7 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
             </div>
           </div>
 
+          {/* Party Stats */}
           <div className="grid grid-cols-4 gap-2">
             <div>
               <label className="block text-parchment/70 text-xs mb-1">Party Level</label>
@@ -1497,6 +1582,58 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
             </div>
           </div>
 
+          {/* Story Metrics */}
+          <div className="grid grid-cols-4 gap-2">
+            <div>
+              <label className="block text-parchment/70 text-xs mb-1">Stakes</label>
+              <select
+                value={stakes}
+                onChange={(e) => setStakes(e.target.value)}
+                className="w-full bg-parchment text-dark-wood px-2 py-1 rounded text-sm"
+              >
+                {STAKES_LEVELS.map((s) => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-parchment/70 text-xs mb-1">Morality</label>
+              <select
+                value={moralComplexity}
+                onChange={(e) => setMoralComplexity(e.target.value)}
+                className="w-full bg-parchment text-dark-wood px-2 py-1 rounded text-sm"
+              >
+                {MORAL_COMPLEXITY.map((m) => (
+                  <option key={m.value} value={m.value}>{m.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-parchment/70 text-xs mb-1">Time Pressure</label>
+              <select
+                value={timePressure}
+                onChange={(e) => setTimePressure(e.target.value)}
+                className="w-full bg-parchment text-dark-wood px-2 py-1 rounded text-sm"
+              >
+                {TIME_PRESSURE.map((t) => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-parchment/70 text-xs mb-1">Focus</label>
+              <select
+                value={primaryPillar}
+                onChange={(e) => setPrimaryPillar(e.target.value)}
+                className="w-full bg-parchment text-dark-wood px-2 py-1 rounded text-sm"
+              >
+                {PRIMARY_PILLAR.map((p) => (
+                  <option key={p.value} value={p.value}>{p.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           <label className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -1504,7 +1641,7 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
               onChange={(e) => setIncludeMap(e.target.checked)}
               className="rounded"
             />
-            <span className="text-parchment text-sm">Include Dungeon Map</span>
+            <span className="text-parchment text-sm">Include Location Map</span>
           </label>
 
           {error && (

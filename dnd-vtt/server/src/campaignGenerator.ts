@@ -149,12 +149,17 @@ function parseJsonWithRepair(jsonStr: string): any {
 
 // Types for campaign generation
 export interface CampaignRequest {
+  adventureType?: string;
   theme: string;
   setting: string;
   partyLevel: number;
   partySize: number;
   sessionCount?: number;
   tone?: 'serious' | 'lighthearted' | 'horror' | 'epic';
+  stakes?: 'personal' | 'regional' | 'world';
+  moralComplexity?: 'clear' | 'gray' | 'dark';
+  timePressure?: 'relaxed' | 'moderate' | 'urgent' | 'critical';
+  primaryPillar?: 'combat' | 'exploration' | 'social' | 'balanced';
   includeMap?: boolean;
 }
 
@@ -496,12 +501,141 @@ function generateRoomFeatures(type: DungeonRoom['type']): string[] {
   return options[Math.floor(Math.random() * options.length)];
 }
 
+// Get adventure type-specific instructions
+function getAdventureTypeInstructions(adventureType: string): string {
+  const instructions: Record<string, string> = {
+    'dungeon_crawl': `DUNGEON CRAWL: Classic exploration of dangerous underground/interior locations.
+- Act 2 focuses on room-by-room exploration with 3+ combat encounters
+- Include traps, puzzles, secrets, and environmental hazards
+- Build toward a boss chamber in Act 3`,
+
+    'heist': `HEIST & INFILTRATION: Planning phase followed by execution.
+- Act 1: The Setup - meet the client, learn the target, case the joint, gather intel on security
+- Act 2: The Planning - identify entry points, security measures, patrol schedules, escape routes. Include skill challenges.
+- Act 3: The Execution - the heist itself with complications. Things WILL go wrong.
+- Focus on: stealth, deception, timing, and creative problem-solving
+- Include security measures: guards, magical wards, locks, alarms, patrols`,
+
+    'siege': `SIEGE WARFARE: Defend or attack a fortified location over multiple phases.
+- Act 1: Preparation - fortify defenses OR scout enemy positions, gather allies, plan assault
+- Act 2: The Siege - multiple waves/phases with escalating difficulty. Include siege weapons, wall breaches, morale checks
+- Act 3: The Turning Point - a critical mission to break the siege or breach the inner sanctum
+- Include: siege engines, fortifications, NPC commanders, troop morale, supply concerns`,
+
+    'monster_hunt': `MONSTER HUNT: Track a dangerous creature before the final confrontation.
+- Act 1: The Contract - learn about the monster's attacks, interview witnesses, gather clues about its nature
+- Act 2: The Hunt - track the creature through signs, scenes of carnage, survivor accounts. Build tension.
+- Act 3: The Confrontation - corner the beast in its lair with advantages earned through successful tracking
+- Include: tracking skill challenges, environmental clues, red herrings, creature lore`,
+
+    'naval': `NAVAL ADVENTURE: Ship-based exploration with sea combat and islands.
+- Act 1: The Voyage Begins - acquire ship/crew, learn destination, prepare for sea
+- Act 2: On the Open Sea - naval encounters, island exploration, weather challenges, sea monsters
+- Act 3: The Final Port - climactic confrontation at destination island or enemy vessel
+- Include: ship stats, crew NPCs, naval combat rules, island locations, sea hazards`,
+
+    'caravan': `CARAVAN ESCORT: Protect travelers through dangerous territory.
+- Act 1: The Caravan - meet the merchants, other guards, assess cargo, learn the route dangers
+- Act 2: The Journey - multiple travel encounters, moral dilemmas with refugees, supply management
+- Act 3: The Ambush - major attack on the caravan requiring tactical defense
+- Include: caravan NPCs, cargo value, route hazards, bandit factions`,
+
+    'political': `POLITICAL INTRIGUE: Court drama, factions, and power struggles.
+- Act 1: The Court - introduce factions, their leaders, their goals. Player characters become involved.
+- Act 2: The Schemes - uncover plots, make alliances, attend events, gather evidence, navigate betrayals
+- Act 3: The Confrontation - expose the conspiracy or make a play for power
+- Include: faction relationships, evidence gathering, social encounters, spies, secret meetings`,
+
+    'mystery': `MYSTERY INVESTIGATION: Gather clues, interview suspects, solve the puzzle.
+- Act 1: The Crime - discover the incident, meet key suspects, establish the stakes
+- Act 2: The Investigation - interview witnesses, examine evidence, follow leads, encounter red herrings
+- Act 3: The Reveal - confront the culprit with evidence, final confrontation
+- Include: clue nodes, suspect motivations, DC checks for evidence, timeline of events`,
+
+    'city_raid': `CITY RAID: Urban combat with multiple objectives.
+- Act 1: The Mission - receive orders, plan approach, identify targets and civilian concerns
+- Act 2: Street by Street - urban combat encounters, civilian interactions, multiple objectives
+- Act 3: The Primary Target - assault the main objective (castle, guild hall, temple)
+- Include: urban terrain, vertical combat, civilian presence, multiple entry points`,
+
+    'rescue': `RESCUE MISSION: Save hostages under time pressure.
+- Act 1: The Disappearance - learn who was taken, by whom, and why. Gather intelligence.
+- Act 2: The Infiltration - locate the prison, observe guards, find the prisoners
+- Act 3: The Extraction - free the hostages and escape with them
+- Include: stealth options, hostage conditions, guard patterns, escape routes, time limit`,
+
+    'tournament': `TOURNAMENT/COMPETITION: Series of challenges testing various abilities.
+- Act 1: Registration - enter the tournament, meet rivals, learn the rules and stakes
+- Act 2: The Trials - multiple competition rounds (combat, puzzles, skill challenges)
+- Act 3: The Finals - face the champion with a twist (cheating, kidnapping, monster attack)
+- Include: rival competitors, tournament brackets, varied challenges, betting odds`,
+
+    'survival': `WILDERNESS SURVIVAL: Environment as the primary adversary.
+- Act 1: Stranded - how they got here, assess resources, identify threats
+- Act 2: Survival - resource management, shelter, food/water, environmental hazards, wildlife
+- Act 3: Escape/Rescue - find civilization or achieve rescue
+- Include: survival checks, resource tracking, weather hazards, dangerous terrain`,
+  };
+
+  return instructions[adventureType] || instructions['dungeon_crawl'];
+}
+
+// Get stakes description
+function getStakesDescription(stakes: string): string {
+  const descriptions: Record<string, string> = {
+    'personal': 'PERSONAL STAKES: The threat affects characters directly - their loved ones, their home, their reputation, or their past.',
+    'regional': 'REGIONAL STAKES: A town, region, or kingdom is threatened. Many innocent lives hang in the balance.',
+    'world': 'WORLD-ENDING STAKES: Apocalyptic threat. Failure means catastrophe for the entire world.',
+  };
+  return descriptions[stakes] || descriptions['regional'];
+}
+
+// Get moral complexity description
+function getMoralDescription(complexity: string): string {
+  const descriptions: Record<string, string> = {
+    'clear': 'CLEAR MORALITY: Traditional heroic adventure. The villains are clearly evil, the heroes clearly good.',
+    'gray': 'GRAY MORALITY: Nuanced villains with understandable motivations. No perfect choices. Allies may have hidden agendas.',
+    'dark': 'DARK MORALITY: No good options. Every choice has a cost. The villain may even have a point.',
+  };
+  return descriptions[complexity] || descriptions['gray'];
+}
+
+// Get time pressure description
+function getTimePressureDescription(pressure: string): string {
+  const descriptions: Record<string, string> = {
+    'relaxed': 'RELAXED PACING: No urgent deadline. Players can explore, rest, and investigate at their leisure.',
+    'moderate': 'MODERATE PRESSURE: A deadline exists but there is flexibility. Encourage efficiency without panic.',
+    'urgent': 'URGENT PRESSURE: Clear countdown. Include time-sensitive objectives and consequences for delay.',
+    'critical': 'CRITICAL PRESSURE: Every moment counts. Include a visible countdown mechanic. Failure is imminent.',
+  };
+  return descriptions[pressure] || descriptions['moderate'];
+}
+
+// Get pillar focus description
+function getPillarDescription(pillar: string): string {
+  const descriptions: Record<string, string> = {
+    'combat': 'COMBAT FOCUS: Tactical encounters are the centerpiece. Include varied terrain, enemy tactics, and multiple combat scenarios.',
+    'exploration': 'EXPLORATION FOCUS: Discovery and environment are key. Include secrets, puzzles, hidden areas, and environmental storytelling.',
+    'social': 'SOCIAL/RP FOCUS: NPCs and dialogue drive the story. Include complex characters, negotiations, and social challenges.',
+    'balanced': 'BALANCED: Equal emphasis on combat, exploration, and social interaction. Vary the challenges.',
+  };
+  return descriptions[pillar] || descriptions['balanced'];
+}
+
 function buildCampaignPrompt(request: CampaignRequest): string {
   const sessionHours = (request.sessionCount || 1) * 2.5; // Each session ~2.5 hours
+  const adventureType = request.adventureType || 'dungeon_crawl';
 
-  return `You are a master D&D 5e Dungeon Master creating a COMPLETE, READY-TO-RUN adventure module following classic three-act structure.
+  const adventureInstructions = getAdventureTypeInstructions(adventureType);
+  const stakesDesc = getStakesDescription(request.stakes || 'regional');
+  const moralDesc = getMoralDescription(request.moralComplexity || 'gray');
+  const timeDesc = getTimePressureDescription(request.timePressure || 'moderate');
+  const pillarDesc = getPillarDescription(request.primaryPillar || 'balanced');
+
+  return `You are a master D&D 5e Dungeon Master creating a COMPLETE, READY-TO-RUN adventure module.
 
 ADVENTURE PARAMETERS:
+- Adventure Type: ${adventureType.replace('_', ' ').toUpperCase()}
 - Theme: ${request.theme}
 - Setting: ${request.setting}
 - Party Level: ${request.partyLevel}
@@ -509,7 +643,16 @@ ADVENTURE PARAMETERS:
 - Target Duration: ${sessionHours} hours (${request.sessionCount || 1} session${(request.sessionCount || 1) > 1 ? 's' : ''} of 2-3 hours each)
 - Tone: ${request.tone || 'serious'}
 
-Create an immersive adventure using the CLASSIC D&D THREE-ACT STRUCTURE. Return ONLY valid JSON:
+STORY METRICS:
+${stakesDesc}
+${moralDesc}
+${timeDesc}
+${pillarDesc}
+
+ADVENTURE TYPE INSTRUCTIONS:
+${adventureInstructions}
+
+Create an immersive adventure following these guidelines. Return ONLY valid JSON:
 
 \`\`\`json
 {
