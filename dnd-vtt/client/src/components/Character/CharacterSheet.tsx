@@ -8,6 +8,7 @@ import {
   CLASS_NAMES,
   SPECIES_NAMES,
   CLASS_HIT_DICE,
+  CLASS_SUBCLASSES,
   getAbilityModifier,
   formatModifier,
   getProficiencyBonus,
@@ -329,7 +330,26 @@ export function CharacterSheet({ character, onUpdate, onRoll, onImport, isEditab
             Level {character.level} {SPECIES_NAMES[character.species]} {CLASS_NAMES[character.characterClass]}
           </p>
           {character.subclass && (
-            <p className="text-gold/70 text-sm">{character.subclass}</p>
+            <>
+              <p className="text-gold/70 text-sm">{character.subclass}</p>
+              {/* Display subclass choices */}
+              {character.subclassChoices && Object.keys(character.subclassChoices).length > 0 && (
+                <div className="text-xs text-parchment/60 mt-1">
+                  {CLASS_SUBCLASSES[character.characterClass]?.find(sc => sc.name === character.subclass)?.choices?.map(choice => {
+                    const selected = character.subclassChoices?.[choice.id] || [];
+                    if (selected.length === 0) return null;
+                    return (
+                      <span key={choice.id} className="inline-block mr-2">
+                        <span className="text-gold/60">{choice.name}: </span>
+                        {selected.map(optionId =>
+                          choice.options.find(o => o.id === optionId)?.name
+                        ).filter(Boolean).join(', ')}
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+            </>
           )}
           <p className="text-parchment/70 text-sm">
             {character.background} • {character.alignment || 'Unaligned'}
@@ -380,7 +400,7 @@ export function CharacterSheet({ character, onUpdate, onRoll, onImport, isEditab
           </button>
         ))}
         {exhaustionLevel > 0 && (
-          <span className="px-2 py-0.5 rounded text-xs bg-purple-900/50 text-purple-300 border border-purple-500">
+          <span className="px-2 py-0.5 rounded text-xs bg-amber-900/50 text-amber-300 border border-amber-500">
             Exhaustion {exhaustionLevel} (−{exhaustionLevel * 2} to d20s)
           </span>
         )}
@@ -986,8 +1006,8 @@ export function CharacterSheet({ character, onUpdate, onRoll, onImport, isEditab
                       disabled={!isEditable}
                       className={`w-4 h-4 rounded-full border transition-colors ${
                         i < remaining
-                          ? 'bg-purple-500 border-purple-400'
-                          : 'border-purple-500/50 hover:border-purple-400'
+                          ? 'bg-blue-500 border-blue-400'
+                          : 'border-blue-500/50 hover:border-blue-400'
                       }`}
                       title={`${remaining}/${slots} slots remaining`}
                     />
@@ -1045,7 +1065,7 @@ export function CharacterSheet({ character, onUpdate, onRoll, onImport, isEditab
             <h4 className="text-gold font-semibold mb-2">Cantrips</h4>
             <div className="flex flex-wrap gap-1">
               {character.cantrips!.map(cantrip => (
-                <span key={cantrip} className="bg-purple-900/30 text-purple-300 px-2 py-1 rounded text-sm border border-purple-500/50">
+                <span key={cantrip} className="bg-blue-900/30 text-blue-300 px-2 py-1 rounded text-sm border border-blue-500/50">
                   {cantrip}
                 </span>
               ))}

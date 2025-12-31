@@ -52,11 +52,29 @@ export const CLASS_STANDARD_ARRAYS: Record<CharacterClass, AbilityScores> = {
 
 // ============ ALL SUBCLASSES (2024 PHB) ============
 
+// Subclass choice option
+export interface SubclassChoiceOption {
+  id: string;
+  name: string;
+  description: string;
+}
+
+// Subclass choice (e.g., maneuvers, land type, etc.)
+export interface SubclassChoice {
+  id: string;
+  name: string;            // e.g., "Maneuvers", "Land Type", "Damage Type"
+  description: string;     // Explanation of what they're choosing
+  count: number;           // How many to choose (1 for land type, 3 for maneuvers)
+  options: SubclassChoiceOption[];
+}
+
 export interface SubclassInfo {
   name: string;
   description: string;
   features: string[];
   levelAvailable: number; // Level when subclass can be chosen
+  choices?: SubclassChoice[];  // Optional choices for this subclass
+  bonusSpells?: string[];      // Bonus spells granted by subclass
 }
 
 // All 48 subclasses from the 2024 PHB (4 per class)
@@ -71,8 +89,19 @@ export const CLASS_SUBCLASSES: Record<CharacterClass, SubclassInfo[]> = {
     {
       name: 'Path of the Wild Heart',
       description: 'Many barbarians have a spiritual connection to a powerful animal spirit.',
-      features: ['Animal Speaker: Cast Speak with Animals and Beast Sense as rituals'],
+      features: ['Animal Speaker: Cast Speak with Animals and Beast Sense as rituals', 'Rage of the Wilds: Gain special ability while raging based on chosen animal'],
       levelAvailable: 3,
+      choices: [{
+        id: 'animal-spirit',
+        name: 'Animal Spirit',
+        description: 'Choose an animal spirit that grants you a special ability while raging.',
+        count: 1,
+        options: [
+          { id: 'bear', name: 'Bear', description: 'While raging, you have resistance to all damage except Psychic.' },
+          { id: 'eagle', name: 'Eagle', description: 'While raging, enemies have disadvantage on opportunity attacks against you, and you can Dash as a bonus action.' },
+          { id: 'wolf', name: 'Wolf', description: 'While raging, your allies have advantage on attack rolls against enemies within 5 feet of you.' },
+        ],
+      }],
     },
     {
       name: 'Path of the World Tree',
@@ -83,8 +112,18 @@ export const CLASS_SUBCLASSES: Record<CharacterClass, SubclassInfo[]> = {
     {
       name: 'Path of the Zealot',
       description: 'Some deities inspire their followers to pitch themselves into a ferocious battle fury.',
-      features: ['Divine Fury: Extra 1d6+half level radiant or necrotic damage on first hit each turn while raging'],
+      features: ['Divine Fury: Extra 1d6+half level damage on first hit each turn while raging', 'Warrior of the Gods: Spells to revive you require no material components'],
       levelAvailable: 3,
+      choices: [{
+        id: 'divine-fury-type',
+        name: 'Divine Fury Damage Type',
+        description: 'Choose the damage type for your Divine Fury feature.',
+        count: 1,
+        options: [
+          { id: 'radiant', name: 'Radiant', description: 'Your divine fury deals radiant damage, channeling holy light against your foes.' },
+          { id: 'necrotic', name: 'Necrotic', description: 'Your divine fury deals necrotic damage, channeling dark divine power against your foes.' },
+        ],
+      }],
     },
   ],
   bard: [
@@ -117,34 +156,50 @@ export const CLASS_SUBCLASSES: Record<CharacterClass, SubclassInfo[]> = {
     {
       name: 'Life Domain',
       description: 'Gods of life promote vitality and health through healing the sick and wounded.',
-      features: ['Disciple of Life: Healing spells restore additional HP equal to 2 + spell level'],
+      features: ['Disciple of Life: Healing spells restore additional HP equal to 2 + spell level', 'Domain Spells: Always have Bless and Cure Wounds prepared'],
       levelAvailable: 1,
+      bonusSpells: ['Bless', 'Cure Wounds'],
     },
     {
       name: 'Light Domain',
       description: 'Gods of light promote ideals of rebirth, truth, vigilance, and beauty.',
-      features: ['Warding Flare: Reaction to impose disadvantage on an attacker'],
+      features: ['Warding Flare: Reaction to impose disadvantage on an attacker', 'Domain Spells: Always have Burning Hands and Faerie Fire prepared'],
       levelAvailable: 1,
+      bonusSpells: ['Burning Hands', 'Faerie Fire'],
     },
     {
       name: 'Trickery Domain',
       description: 'Gods of trickery are mischief-makers and instigators who embody chaos.',
-      features: ['Blessing of the Trickster: Give advantage on Stealth to another creature'],
+      features: ['Blessing of the Trickster: Give advantage on Stealth to another creature', 'Domain Spells: Always have Charm Person and Disguise Self prepared'],
       levelAvailable: 1,
+      bonusSpells: ['Charm Person', 'Disguise Self'],
     },
     {
       name: 'War Domain',
       description: 'War gods watch over warriors and reward them for great deeds of valor.',
-      features: ['War Priest: Bonus action weapon attack, uses = WIS mod per long rest'],
+      features: ['War Priest: Bonus action weapon attack, uses = WIS mod per long rest', 'Domain Spells: Always have Divine Favor and Shield of Faith prepared'],
       levelAvailable: 1,
+      bonusSpells: ['Divine Favor', 'Shield of Faith'],
     },
   ],
   druid: [
     {
       name: 'Circle of the Land',
       description: 'Druids of this circle are mystics and sages who safeguard ancient knowledge and rites.',
-      features: ['Natural Recovery: Recover spell slots during short rest'],
+      features: ['Natural Recovery: Recover spell slots during short rest', 'Circle Spells: Learn bonus spells based on chosen land'],
       levelAvailable: 3,
+      choices: [{
+        id: 'land-type',
+        name: 'Land Type',
+        description: 'Choose the type of land that you have a mystical connection to. You always have the associated spells prepared.',
+        count: 1,
+        options: [
+          { id: 'arid', name: 'Arid Land', description: 'Blur, Burning Hands, Fire Bolt. At higher levels: Fireball, Fire Shield, Wall of Stone.' },
+          { id: 'polar', name: 'Polar Land', description: 'Fog Cloud, Hold Person, Ray of Frost. At higher levels: Sleet Storm, Ice Storm, Cone of Cold.' },
+          { id: 'temperate', name: 'Temperate Land', description: 'Misty Step, Shocking Grasp, Sleep. At higher levels: Lightning Bolt, Freedom of Movement, Tree Stride.' },
+          { id: 'tropical', name: 'Tropical Land', description: 'Acid Splash, Entangle, Web. At higher levels: Gaseous Form, Polymorph, Insect Plague.' },
+        ],
+      }],
     },
     {
       name: 'Circle of the Moon',
@@ -171,6 +226,34 @@ export const CLASS_SUBCLASSES: Record<CharacterClass, SubclassInfo[]> = {
       description: 'Battle Masters are supreme martial tacticians on the battlefield.',
       features: ['Combat Superiority: Learn 3 maneuvers, gain 4 superiority dice (d8)'],
       levelAvailable: 3,
+      choices: [{
+        id: 'maneuvers',
+        name: 'Maneuvers',
+        description: 'Choose 3 maneuvers from the list below. You can use a maneuver by expending one superiority die.',
+        count: 3,
+        options: [
+          { id: 'ambush', name: 'Ambush', description: 'Add superiority die to Stealth check or initiative roll.' },
+          { id: 'bait-and-switch', name: 'Bait and Switch', description: 'Switch places with willing ally within 5 ft. One of you gains AC bonus equal to superiority die until start of your next turn.' },
+          { id: 'commanders-strike', name: "Commander's Strike", description: 'Forgo one attack to direct an ally to strike. Ally uses reaction to make weapon attack, adding superiority die to damage.' },
+          { id: 'commanding-presence', name: 'Commanding Presence', description: 'Add superiority die to Intimidation, Performance, or Persuasion check.' },
+          { id: 'disarming-attack', name: 'Disarming Attack', description: 'Add superiority die to damage. Target must succeed STR save or drop held object.' },
+          { id: 'distracting-strike', name: 'Distracting Strike', description: 'Add superiority die to damage. Next attack against target by ally has advantage until start of your next turn.' },
+          { id: 'evasive-footwork', name: 'Evasive Footwork', description: 'When you move, add superiority die to AC until you stop moving.' },
+          { id: 'feinting-attack', name: 'Feinting Attack', description: 'Bonus action to feint. Gain advantage on next attack and add superiority die to damage.' },
+          { id: 'goading-attack', name: 'Goading Attack', description: 'Add superiority die to damage. Target must succeed WIS save or have disadvantage on attacks against others.' },
+          { id: 'lunging-attack', name: 'Lunging Attack', description: 'Increase reach by 5 ft for one attack, add superiority die to damage.' },
+          { id: 'maneuvering-attack', name: 'Maneuvering Attack', description: 'Add superiority die to damage. Ally can use reaction to move half speed without provoking opportunity attacks.' },
+          { id: 'menacing-attack', name: 'Menacing Attack', description: 'Add superiority die to damage. Target must succeed WIS save or be frightened until end of your next turn.' },
+          { id: 'parry', name: 'Parry', description: 'When hit by melee attack, use reaction to reduce damage by superiority die + DEX mod.' },
+          { id: 'precision-attack', name: 'Precision Attack', description: 'Add superiority die to attack roll (can be used after roll, before result is known).' },
+          { id: 'pushing-attack', name: 'Pushing Attack', description: 'Add superiority die to damage. Target must succeed STR save or be pushed up to 15 ft.' },
+          { id: 'rally', name: 'Rally', description: 'Bonus action to bolster ally. They gain temp HP equal to superiority die + CHA mod.' },
+          { id: 'riposte', name: 'Riposte', description: 'When creature misses you with melee attack, use reaction to make melee attack, adding superiority die to damage.' },
+          { id: 'sweeping-attack', name: 'Sweeping Attack', description: 'When you hit, you can deal superiority die damage to another creature within 5 ft of original target.' },
+          { id: 'tactical-assessment', name: 'Tactical Assessment', description: 'Add superiority die to History, Insight, or Investigation check.' },
+          { id: 'trip-attack', name: 'Trip Attack', description: 'Add superiority die to damage. Target must succeed STR save or be knocked prone.' },
+        ],
+      }],
     },
     {
       name: 'Champion',
@@ -221,26 +304,30 @@ export const CLASS_SUBCLASSES: Record<CharacterClass, SubclassInfo[]> = {
     {
       name: 'Oath of Devotion',
       description: 'The Oath of Devotion binds a paladin to the loftiest ideals of justice and virtue.',
-      features: ['Sacred Weapon: Channel Divinity to add CHA to attacks for 10 minutes'],
+      features: ['Sacred Weapon: Channel Divinity to add CHA to attacks for 10 minutes', 'Oath Spells: Always have Protection from Evil and Sanctuary prepared'],
       levelAvailable: 3,
+      bonusSpells: ['Protection from Evil and Good', 'Sanctuary'],
     },
     {
       name: 'Oath of Glory',
       description: 'Paladins who take this oath believe they are destined for glory through heroic deeds.',
-      features: ['Peerless Athlete: Channel Divinity for advantage on Athletics and Acrobatics, extra carrying'],
+      features: ['Peerless Athlete: Channel Divinity for advantage on Athletics and Acrobatics, extra carrying', 'Oath Spells: Always have Guiding Bolt and Heroism prepared'],
       levelAvailable: 3,
+      bonusSpells: ['Guiding Bolt', 'Heroism'],
     },
     {
       name: 'Oath of the Ancients',
       description: 'The Oath of the Ancients is as old as the fey and the forces of nature.',
-      features: ['Nature\'s Wrath: Channel Divinity to restrain creature with spectral vines'],
+      features: ['Nature\'s Wrath: Channel Divinity to restrain creature with spectral vines', 'Oath Spells: Always have Ensnaring Strike and Speak with Animals prepared'],
       levelAvailable: 3,
+      bonusSpells: ['Ensnaring Strike', 'Speak with Animals'],
     },
     {
       name: 'Oath of Vengeance',
       description: 'The Oath of Vengeance is a solemn commitment to punish those who have committed grievous sins.',
-      features: ['Vow of Enmity: Channel Divinity for advantage on attacks against one creature'],
+      features: ['Vow of Enmity: Channel Divinity for advantage on attacks against one creature', 'Oath Spells: Always have Bane and Hunter\'s Mark prepared'],
       levelAvailable: 3,
+      bonusSpells: ['Bane', "Hunter's Mark"],
     },
   ],
   ranger: [
@@ -249,24 +336,48 @@ export const CLASS_SUBCLASSES: Record<CharacterClass, SubclassInfo[]> = {
       description: 'Rangers who emulate this archetype form a bond with a beast companion.',
       features: ['Primal Companion: Gain a beast companion that obeys your commands'],
       levelAvailable: 3,
+      choices: [{
+        id: 'beast-type',
+        name: 'Primal Companion',
+        description: 'Choose the form of your beast companion.',
+        count: 1,
+        options: [
+          { id: 'beast-of-land', name: 'Beast of the Land', description: 'A nimble beast with high movement speed and the ability to charge enemies.' },
+          { id: 'beast-of-sea', name: 'Beast of the Sea', description: 'An aquatic beast with swim speed and the ability to knock enemies prone.' },
+          { id: 'beast-of-sky', name: 'Beast of the Sky', description: 'A flying beast that can assist allies and flyby attack enemies.' },
+        ],
+      }],
     },
     {
       name: 'Fey Wanderer',
       description: 'A feywild bargain or brush with its wonders has transformed you.',
-      features: ['Dreadful Strikes: Add WIS mod psychic damage once per turn to weapon attacks'],
+      features: ['Dreadful Strikes: Add WIS mod psychic damage once per turn to weapon attacks', 'Subclass Spells: Charm Person always prepared'],
       levelAvailable: 3,
+      bonusSpells: ['Charm Person'],
     },
     {
       name: 'Gloom Stalker',
       description: 'Gloom Stalkers are at home in the darkest places.',
-      features: ['Dread Ambusher: Extra attack on first turn, +WIS to initiative'],
+      features: ['Dread Ambusher: Extra attack on first turn, +WIS to initiative', 'Subclass Spells: Disguise Self always prepared'],
       levelAvailable: 3,
+      bonusSpells: ['Disguise Self'],
     },
     {
       name: 'Hunter',
       description: 'Hunters accept their place as a bulwark between civilization and the terrors of the wilderness.',
-      features: ['Hunter\'s Prey: Choose Colossus Slayer, Horde Breaker, or Giant Killer'],
+      features: ['Hunter\'s Prey: Special abilities against your chosen prey type'],
       levelAvailable: 3,
+      choices: [{
+        id: 'hunters-prey',
+        name: "Hunter's Prey",
+        description: 'Choose a specialty that defines how you hunt your prey.',
+        count: 1,
+        options: [
+          { id: 'colossus-slayer', name: 'Colossus Slayer', description: 'Once per turn, deal extra 1d8 damage to a creature below its HP maximum.' },
+          { id: 'horde-breaker', name: 'Horde Breaker', description: 'Once per turn, make a second attack against a different creature within 5 ft of the first.' },
+          { id: 'giant-killer', name: 'Giant Killer', description: 'Reaction attack when a Large or larger creature within 5 ft hits or misses you.' },
+        ],
+      }],
     },
   ],
   rogue: [
@@ -325,26 +436,30 @@ export const CLASS_SUBCLASSES: Record<CharacterClass, SubclassInfo[]> = {
     {
       name: 'Archfey Patron',
       description: 'Your patron is a lord or lady of the fey.',
-      features: ['Fey Presence: Charm or frighten creatures in 10-ft cube as action'],
+      features: ['Fey Presence: Charm or frighten creatures in 10-ft cube as action', 'Patron Spells: Always have Faerie Fire and Sleep prepared'],
       levelAvailable: 1,
+      bonusSpells: ['Faerie Fire', 'Sleep'],
     },
     {
       name: 'Celestial Patron',
       description: 'Your patron is a being of the Upper Planes.',
-      features: ['Healing Light: Pool of d6s equal to 1 + warlock level, bonus action heal'],
+      features: ['Healing Light: Pool of d6s equal to 1 + warlock level, bonus action heal', 'Patron Spells: Always have Cure Wounds and Guiding Bolt prepared'],
       levelAvailable: 1,
+      bonusSpells: ['Cure Wounds', 'Guiding Bolt'],
     },
     {
       name: 'Fiend Patron',
       description: 'You have made a pact with a fiend from the lower planes.',
-      features: ['Dark One\'s Blessing: Gain temp HP = CHA mod + warlock level on killing hostile'],
+      features: ['Dark One\'s Blessing: Gain temp HP = CHA mod + warlock level on killing hostile', 'Patron Spells: Always have Burning Hands and Command prepared'],
       levelAvailable: 1,
+      bonusSpells: ['Burning Hands', 'Command'],
     },
     {
       name: 'Great Old One Patron',
       description: 'Your patron is a mysterious entity from the Far Realm.',
-      features: ['Awakened Mind: Telepathic communication within 30 ft'],
+      features: ['Awakened Mind: Telepathic communication within 30 ft', 'Patron Spells: Always have Dissonant Whispers and Tasha\'s Hideous Laughter prepared'],
       levelAvailable: 1,
+      bonusSpells: ['Dissonant Whispers', "Tasha's Hideous Laughter"],
     },
   ],
   wizard: [

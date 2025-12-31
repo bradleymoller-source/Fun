@@ -8,7 +8,11 @@ import {
   getAbilityModifier,
   formatModifier,
   getProficiencyBonus,
+  SPELL_SLOTS_BY_LEVEL,
+  HALF_CASTER_SPELL_SLOTS,
+  WARLOCK_SPELL_SLOTS,
 } from '../data/dndData';
+import type { CharacterClass } from '../types';
 
 // Condition display info
 const CONDITION_INFO: Record<Condition, { icon: string; color: string; short: string }> = {
@@ -59,6 +63,39 @@ export function PartyDashboard({
     if (percent > 25) return 'bg-yellow-500';
     if (percent > 0) return 'bg-red-500';
     return 'bg-gray-500';
+  };
+
+  // Get spell slots for a character
+  const getSpellSlots = (character: Character): number[] => {
+    if (character.spellcasting?.spellSlots) {
+      return character.spellcasting.spellSlots;
+    }
+    const fullCasters: CharacterClass[] = ['bard', 'cleric', 'druid', 'sorcerer', 'wizard'];
+    if (fullCasters.includes(character.characterClass)) {
+      return SPELL_SLOTS_BY_LEVEL[character.level] || [];
+    }
+    const halfCasters: CharacterClass[] = ['paladin', 'ranger'];
+    if (halfCasters.includes(character.characterClass)) {
+      return HALF_CASTER_SPELL_SLOTS[character.level] || [];
+    }
+    if (character.characterClass === 'warlock') {
+      const warlockSlots = WARLOCK_SPELL_SLOTS[character.level];
+      if (warlockSlots) {
+        const slots = new Array(9).fill(0);
+        slots[warlockSlots.level - 1] = warlockSlots.slots;
+        return slots;
+      }
+    }
+    return [];
+  };
+
+  // Get total remaining spell slots
+  const getRemainingSlots = (character: Character): { used: number; total: number } => {
+    const slots = getSpellSlots(character);
+    const slotsUsed = character.spellSlotsUsed || character.spellcasting?.spellSlotsUsed || new Array(9).fill(0);
+    const total = slots.reduce((sum, s) => sum + s, 0);
+    const used = slotsUsed.reduce((sum: number, u: number) => sum + u, 0);
+    return { used, total };
   };
 
   // Find token for a character
@@ -183,12 +220,27 @@ export function PartyDashboard({
               <div className="mt-2">
                 <div className="flex items-center justify-between text-xs mb-1">
                   <span className="text-parchment/70">HP</span>
-                  <span className={character.currentHitPoints <= 0 ? 'text-red-400' : 'text-parchment'}>
-                    {character.currentHitPoints}/{character.maxHitPoints}
-                    {character.temporaryHitPoints > 0 && (
-                      <span className="text-cyan-400"> (+{character.temporaryHitPoints})</span>
-                    )}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {/* Spell Slots (if caster) */}
+                    {(() => {
+                      const slotInfo = getRemainingSlots(character);
+                      if (slotInfo.total > 0) {
+                        const remaining = slotInfo.total - slotInfo.used;
+                        return (
+                          <span className="text-blue-400 text-[10px]" title={`${remaining}/${slotInfo.total} spell slots`}>
+                            🔮 {remaining}/{slotInfo.total}
+                          </span>
+                        );
+                      }
+                      return null;
+                    })()}
+                    <span className={character.currentHitPoints <= 0 ? 'text-red-400' : 'text-parchment'}>
+                      {character.currentHitPoints}/{character.maxHitPoints}
+                      {character.temporaryHitPoints > 0 && (
+                        <span className="text-cyan-400"> (+{character.temporaryHitPoints})</span>
+                      )}
+                    </span>
+                  </div>
                 </div>
                 <div className="h-2 bg-leather rounded-full overflow-hidden">
                   <div
@@ -220,46 +272,54 @@ export function PartyDashboard({
                 {/* Quick HP Controls */}
                 <div>
                   <div className="text-parchment/70 text-xs mb-1">Quick HP Adjust</div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      onClick={() => handleHpChange(character, -5)}
-                    >
-                      -5
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      onClick={() => handleHpChange(character, -1)}
-                    >
-                      -1
-                    </Button>
-                    <div className="flex-1 flex gap-1">
+                  <div className="flex flex-wrap items-center gap-1">
+                    <div className="flex gap-1">
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        onClick={() => handleHpChange(character, -5)}
+                        className="px-2"
+                      >
+                        -5
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        onClick={() => handleHpChange(character, -1)}
+                        className="px-2"
+                      >
+                        -1
+                      </Button>
+                    </div>
+                    <div className="flex gap-1 flex-1 min-w-[80px]">
                       <Input
                         type="number"
                         placeholder="+/-"
                         value={hpDelta[character.id] || ''}
                         onChange={(e) => setHpDelta(prev => ({ ...prev, [character.id]: e.target.value }))}
-                        className="text-xs text-center"
+                        className="text-xs text-center w-14"
                         onKeyDown={(e) => e.key === 'Enter' && applyHpDelta(character)}
                       />
-                      <Button size="sm" onClick={() => applyHpDelta(character)}>Go</Button>
+                      <Button size="sm" onClick={() => applyHpDelta(character)} className="px-2">Go</Button>
                     </div>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => handleHpChange(character, 1)}
-                    >
-                      +1
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => handleHpChange(character, 5)}
-                    >
-                      +5
-                    </Button>
+                    <div className="flex gap-1">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => handleHpChange(character, 1)}
+                        className="px-2"
+                      >
+                        +1
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => handleHpChange(character, 5)}
+                        className="px-2"
+                      >
+                        +5
+                      </Button>
+                    </div>
                   </div>
                 </div>
 
@@ -304,6 +364,43 @@ export function PartyDashboard({
                     <div className="text-gold font-bold">+{getProficiencyBonus(character.level)}</div>
                   </div>
                 </div>
+
+                {/* Spell Slots (if caster) */}
+                {(() => {
+                  const slots = getSpellSlots(character);
+                  const slotsUsed = character.spellSlotsUsed || character.spellcasting?.spellSlotsUsed || new Array(9).fill(0);
+                  const hasSlots = slots.some(s => s > 0);
+                  if (!hasSlots) return null;
+
+                  return (
+                    <div>
+                      <div className="text-parchment/70 text-xs mb-1">Spell Slots</div>
+                      <div className="flex flex-wrap gap-1">
+                        {slots.map((slotCount, idx) => {
+                          if (slotCount === 0) return null;
+                          const level = idx + 1;
+                          const used = slotsUsed[idx] || 0;
+                          const remaining = slotCount - used;
+                          return (
+                            <div key={idx} className="bg-leather/30 px-2 py-1 rounded text-center">
+                              <div className="text-parchment/50 text-[10px]">Lv{level}</div>
+                              <div className="flex gap-0.5 justify-center">
+                                {Array.from({ length: slotCount }).map((_, i) => (
+                                  <div
+                                    key={i}
+                                    className={`w-2 h-2 rounded-full ${
+                                      i < remaining ? 'bg-blue-500' : 'bg-leather'
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Ability Scores */}
                 <div className="grid grid-cols-6 gap-1 text-center text-xs">

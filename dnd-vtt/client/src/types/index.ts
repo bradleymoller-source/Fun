@@ -244,6 +244,7 @@ export interface Character {
   subspecies?: string;  // e.g., "High Elf", "Hill Dwarf"
   characterClass: CharacterClass;
   subclass?: string;
+  subclassChoices?: Record<string, string[]>;  // Map of choice ID to selected option IDs (e.g., { "maneuvers": ["riposte", "parry", "precision-attack"] })
   level: number;
   background: string;
   alignment?: string;

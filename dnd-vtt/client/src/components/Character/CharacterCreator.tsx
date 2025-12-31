@@ -77,6 +77,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
   const [subspecies, setSubspecies] = useState<string>('');
   const [characterClass, setCharacterClass] = useState<CharacterClass>('fighter');
   const [subclass, setSubclass] = useState<string>('');
+  const [subclassChoices, setSubclassChoices] = useState<Record<string, string[]>>({});
   const [background, setBackground] = useState('Soldier');
   const [alignment, setAlignment] = useState('True Neutral');
   const [level, setLevel] = useState(1);
@@ -179,6 +180,8 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     } else {
       setSubclass('');
     }
+    // Reset subclass choices when class changes
+    setSubclassChoices({});
   }, [characterClass]);
 
   // Reset rolled HP when class changes
@@ -806,6 +809,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       species,
       characterClass,
       subclass: subclass || undefined,
+      subclassChoices: Object.keys(subclassChoices).length > 0 ? subclassChoices : undefined,
       level: charLevel,
       background,
       alignment,
@@ -1014,7 +1018,10 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
         </label>
         <select
           value={subclass}
-          onChange={(e) => setSubclass(e.target.value)}
+          onChange={(e) => {
+            setSubclass(e.target.value);
+            setSubclassChoices({}); // Reset choices when subclass changes
+          }}
           disabled={!hasLevel1Subclass(characterClass) && level < 3}
           className="w-full bg-parchment text-dark-wood px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-gold disabled:opacity-50"
         >
@@ -1038,6 +1045,67 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
                 <p key={i} className="text-gold/80 text-xs">• {f}</p>
               ))}
             </div>
+            {/* Subclass Choices */}
+            {CLASS_SUBCLASSES[characterClass].find(sc => sc.name === subclass)?.choices?.map(choice => {
+              const selectedOptions = subclassChoices[choice.id] || [];
+              const isComplete = selectedOptions.length === choice.count;
+
+              const toggleOption = (optionId: string) => {
+                const current = subclassChoices[choice.id] || [];
+                if (current.includes(optionId)) {
+                  // Remove
+                  setSubclassChoices({ ...subclassChoices, [choice.id]: current.filter(id => id !== optionId) });
+                } else if (current.length < choice.count) {
+                  // Add (only if we haven't reached the max)
+                  setSubclassChoices({ ...subclassChoices, [choice.id]: [...current, optionId] });
+                }
+              };
+
+              return (
+                <div key={choice.id} className="mt-3 p-2 bg-dark-wood border border-gold/30 rounded">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-gold font-bold text-sm">{choice.name}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded ${isComplete ? 'bg-green-600/80 text-white' : 'bg-leather text-parchment/70'}`}>
+                      {selectedOptions.length}/{choice.count}
+                    </span>
+                  </div>
+                  <p className="text-parchment/60 text-xs mb-2">{choice.description}</p>
+                  <div className="space-y-1 max-h-48 overflow-y-auto">
+                    {choice.options.map(option => {
+                      const isSelected = selectedOptions.includes(option.id);
+                      const isDisabled = !isSelected && selectedOptions.length >= choice.count;
+
+                      return (
+                        <button
+                          key={option.id}
+                          onClick={() => toggleOption(option.id)}
+                          disabled={isDisabled}
+                          className={`w-full text-left p-2 rounded text-xs transition-colors ${
+                            isSelected
+                              ? 'bg-gold/30 border border-gold text-parchment'
+                              : isDisabled
+                              ? 'bg-leather/20 text-parchment/40 cursor-not-allowed'
+                              : 'bg-leather/30 hover:bg-leather/50 text-parchment/80 border border-transparent'
+                          }`}
+                        >
+                          <div className="font-semibold">{isSelected ? '✓ ' : ''}{option.name}</div>
+                          <div className="text-parchment/60 mt-0.5">{option.description}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+            {/* Bonus Spells */}
+            {CLASS_SUBCLASSES[characterClass].find(sc => sc.name === subclass)?.bonusSpells && (
+              <div className="mt-2 p-2 bg-blue-900/30 border border-blue-500/30 rounded">
+                <span className="text-blue-400 text-xs font-semibold">Bonus Spells: </span>
+                <span className="text-parchment/80 text-xs">
+                  {CLASS_SUBCLASSES[characterClass].find(sc => sc.name === subclass)?.bonusSpells?.join(', ')}
+                </span>
+              </div>
+            )}
           </>
         )}
       </div>
@@ -1869,6 +1937,26 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
             )}
             <p className="text-parchment/70 text-sm">{background} • {alignment}</p>
           </div>
+
+          {/* Subclass Choices Display */}
+          {subclass && Object.keys(subclassChoices).length > 0 && (
+            <div className="bg-gold/10 p-2 rounded border border-gold/30">
+              {CLASS_SUBCLASSES[characterClass].find(sc => sc.name === subclass)?.choices?.map(choice => {
+                const selected = subclassChoices[choice.id] || [];
+                if (selected.length === 0) return null;
+                return (
+                  <div key={choice.id} className="mb-1 last:mb-0">
+                    <span className="text-gold text-xs font-semibold">{choice.name}: </span>
+                    <span className="text-parchment text-xs">
+                      {selected.map(optionId =>
+                        choice.options.find(o => o.id === optionId)?.name
+                      ).filter(Boolean).join(', ')}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           <div className="grid grid-cols-4 gap-2 text-center">
             <div className="bg-leather/50 p-2 rounded">
