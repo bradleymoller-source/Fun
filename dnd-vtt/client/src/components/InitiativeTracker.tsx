@@ -104,22 +104,6 @@ export function InitiativeTracker({
     setNewMaxHp('');
   };
 
-  // Handle HP change (damage or heal)
-  const handleHpChange = (entryId: string, isDamage: boolean) => {
-    const delta = parseInt(hpDelta[entryId] || '0', 10);
-    if (isNaN(delta) || delta <= 0) return;
-
-    const entry = initiative.find(e => e.id === entryId);
-    if (!entry || entry.currentHp === undefined) return;
-
-    const newHp = isDamage
-      ? Math.max(0, entry.currentHp - delta)
-      : Math.min(entry.maxHp || entry.currentHp + delta, entry.currentHp + delta);
-
-    onUpdateEntry(entryId, { currentHp: newHp });
-    setHpDelta(prev => ({ ...prev, [entryId]: '' }));
-  };
-
   // Toggle a condition on an entry
   const handleToggleCondition = (entryId: string, condition: Condition) => {
     const entry = initiative.find(e => e.id === entryId);
@@ -312,46 +296,160 @@ export function InitiativeTracker({
                 {/* HP Bar and Controls (if HP is set) */}
                 {hpPercent !== null && (
                   <div className="mt-2">
-                    {/* HP Bar */}
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className="flex-1 h-3 bg-gray-700 rounded overflow-hidden">
+                    {/* HP Bar with +/- buttons */}
+                    <div className="flex items-center gap-1">
+                      {/* Minus button (damage) */}
+                      {isDm && (
+                        <button
+                          onClick={() => {
+                            const delta = parseInt(hpDelta[entry.id] || '1', 10);
+                            if (!isNaN(delta) && delta > 0 && entry.currentHp !== undefined) {
+                              onUpdateEntry(entry.id, { currentHp: Math.max(0, entry.currentHp - delta) });
+                              setHpDelta(prev => ({ ...prev, [entry.id]: '' }));
+                            }
+                          }}
+                          className="w-6 h-6 flex items-center justify-center text-sm bg-red-600 text-white rounded hover:bg-red-500 font-bold"
+                          title="Deal damage"
+                        >
+                          −
+                        </button>
+                      )}
+
+                      {/* HP Bar */}
+                      <div className="flex-1 h-4 bg-gray-700 rounded overflow-hidden relative">
                         <div
                           className={`h-full transition-all ${
                             hpPercent > 0.5 ? 'bg-green-500' : hpPercent > 0.25 ? 'bg-yellow-500' : 'bg-red-500'
                           }`}
                           style={{ width: `${hpPercent * 100}%` }}
                         />
+                        <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">
+                          {entry.currentHp}/{entry.maxHp}
+                        </span>
                       </div>
-                      <span className="text-parchment text-xs w-16 text-right">
-                        {entry.currentHp}/{entry.maxHp}
-                      </span>
-                    </div>
 
-                    {/* Damage/Heal Controls (DM only) */}
-                    {isDm && (
-                      <div className="flex items-center gap-1">
-                        <input
-                          type="number"
-                          placeholder="±"
-                          value={hpDelta[entry.id] || ''}
-                          onChange={(e) => setHpDelta(prev => ({ ...prev, [entry.id]: e.target.value }))}
-                          className="w-12 px-1 py-0.5 text-xs bg-parchment text-dark-wood rounded text-center"
-                          min="1"
-                        />
+                      {/* Plus button (heal) */}
+                      {isDm && (
                         <button
-                          onClick={() => handleHpChange(entry.id, true)}
-                          className="px-2 py-0.5 text-xs bg-red-600 text-white rounded hover:bg-red-500"
-                          title="Deal damage"
-                        >
-                          Dmg
-                        </button>
-                        <button
-                          onClick={() => handleHpChange(entry.id, false)}
-                          className="px-2 py-0.5 text-xs bg-green-600 text-white rounded hover:bg-green-500"
+                          onClick={() => {
+                            const delta = parseInt(hpDelta[entry.id] || '1', 10);
+                            if (!isNaN(delta) && delta > 0 && entry.currentHp !== undefined) {
+                              onUpdateEntry(entry.id, { currentHp: Math.min(entry.maxHp || 999, entry.currentHp + delta) });
+                              setHpDelta(prev => ({ ...prev, [entry.id]: '' }));
+                            }
+                          }}
+                          className="w-6 h-6 flex items-center justify-center text-sm bg-green-600 text-white rounded hover:bg-green-500 font-bold"
                           title="Heal"
                         >
-                          Heal
+                          +
                         </button>
+                      )}
+
+                      {/* HP delta input */}
+                      {isDm && (
+                        <input
+                          type="number"
+                          placeholder="1"
+                          value={hpDelta[entry.id] || ''}
+                          onChange={(e) => setHpDelta(prev => ({ ...prev, [entry.id]: e.target.value }))}
+                          className="w-10 px-1 py-0.5 text-xs bg-parchment text-dark-wood rounded text-center"
+                          min="1"
+                        />
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Monster Stats (if available) */}
+                {entry.monsterStats && (
+                  <div className="mt-2 p-2 bg-leather/20 rounded border border-leather/50 text-xs space-y-1">
+                    {/* AC and Speed */}
+                    <div className="flex gap-3 text-parchment/80">
+                      {entry.monsterStats.ac && (
+                        <span>
+                          <span className="text-parchment/50">AC:</span>{' '}
+                          <span className="text-white font-bold">{entry.monsterStats.ac}</span>
+                          {entry.monsterStats.acType && <span className="text-parchment/40"> ({entry.monsterStats.acType})</span>}
+                        </span>
+                      )}
+                      {entry.monsterStats.speed && (
+                        <span>
+                          <span className="text-parchment/50">Speed:</span> {entry.monsterStats.speed}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Attacks */}
+                    {entry.monsterStats.attacks && entry.monsterStats.attacks.length > 0 && (
+                      <div className="border-t border-leather/30 pt-1">
+                        <span className="text-red-400 font-bold">Attacks:</span>
+                        {entry.monsterStats.attacks.map((attack, idx) => (
+                          <div key={idx} className="ml-2 text-parchment/80">
+                            <span className="text-white">{attack.name}</span>
+                            {': '}
+                            <span className="text-yellow-400">+{attack.bonus}</span>
+                            {' to hit, '}
+                            <span className="text-red-300">{attack.damage}</span>
+                            {' '}{attack.damageType}
+                            {attack.notes && <span className="text-parchment/50"> ({attack.notes})</span>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Spells */}
+                    {entry.monsterStats.spells && entry.monsterStats.spells.length > 0 && (
+                      <div className="border-t border-leather/30 pt-1">
+                        <span className="text-purple-400 font-bold">Spells:</span>
+                        {entry.monsterStats.spells.map((spell, idx) => (
+                          <div key={idx} className="ml-2 text-parchment/80">
+                            <span className="text-white">{spell.name}</span>
+                            {spell.level > 0 && <span className="text-parchment/40"> (Lvl {spell.level})</span>}
+                            {spell.damage && <span className="text-purple-300">: {spell.damage}</span>}
+                            {spell.effect && <span>: {spell.effect}</span>}
+                            {spell.save && <span className="text-yellow-400"> {spell.save}</span>}
+                            {spell.attack && <span className="text-yellow-400"> {spell.attack}</span>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Traits */}
+                    {entry.monsterStats.traits && entry.monsterStats.traits.length > 0 && (
+                      <div className="border-t border-leather/30 pt-1">
+                        <span className="text-blue-400 font-bold">Traits:</span>
+                        {entry.monsterStats.traits.map((trait, idx) => (
+                          <div key={idx} className="ml-2 text-parchment/80">
+                            <span className="text-white">{trait.name}:</span> {trait.description}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Resistances/Immunities */}
+                    {((entry.monsterStats.resistances && entry.monsterStats.resistances.length > 0) ||
+                      (entry.monsterStats.immunities && entry.monsterStats.immunities.length > 0)) && (
+                      <div className="border-t border-leather/30 pt-1 text-parchment/60">
+                        {entry.monsterStats.resistances && entry.monsterStats.resistances.length > 0 && (
+                          <div><span className="text-orange-400">Resist:</span> {entry.monsterStats.resistances.join(', ')}</div>
+                        )}
+                        {entry.monsterStats.immunities && entry.monsterStats.immunities.length > 0 && (
+                          <div><span className="text-cyan-400">Immune:</span> {entry.monsterStats.immunities.join(', ')}</div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Legendary Actions */}
+                    {entry.monsterStats.legendaryActions && entry.monsterStats.legendaryActions.length > 0 && (
+                      <div className="border-t border-leather/30 pt-1">
+                        <span className="text-gold font-bold">Legendary Actions ({entry.monsterStats.legendaryActionCount || 3}/round):</span>
+                        {entry.monsterStats.legendaryActions.map((la, idx) => (
+                          <div key={idx} className="ml-2 text-parchment/80">
+                            <span className="text-gold">{la.name}</span>
+                            {la.cost > 1 && <span className="text-parchment/50"> (Cost {la.cost})</span>}
+                            {': '}{la.description}
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>

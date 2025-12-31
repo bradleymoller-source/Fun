@@ -86,6 +86,67 @@ export interface ChatMessage {
 }
 
 // Phase 3: Initiative Tracker
+
+// Monster attack for initiative tracker
+export interface MonsterAttack {
+  name: string;
+  type: 'melee' | 'ranged' | 'melee spell' | 'ranged spell';
+  bonus: number;
+  reach?: string;
+  range?: string;
+  damage: string;
+  damageType: string;
+  notes?: string;
+}
+
+// Monster spell for initiative tracker
+export interface MonsterSpell {
+  name: string;
+  level: number;
+  damage?: string;
+  effect?: string;
+  save?: string;
+  attack?: string;
+  range?: string;
+  slots?: number;
+  concentration?: boolean;
+}
+
+// Monster trait for initiative tracker
+export interface MonsterTrait {
+  name: string;
+  description: string;
+}
+
+// Full monster stats for initiative tracker
+export interface MonsterStats {
+  cr?: string;
+  ac?: number;
+  acType?: string;
+  speed?: string;
+  size?: string;
+  type?: string;
+  abilities?: {
+    str: number;
+    dex: number;
+    con: number;
+    int: number;
+    wis: number;
+    cha: number;
+  };
+  attacks?: MonsterAttack[];
+  spells?: MonsterSpell[];
+  traits?: MonsterTrait[];
+  resistances?: string[];
+  immunities?: string[];
+  savingThrows?: string[];
+  skills?: string[];
+  senses?: string;
+  languages?: string;
+  legendaryActions?: { name: string; cost: number; description: string }[];
+  legendaryActionCount?: number;
+}
+
 export interface InitiativeEntry {
   id: string;
   name: string;
@@ -98,6 +159,8 @@ export interface InitiativeEntry {
   maxHp?: number;
   currentHp?: number;
   conditions?: Condition[];
+  // Monster stats (from campaign generator)
+  monsterStats?: MonsterStats;
 }
 
 // ============ PHASE 4: CHARACTER SHEET ============

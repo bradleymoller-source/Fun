@@ -335,6 +335,28 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
           conditions: [],
         });
 
+        // Build monster stats object for initiative tracker
+        const monsterStats = {
+          cr: monster.cr,
+          ac: monster.ac,
+          acType: monster.acType,
+          speed: monster.speed,
+          size: monster.size,
+          type: monster.type,
+          abilities: monster.abilities,
+          attacks: monster.attacks,
+          spells: monster.spells,
+          traits: monster.traits,
+          resistances: monster.resistances,
+          immunities: monster.immunities,
+          savingThrows: monster.savingThrows,
+          skills: monster.skills,
+          senses: monster.senses,
+          languages: monster.languages,
+          legendaryActions: monster.legendaryActions,
+          legendaryActionCount: monster.legendaryActionCount,
+        };
+
         // Roll initiative using the monster's initiative modifier
         const initiativeRoll = rollD20() + initMod;
         addInitiativeEntry({
@@ -347,6 +369,7 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
           maxHp: monster.hp || 20,
           currentHp: monster.hp || 20,
           conditions: [],
+          monsterStats,
         });
 
         tokenIndex++;
