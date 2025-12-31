@@ -101,7 +101,7 @@ export async function generateCampaign(req: Request, res: Response) {
 
     let model;
     try {
-      model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      model = genAI.getGenerativeModel({ model: 'gemini-pro' });
     } catch (modelError) {
       console.error('Failed to get Gemini model:', modelError);
       return res.status(500).json({
@@ -230,7 +230,7 @@ Ensure rooms connect logically and don't overlap. Place entrance at edge.
 Use grid coordinates (0-19 for x and y).`;
 
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
     const result = await model.generateContent(prompt);
     const text = result.response.text();
 
@@ -440,7 +440,7 @@ Current map: ${JSON.stringify(dungeonMap)}
 Return the enhanced map as JSON with better room names, descriptions, and features. Keep the same structure.`;
 
       try {
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
         const result = await model.generateContent(prompt);
         const text = result.response.text();
 
@@ -491,7 +491,7 @@ Return ONLY valid JSON:
 
 Use only SRD monsters. Balance for the party.`;
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
     const result = await model.generateContent(prompt);
     const text = result.response.text();
 
