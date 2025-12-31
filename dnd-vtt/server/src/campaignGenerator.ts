@@ -701,18 +701,94 @@ Create an immersive adventure following these guidelines. Return ONLY valid JSON
 
     "keyNpcs": [
       {
-        "name": "NPC Name",
-        "role": "Innkeeper/Blacksmith/Priest/Local/etc.",
-        "location": "Where found",
-        "appearance": "Physical description",
-        "personality": "Demeanor and speech pattern",
+        "name": "Innkeeper Name",
+        "role": "Innkeeper",
+        "location": "The local tavern/inn",
+        "appearance": "Physical description with age, build, distinctive features",
+        "personality": "Friendly but business-minded, knows everyone's secrets",
+        "attitude": "friendly/neutral/suspicious toward strangers",
         "dialogue": {
-          "greeting": "How they greet strangers",
-          "gossip": "Local rumors they share",
-          "ifBribed": "What DC 12 Persuasion or 5gp reveals"
+          "greeting": "Welcome to [Inn Name]! What can I get you?",
+          "gossip": "Local rumors they share freely",
+          "ifBribed": "Juicier information for DC 12 Persuasion or 5gp"
         },
-        "keyInformation": ["Useful fact with DC if needed"],
-        "services": [{"item": "Service/Item", "cost": "Price"}]
+        "keyInformation": ["Rumor about the quest", "Warning about dangers"],
+        "services": [{"item": "Room", "cost": "5sp/night"}, {"item": "Meal", "cost": "2sp"}, {"item": "Ale", "cost": "4cp"}]
+      },
+      {
+        "name": "Blacksmith Name",
+        "role": "Blacksmith/Armorer",
+        "location": "The forge/smithy",
+        "appearance": "Strong build, burn scars, leather apron",
+        "personality": "Gruff but fair, respects warriors",
+        "attitude": "neutral - warms up if party shows respect for craft",
+        "dialogue": {
+          "greeting": "Looking to buy or sell?",
+          "gossip": "Talk of recent attacks, monster sightings",
+          "ifBribed": "Knows weak points of local creatures (grants advantage info)"
+        },
+        "keyInformation": ["Practical advice about local threats", "Knows the terrain"],
+        "services": [{"item": "Weapon repair", "cost": "varies"}, {"item": "Silvered weapon", "cost": "+100gp"}, {"item": "Custom armor fitting", "cost": "50gp"}]
+      },
+      {
+        "name": "Merchant Name",
+        "role": "Traveling Merchant/Shopkeeper",
+        "location": "Market square or general store",
+        "appearance": "Well-dressed, calculating eyes, jingling coin purse",
+        "personality": "Shrewd negotiator, always looking for opportunity",
+        "attitude": "friendly to customers, will haggle",
+        "dialogue": {
+          "greeting": "Ah, adventurers! You look like you could use supplies.",
+          "gossip": "Trade route news, economic gossip",
+          "ifBribed": "Knows black market contacts or rare item locations"
+        },
+        "keyInformation": ["Sells useful adventuring gear", "May buy unusual loot"],
+        "services": [{"item": "Adventuring gear", "cost": "PHB prices"}, {"item": "Potions", "cost": "50gp each"}, {"item": "Maps", "cost": "25gp"}]
+      },
+      {
+        "name": "Priest/Healer Name",
+        "role": "Temple Priest/Healer",
+        "location": "Local temple or shrine",
+        "appearance": "Robed, holy symbol, serene or troubled expression",
+        "personality": "Compassionate but concerned about recent events",
+        "attitude": "welcoming to those of good intent",
+        "dialogue": {
+          "greeting": "Blessings upon you, travelers. How may the [deity] help you?",
+          "gossip": "Spiritual concerns, omens, dreams",
+          "ifBribed": "Donations unlock blessings or prophecies"
+        },
+        "keyInformation": ["Knows about undead/fiends/celestials involved", "Can identify curses"],
+        "services": [{"item": "Cure Wounds", "cost": "10gp donation"}, {"item": "Lesser Restoration", "cost": "40gp donation"}, {"item": "Bless (1 hour)", "cost": "25gp donation"}]
+      },
+      {
+        "name": "Old Timer Name",
+        "role": "Elder/Retired Adventurer/Local Historian",
+        "location": "Tavern corner or town square bench",
+        "appearance": "Weathered, old scars or missing fingers, distant look in eyes",
+        "personality": "Nostalgic, loves to tell stories, surprisingly sharp",
+        "attitude": "friendly to those who listen",
+        "dialogue": {
+          "greeting": "Sit down, sit down. You remind me of myself, years ago...",
+          "gossip": "Ancient history of the area, old legends",
+          "ifBribed": "Buy them a drink and they'll share detailed knowledge (no gold needed, just time)"
+        },
+        "keyInformation": ["Knows the dungeon's history", "Remembers previous adventurers who tried", "Secret entrance or weakness"],
+        "services": []
+      },
+      {
+        "name": "Mysterious Stranger Name",
+        "role": "Enigmatic Figure/Potential Ally or Rival",
+        "location": "Shadows of the tavern or chance encounter",
+        "appearance": "Hooded, distinctive feature half-hidden, watching the party",
+        "personality": "Cryptic, testing, may have hidden agenda",
+        "attitude": "unknown - studying the party",
+        "dialogue": {
+          "greeting": "You seek [quest objective]. Interesting.",
+          "gossip": "Cryptic hints about what lies ahead",
+          "ifBribed": "Cannot be bribed - has own mysterious motives"
+        },
+        "keyInformation": ["Knows something crucial but shares it cryptically", "May appear again later"],
+        "services": []
       }
     ],
 
@@ -1025,15 +1101,16 @@ Create an immersive adventure following these guidelines. Return ONLY valid JSON
 CRITICAL REQUIREMENTS:
 1. ALL "readAloud" fields must be evocative prose with sensory details (sights, sounds, smells, textures, atmosphere)
 2. Include specific DC checks throughout (Perception, Investigation, Insight, Persuasion, etc.)
-3. NPCs need distinct personalities with actual dialogue lines, not just descriptions
-4. **ACT 2 MUST HAVE EXACTLY 3 COMBAT ENCOUNTERS** - an easy entry fight, medium mid-dungeon fight, and hard pre-boss fight
-5. Combat encounters need tactical depth - terrain, enemy tactics, dynamic elements
-6. Puzzles need multiple hint paths and clear solutions
-7. Use D&D 5e SRD monsters with appropriate CR for level ${request.partyLevel}
-8. Balance total XP for a party of ${request.partySize} level ${request.partyLevel} characters
-9. Include specific gold values and item names for all treasure
-10. Boss needs phases, dialogue, and a weakness clever players can exploit
-11. Ensure the adventure can be completed in approximately ${sessionHours} hours`;
+3. **CREATE AT LEAST 6 DISTINCT NPCs** in Act 1 - each with unique name, personality, dialogue, and purpose (innkeeper, blacksmith, merchant, priest, elder/historian, mysterious figure, etc.)
+4. NPCs need distinct personalities with actual dialogue lines and useful information/services
+5. **ACT 2 MUST HAVE EXACTLY 3 COMBAT ENCOUNTERS** - an easy entry fight, medium mid-dungeon fight, and hard pre-boss fight
+6. Combat encounters need tactical depth - terrain, enemy tactics, dynamic elements
+7. Puzzles need multiple hint paths and clear solutions
+8. Use D&D 5e SRD monsters with appropriate CR for level ${request.partyLevel}
+9. Balance total XP for a party of ${request.partySize} level ${request.partyLevel} characters
+10. Include specific gold values and item names for all treasure
+11. Boss needs phases, dialogue, and a weakness clever players can exploit
+12. Ensure the adventure can be completed in approximately ${sessionHours} hours`;
 }
 
 // Generate just a dungeon map
