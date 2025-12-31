@@ -359,166 +359,111 @@ Campaign Request:
 - Setting: ${request.setting}
 - Party Level: ${request.partyLevel}
 - Party Size: ${request.partySize}
-- Number of Sessions/Acts: ${request.sessionCount || 3}
+- Number of Sessions: ${request.sessionCount || 4}
 - Tone: ${request.tone || 'serious'}
 
-Create an immersive, narrative-rich campaign with READ-ALOUD TEXT, detailed NPCs, puzzles, and tactical combat encounters.
-
-Return ONLY valid JSON with this structure:
+Create an immersive, narrative-rich campaign. Return ONLY valid JSON with this EXACT structure:
 
 \`\`\`json
 {
   "title": "Evocative Campaign Title",
-  "synopsis": "3-4 sentence dramatic overview setting the stakes",
-  "hook": "Compelling reason the party gets involved",
-  "estimatedDuration": "Total estimated play time (e.g., '4-6 hours')",
-  "acts": [
-    {
-      "number": 1,
-      "title": "Act Title",
-      "estimatedDuration": "90-120 min",
-      "summary": "What happens in this act",
-      "settingTheScene": {
-        "readAloud": "2-3 paragraphs of atmospheric boxed text for the DM to read aloud to players. Describe sights, sounds, smells. Set the mood. This should be evocative prose.",
-        "dmNotes": "Behind-the-screen notes about what's really happening"
-      },
-      "keyNpcs": [
-        {
-          "name": "Full NPC Name",
-          "role": "Quest Giver / Ally / Villain / Information",
-          "appearance": "Detailed physical description (age, clothing, distinguishing features)",
-          "personality": "How they act, speak, their mannerisms",
-          "keyInformation": [
-            "Important fact with DC check if needed (e.g., 'DC 15 Persuasion reveals...')",
-            "Another key piece of information",
-            "Quest-relevant detail with game mechanics"
-          ],
-          "secret": "What they're hiding (if anything)"
-        }
-      ],
-      "services": [
-        {"item": "Healing Potion (2d4+2)", "cost": "50gp"},
-        {"item": "Holy Water (vial)", "cost": "25gp"}
-      ],
-      "objectives": ["Primary goal", "Optional secondary goal"],
-      "transitionText": "Read-aloud text bridging to the next act or location"
-    }
-  ],
-  "encounters": [
-    {
-      "name": "Encounter Name",
-      "act": 1,
-      "type": "combat",
-      "readAloud": "Boxed text describing what players see as combat begins",
-      "setup": "Tactical situation - where enemies are positioned, terrain features",
-      "enemies": [
-        {"name": "Monster Name", "count": 2, "cr": "1/2", "hp": 22, "ac": 13, "tactics": "How this enemy fights"}
-      ],
-      "difficulty": "medium",
-      "terrain": ["Difficult terrain areas", "Cover positions", "Environmental hazards"],
-      "dynamicElements": "What changes during the fight (reinforcements, collapse, etc.)",
-      "rewards": {"xp": 200, "gold": "2d10 gp", "items": ["Specific loot items"]}
-    },
-    {
-      "name": "Puzzle Name",
-      "act": 2,
-      "type": "puzzle",
-      "readAloud": "Description of the puzzle as players encounter it",
-      "mechanics": "How the puzzle works mechanically",
-      "hints": ["Hint 1 (DC 12 Investigation)", "Hint 2 (DC 15 Arcana)"],
-      "solution": "The actual solution",
-      "consequences": {
-        "success": "What happens on success",
-        "failure": "What happens on failure (trap, combat, etc.)"
-      }
-    }
-  ],
+  "synopsis": "3-4 sentence dramatic overview with vivid imagery. Set the stakes, describe the threat, hint at the adventure ahead.",
+  "hook": "Compelling, detailed reason the party gets involved. Include specific details like reward amounts, NPC names, or urgent circumstances.",
+  "arc": {
+    "beginning": "Detailed Act 1 description (2-3 paragraphs). Include: opening scene with read-aloud text, key NPCs to meet, initial challenges, and how it transitions to Act 2.",
+    "middle": "Detailed Act 2 description (2-3 paragraphs). Include: the journey/dungeon exploration, major revelations, escalating dangers, puzzles or challenges faced.",
+    "climax": "Detailed Act 3 description (2-3 paragraphs). Include: the final confrontation setup, boss tactics and weaknesses, environmental hazards, victory conditions.",
+    "resolution": "Epilogue possibilities (1-2 paragraphs). Include: rewards, how the world changes, NPC reactions, sequel hooks."
+  },
   "npcs": [
     {
-      "name": "NPC Name",
+      "name": "Full NPC Name",
       "race": "Race",
-      "occupation": "Role",
-      "appearance": "Detailed physical description",
-      "personality": "Behavioral traits and speaking style",
-      "motivation": "What drives them",
-      "keyInformation": ["Important facts they know"],
-      "secret": "Hidden agenda",
-      "isAlly": true
+      "occupation": "Role/Title",
+      "personality": "Detailed personality: how they speak (accent, verbal tics), mannerisms, emotional state. Include a memorable quote they might say.",
+      "motivation": "What they want and why. Include specific goals and what they'll do to achieve them.",
+      "secret": "Hidden agenda or secret knowledge. Include DC check to discover (e.g., 'DC 15 Insight reveals they are lying about...')",
+      "isAlly": true,
+      "appearance": "Detailed physical description: age, height, clothing, distinguishing features, how they carry themselves.",
+      "keyInfo": ["Important fact 1 (with DC if skill check needed)", "Important fact 2", "Quest-relevant detail with game mechanics"]
     }
   ],
   "locations": [
     {
       "name": "Location Name",
-      "type": "town/dungeon/wilderness",
-      "readAloud": "Atmospheric description for players",
-      "description": "DM information about the location",
-      "features": ["Interactive elements", "Points of interest"],
-      "secrets": ["Hidden areas or information (with DC checks)"],
-      "encounters": ["What might happen here"],
-      "treasure": ["Specific loot with values"]
+      "type": "town/dungeon/wilderness/building",
+      "description": "Detailed description (2-3 sentences) with sensory details: sights, sounds, smells, atmosphere. This is read-aloud text.",
+      "features": ["Interactive element 1 (with DC if applicable)", "Point of interest 2", "Environmental feature"],
+      "encounters": ["Possible encounter with difficulty"],
+      "treasure": ["Specific item (value in gp)", "Another item"],
+      "secrets": "Hidden areas or information (DC to find)"
     }
   ],
-  "dungeonLevels": [
+  "encounters": [
     {
-      "level": 1,
-      "name": "Level Name",
-      "description": "Overview of this dungeon level",
-      "rooms": [
-        {
-          "id": "1A",
-          "name": "Room Name",
-          "readAloud": "Boxed text description",
-          "contents": "What's in the room",
-          "encounter": "Combat/trap/puzzle reference",
-          "exits": ["North to 1B", "East to 1C"],
-          "secrets": "Hidden elements (DC to find)"
-        }
-      ]
+      "name": "Encounter Name",
+      "description": "READ-ALOUD TEXT: 2-3 paragraphs describing what players see. Include atmospheric details, enemy positions, terrain features. This should be evocative prose the DM reads to players.",
+      "difficulty": "easy/medium/hard/deadly",
+      "monsters": [
+        {"name": "Monster Name (from D&D 5e SRD)", "count": 2, "cr": "1/2"}
+      ],
+      "tactics": "Detailed combat tactics: How enemies fight, use terrain, coordinate attacks. Include fallback plans, morale breaks, and any dynamic events (reinforcements, environmental changes).",
+      "rewards": ["XP total for encounter", "Specific loot items with gold values", "Any special rewards"],
+      "terrain": "Terrain features: difficult terrain, cover positions, hazards, interactive elements players can use",
+      "setup": "Tactical positioning: where enemies start, ambush opportunities, escape routes"
     }
   ],
-  "climax": {
-    "title": "Final Confrontation Name",
-    "readAloud": "Dramatic setup text",
-    "boss": {
-      "name": "Boss Name",
-      "description": "Appearance and demeanor",
-      "tactics": "How the boss fights phase by phase",
-      "legendaryActions": "If applicable",
-      "weakness": "How clever players can gain advantage"
-    },
-    "environmentalFactors": ["Lair actions or terrain effects"],
-    "victoryConditions": "What counts as winning",
+  "sessionOutlines": [
+    {
+      "number": 1,
+      "title": "Session Title",
+      "summary": "Detailed session summary (2-3 paragraphs): What happens, key scenes, important NPCs, combat encounters, puzzles. Include estimated duration.",
+      "objectives": ["Primary objective", "Secondary/optional objective", "Secret objective players might discover"],
+      "readAloud": "Opening scene read-aloud text for this session (1-2 paragraphs of atmospheric prose)",
+      "keyMoments": ["Dramatic moment 1", "Plot twist or revelation", "Cliffhanger ending"]
+    }
+  ],
+  "puzzles": [
+    {
+      "name": "Puzzle Name",
+      "location": "Where it appears",
+      "description": "What players see (read-aloud text)",
+      "mechanics": "How the puzzle works",
+      "hints": ["Hint 1 (DC 12 Investigation)", "Hint 2 (DC 15 Arcana)", "Hint 3 (DC 10 History)"],
+      "solution": "The actual solution",
+      "reward": "What solving it grants",
+      "failure": "What happens if failed or triggered wrong"
+    }
+  ],
+  "boss": {
+    "name": "Final Boss Name",
+    "description": "Dramatic appearance description",
+    "tactics": "Phase-by-phase combat tactics",
+    "weakness": "How clever players can gain advantage",
+    "monologue": "Villainous speech or dialogue during confrontation",
     "rewards": {"xp": 500, "gold": "100gp", "items": ["Magic item or special reward"]}
   },
-  "resolution": {
-    "readAloud": "Epilogue text if players succeed",
-    "consequences": "How the world changes",
-    "hooks": ["Potential sequel hooks", "Loose threads"]
-  },
-  "appendix": {
-    "randomEncounters": [
-      {"roll": "1-2", "encounter": "Description", "difficulty": "easy"}
-    ],
-    "lootTable": [
-      {"roll": "1-10", "item": "Item description", "value": "50gp"}
-    ],
-    "factions": [
-      {"name": "Faction Name", "goals": "What they want", "attitude": "How they view the party"}
-    ]
-  }
+  "shopServices": [
+    {"item": "Healing Potion (2d4+2)", "cost": "50gp"},
+    {"item": "Holy Water (vial)", "cost": "25gp"},
+    {"item": "Rope, 50ft", "cost": "1gp"}
+  ],
+  "randomEncounters": [
+    {"roll": "1-2", "encounter": "Description", "difficulty": "easy"},
+    {"roll": "3-4", "encounter": "Description", "difficulty": "medium"}
+  ]
 }
 \`\`\`
 
-IMPORTANT GUIDELINES:
-- Write EVOCATIVE read-aloud text with sensory details (sights, sounds, smells, atmosphere)
-- Include specific DC checks for skill challenges
-- Make NPCs memorable with distinct speech patterns and appearances
-- Design tactical combat with terrain, cover, and dynamic elements
-- Create puzzles with multiple solution paths
-- Balance encounters for ${request.partySize} level ${request.partyLevel} characters
-- Use D&D 5e SRD monsters and appropriate CR ratings
-- Include at least 3 detailed combat encounters and 1 puzzle per act
-- Provide specific treasure with gold values and magic items appropriate for level ${request.partyLevel}`;
+CRITICAL REQUIREMENTS:
+1. The "description" field in encounters MUST be read-aloud text (evocative prose for the DM to read)
+2. Include specific DC checks throughout (Investigation, Perception, Persuasion, etc.)
+3. All monsters must be from D&D 5e SRD with correct CR ratings
+4. Balance encounters for ${request.partySize} level ${request.partyLevel} characters
+5. Create at least 4-6 detailed encounters (mix of combat and puzzles)
+6. NPCs need memorable personalities with distinct speech patterns
+7. Include specific treasure with gold piece values
+8. Session outlines should have read-aloud opening scenes`;
 }
 
 // Generate just a dungeon map
