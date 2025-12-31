@@ -227,7 +227,100 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
   const [addedToLibrary, setAddedToLibrary] = useState<Set<string>>(new Set());
 
   // Get session store for adding maps to the game's Map Library
-  const { addMapToLibrary } = useSessionStore();
+  const { addMapToLibrary, addToken, addInitiativeEntry, startCombat, isInCombat } = useSessionStore();
+
+  // Monster colors for token differentiation
+  const MONSTER_COLORS = [
+    '#dc2626', // red
+    '#ea580c', // orange
+    '#ca8a04', // yellow
+    '#16a34a', // green
+    '#0891b2', // cyan
+    '#2563eb', // blue
+    '#7c3aed', // purple
+    '#db2777', // pink
+  ];
+
+  // Helper to roll a d20
+  const rollD20 = () => Math.floor(Math.random() * 20) + 1;
+
+  // Helper to estimate CR modifier (simplified)
+  const getCrModifier = (cr: string): number => {
+    const crMap: Record<string, number> = {
+      '0': -2, '1/8': -1, '1/4': 0, '1/2': 1,
+      '1': 1, '2': 2, '3': 2, '4': 2, '5': 3,
+      '6': 3, '7': 3, '8': 3, '9': 4, '10': 4,
+      '11': 4, '12': 5, '13': 5, '14': 5, '15': 5,
+    };
+    return crMap[cr] || 0;
+  };
+
+  // Start an encounter - add monsters to tokens and combat tracker
+  const handleStartEncounter = (encounter: any) => {
+    const monsters = encounter.enemies || encounter.monsters || [];
+    if (monsters.length === 0) {
+      alert('No monsters found in this encounter');
+      return;
+    }
+
+    let tokenIndex = 0;
+    const gridStartX = 10; // Starting grid position
+    const gridStartY = 5;
+    const tokensPerRow = 4;
+
+    monsters.forEach((monster: any, monsterTypeIndex: number) => {
+      const count = monster.count || 1;
+      const color = MONSTER_COLORS[monsterTypeIndex % MONSTER_COLORS.length];
+      const crMod = getCrModifier(monster.cr || '1');
+
+      for (let i = 0; i < count; i++) {
+        const tokenId = `enc-${Date.now()}-${tokenIndex}`;
+        const initiativeId = `init-${Date.now()}-${tokenIndex}`;
+        const name = count > 1 ? `${monster.name} ${i + 1}` : monster.name;
+
+        // Calculate grid position (arrange in a grid pattern)
+        const row = Math.floor(tokenIndex / tokensPerRow);
+        const col = tokenIndex % tokensPerRow;
+
+        // Add token to the map
+        addToken({
+          id: tokenId,
+          name,
+          x: gridStartX + col,
+          y: gridStartY + row,
+          size: 'medium',
+          color,
+          isHidden: false,
+          maxHp: monster.hp || 20,
+          currentHp: monster.hp || 20,
+          conditions: [],
+        });
+
+        // Roll initiative and add to combat tracker
+        const initiativeRoll = rollD20() + crMod;
+        addInitiativeEntry({
+          id: initiativeId,
+          name,
+          initiative: initiativeRoll,
+          isNpc: true,
+          isActive: false,
+          tokenId,
+          maxHp: monster.hp || 20,
+          currentHp: monster.hp || 20,
+          conditions: [],
+        });
+
+        tokenIndex++;
+      }
+    });
+
+    // Start combat if not already in combat
+    if (!isInCombat) {
+      startCombat();
+    }
+
+    alert(`Added ${tokenIndex} enemies to the map and combat tracker!`);
+  };
 
   // Save a battle map to the list
   const handleSaveMap = (id: string, name: string, imageUrl: string, type: string = 'dungeon') => {
@@ -1263,6 +1356,21 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
                         `${enc.rewards.xp} XP, ${enc.rewards.loot?.join(', ') || ''}` :
                         enc.rewards}
                     </p>
+                  )}
+
+                  {/* Start Encounter Button - only show if there are monsters */}
+                  {((enc.enemies && enc.enemies.length > 0) || (enc.monsters && enc.monsters.length > 0)) && (
+                    <div className="mt-3 pt-2 border-t border-purple-500/30">
+                      <Button
+                        onClick={() => handleStartEncounter(enc)}
+                        className="w-full bg-red-700 hover:bg-red-600 text-white text-sm py-1"
+                      >
+                        ⚔️ Start Encounter
+                      </Button>
+                      <p className="text-parchment/40 text-xs mt-1 text-center">
+                        Adds enemies to map & combat tracker
+                      </p>
+                    </div>
                   )}
                 </div>
               );
