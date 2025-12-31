@@ -90,6 +90,159 @@ function tryFixAtPosition(jsonStr: string, errorPos: number): string | null {
   return null;
 }
 
+// Extract a valid JSON object up to a certain depth by parsing character by character
+function extractValidJsonUpToError(jsonStr: string): string | null {
+  let depth = 0;
+  let inString = false;
+  let escapeNext = false;
+  let lastValidClose = -1;
+  let result = '';
+
+  for (let i = 0; i < jsonStr.length; i++) {
+    const char = jsonStr[i];
+    result += char;
+
+    if (escapeNext) {
+      escapeNext = false;
+      continue;
+    }
+
+    if (char === '\\' && inString) {
+      escapeNext = true;
+      continue;
+    }
+
+    if (char === '"' && !escapeNext) {
+      inString = !inString;
+      continue;
+    }
+
+    if (!inString) {
+      if (char === '{' || char === '[') {
+        depth++;
+      } else if (char === '}' || char === ']') {
+        depth--;
+        if (depth === 0) {
+          // Try parsing what we have so far
+          try {
+            JSON.parse(result);
+            lastValidClose = i;
+          } catch {
+            // Not valid yet, continue
+          }
+        }
+      }
+    }
+  }
+
+  if (lastValidClose > 0) {
+    return jsonStr.substring(0, lastValidClose + 1);
+  }
+  return null;
+}
+
+// Try to truncate JSON at the last complete section before an error
+function truncateAtLastCompleteSection(jsonStr: string, errorPos: number): string | null {
+  // Find the last complete property before the error position
+  // Look for patterns like "},\n  \"" or "],\n  \"" which indicate section boundaries
+  const beforeError = jsonStr.substring(0, errorPos);
+
+  // Try to find the last complete top-level section
+  const sectionPatterns = [
+    /,\s*"epilogue"\s*:\s*\{[^]*$/,
+    /,\s*"act3"\s*:\s*\{[^]*$/,
+    /,\s*"act2"\s*:\s*\{[^]*$/,
+    /,\s*"sessionOutlines"\s*:\s*\[[^]*$/,
+    /,\s*"encounters"\s*:\s*\[[^]*$/,
+    /,\s*"locations"\s*:\s*\[[^]*$/,
+    /,\s*"npcs"\s*:\s*\[[^]*$/,
+  ];
+
+  for (const pattern of sectionPatterns) {
+    const match = beforeError.match(pattern);
+    if (match && match.index !== undefined) {
+      // Remove this incomplete section and close the JSON
+      const truncated = beforeError.substring(0, match.index) + '}';
+      try {
+        const result = JSON.parse(truncated);
+        console.log(`Truncated JSON at incomplete section: ${pattern.source}`);
+        return truncated;
+      } catch {
+        // Try adding more closing braces
+        for (let i = 1; i <= 5; i++) {
+          try {
+            const withBraces = beforeError.substring(0, match.index) + '}'.repeat(i);
+            JSON.parse(withBraces);
+            console.log(`Truncated with ${i} closing braces`);
+            return withBraces;
+          } catch {
+            continue;
+          }
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+// Build a minimal valid campaign from partial data
+function buildMinimalCampaign(jsonStr: string): any {
+  // Extract what we can from the broken JSON
+  const extractField = (fieldName: string, isObject: boolean = false): any => {
+    const pattern = isObject
+      ? new RegExp(`"${fieldName}"\\s*:\\s*(\\{[^]*?\\})\\s*[,}]`)
+      : new RegExp(`"${fieldName}"\\s*:\\s*"([^"]*)"\\s*[,}]`);
+    const match = jsonStr.match(pattern);
+    if (match) {
+      if (isObject) {
+        try {
+          return JSON.parse(match[1]);
+        } catch {
+          return null;
+        }
+      }
+      return match[1];
+    }
+    return null;
+  };
+
+  const title = extractField('title') || 'Generated Adventure';
+  const synopsis = extractField('synopsis') || 'An epic adventure awaits...';
+  const hook = extractField('hook') || 'Adventure begins when heroes are called to action.';
+
+  // Try to extract arc
+  let arc = extractField('arc', true);
+  if (!arc) {
+    arc = {
+      beginning: 'The adventure begins...',
+      middle: 'Challenges arise...',
+      climax: 'The final confrontation...',
+      resolution: 'Peace is restored.'
+    };
+  }
+
+  console.log('Built minimal campaign from partial data');
+
+  return {
+    title,
+    synopsis,
+    hook,
+    arc,
+    npcs: [],
+    locations: [],
+    encounters: [],
+    sessionOutlines: [{
+      number: 1,
+      title: 'Adventure',
+      summary: synopsis,
+      objectives: ['Complete the adventure']
+    }],
+    _partial: true,
+    _error: 'Campaign was partially generated due to JSON parsing issues. Some sections may be missing.'
+  };
+}
+
 // Iteratively fix JSON errors
 function iterativeJsonRepair(jsonStr: string, maxAttempts: number = 10): string {
   let current = jsonStr;
@@ -129,21 +282,83 @@ function parseJsonWithRepair(jsonStr: string): any {
   try {
     return JSON.parse(iterativeFixed);
   } catch (e) {
-    console.log('Iterative repair failed, trying structural repair...');
+    console.log('Iterative repair failed, trying other strategies...');
   }
 
-  // Try basic repair
+  // Get the error position for targeted repair
+  const errorPos = findJsonErrorPosition(jsonStr);
+  console.log(`Error detected at position ${errorPos} of ${jsonStr.length}`);
+
+  // Strategy 1: Truncate at the last complete section before the error
+  if (errorPos > 0) {
+    const truncatedAtSection = truncateAtLastCompleteSection(jsonStr, errorPos);
+    if (truncatedAtSection) {
+      try {
+        return JSON.parse(truncatedAtSection);
+      } catch {
+        console.log('Section truncation failed');
+      }
+    }
+  }
+
+  // Strategy 2: Try truncating at known section boundaries (from end to start)
+  const sectionMarkers = [
+    /"epilogue"\s*:\s*\{/,
+    /"act3"\s*:\s*\{/,
+    /"act2"\s*:\s*\{/,
+    /"sessionOutlines"\s*:\s*\[/,
+    /"encounters"\s*:\s*\[/,
+    /"npcs"\s*:\s*\[/,
+    /"act1"\s*:\s*\{/,
+  ];
+
+  for (const marker of sectionMarkers) {
+    const match = jsonStr.match(marker);
+    if (match && match.index) {
+      // Truncate before this section and close the JSON
+      let truncated = jsonStr.substring(0, match.index).replace(/,\s*$/, '');
+
+      // Count open braces to know how many to close
+      const openBraces = (truncated.match(/{/g) || []).length;
+      const closeBraces = (truncated.match(/}/g) || []).length;
+      const neededBraces = openBraces - closeBraces;
+
+      truncated += '}'.repeat(Math.max(1, neededBraces));
+
+      try {
+        const result = JSON.parse(truncated);
+        console.log(`Successfully parsed by truncating before ${marker.source}`);
+        return result;
+      } catch {
+        // Try next marker
+      }
+    }
+  }
+
+  // Strategy 3: Try basic brace balancing repair
   const basicRepaired = repairJson(jsonStr);
   try {
     return JSON.parse(basicRepaired);
   } catch (e) {
-    console.log('Basic repair failed, trying to extract valid JSON...');
+    console.log('Basic repair failed, trying character-level extraction...');
   }
 
-  // Last resort: try to find the largest valid JSON substring
-  // by finding balanced braces from the start
+  // Strategy 4: Extract valid JSON by parsing character by character
+  const validExtract = extractValidJsonUpToError(jsonStr);
+  if (validExtract) {
+    try {
+      return JSON.parse(validExtract);
+    } catch {
+      console.log('Character-level extraction failed');
+    }
+  }
+
+  // Strategy 5: Find balanced braces from start
   const firstBrace = jsonStr.indexOf('{');
-  if (firstBrace === -1) throw new Error('No JSON object found');
+  if (firstBrace === -1) {
+    console.log('No JSON object found, building minimal campaign');
+    return buildMinimalCampaign(jsonStr);
+  }
 
   let depth = 0;
   let inString = false;
@@ -190,7 +405,13 @@ function parseJsonWithRepair(jsonStr: string): any {
 
   // Final attempt with repairs
   const finalRepaired = repairJson(finalJson);
-  return JSON.parse(finalRepaired);
+  try {
+    return JSON.parse(finalRepaired);
+  } catch (finalError) {
+    console.log('All repair strategies failed, building minimal campaign from partial data');
+    // Last resort: build a minimal valid campaign from whatever we can extract
+    return buildMinimalCampaign(jsonStr);
+  }
 }
 
 // Types for campaign generation

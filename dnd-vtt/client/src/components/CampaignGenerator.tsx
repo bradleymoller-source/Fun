@@ -74,6 +74,8 @@ interface GeneratedCampaign {
   encounters: GeneratedEncounter[];
   sessionOutlines: { number: number; title: string; summary: string; objectives: string[] }[];
   dungeonMap?: DungeonMap;
+  _partial?: boolean;
+  _error?: string;
 }
 
 interface CampaignGeneratorProps {
@@ -701,6 +703,12 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
         return (
           <div className="space-y-4 max-h-96 overflow-y-auto">
             <h2 className="text-2xl font-medieval text-gold">{campaign.title}</h2>
+            {campaign._partial && (
+              <div className="bg-red-900/30 p-3 rounded-lg border border-red-500/50">
+                <h4 className="text-red-400 text-sm font-bold mb-1">⚠️ Partial Generation</h4>
+                <p className="text-parchment/80 text-sm">{campaign._error || 'Some sections may be missing due to generation issues. Try generating again for complete content.'}</p>
+              </div>
+            )}
             {campaign.targetDuration && <p className="text-parchment/50 text-xs">Duration: {campaign.targetDuration}</p>}
             <p className="text-parchment">{campaign.synopsis}</p>
 
