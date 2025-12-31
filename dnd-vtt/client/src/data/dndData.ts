@@ -157,28 +157,28 @@ export const CLASS_SUBCLASSES: Record<CharacterClass, SubclassInfo[]> = {
       name: 'Life Domain',
       description: 'Gods of life promote vitality and health through healing the sick and wounded.',
       features: ['Disciple of Life: Healing spells restore additional HP equal to 2 + spell level', 'Domain Spells: Always have Bless and Cure Wounds prepared'],
-      levelAvailable: 1,
+      levelAvailable: 3,
       bonusSpells: ['Bless', 'Cure Wounds'],
     },
     {
       name: 'Light Domain',
       description: 'Gods of light promote ideals of rebirth, truth, vigilance, and beauty.',
       features: ['Warding Flare: Reaction to impose disadvantage on an attacker', 'Domain Spells: Always have Burning Hands and Faerie Fire prepared'],
-      levelAvailable: 1,
+      levelAvailable: 3,
       bonusSpells: ['Burning Hands', 'Faerie Fire'],
     },
     {
       name: 'Trickery Domain',
       description: 'Gods of trickery are mischief-makers and instigators who embody chaos.',
       features: ['Blessing of the Trickster: Give advantage on Stealth to another creature', 'Domain Spells: Always have Charm Person and Disguise Self prepared'],
-      levelAvailable: 1,
+      levelAvailable: 3,
       bonusSpells: ['Charm Person', 'Disguise Self'],
     },
     {
       name: 'War Domain',
       description: 'War gods watch over warriors and reward them for great deeds of valor.',
       features: ['War Priest: Bonus action weapon attack, uses = WIS mod per long rest', 'Domain Spells: Always have Divine Favor and Shield of Faith prepared'],
-      levelAvailable: 1,
+      levelAvailable: 3,
       bonusSpells: ['Divine Favor', 'Shield of Faith'],
     },
   ],
@@ -411,25 +411,25 @@ export const CLASS_SUBCLASSES: Record<CharacterClass, SubclassInfo[]> = {
       name: 'Aberrant Sorcery',
       description: 'An alien influence has left its mark on you, granting you strange powers.',
       features: ['Telepathic Speech: Speak telepathically with creatures within 30 ft × CHA mod ft'],
-      levelAvailable: 1,
+      levelAvailable: 3,
     },
     {
       name: 'Clockwork Sorcery',
       description: 'The cosmic force of order has suffused you with magic.',
       features: ['Restore Balance: Reaction to cancel advantage or disadvantage within 60 ft'],
-      levelAvailable: 1,
+      levelAvailable: 3,
     },
     {
       name: 'Draconic Sorcery',
       description: 'Your innate magic comes from draconic ancestry.',
       features: ['Draconic Resilience: HP max +1 per level, AC 13+DEX when not wearing armor'],
-      levelAvailable: 1,
+      levelAvailable: 3,
     },
     {
       name: 'Wild Magic',
       description: 'Your spellcasting can unleash surges of untamed magic.',
       features: ['Wild Magic Surge: DM can have you roll on Wild Magic Surge table'],
-      levelAvailable: 1,
+      levelAvailable: 3,
     },
   ],
   warlock: [
@@ -437,28 +437,28 @@ export const CLASS_SUBCLASSES: Record<CharacterClass, SubclassInfo[]> = {
       name: 'Archfey Patron',
       description: 'Your patron is a lord or lady of the fey.',
       features: ['Fey Presence: Charm or frighten creatures in 10-ft cube as action', 'Patron Spells: Always have Faerie Fire and Sleep prepared'],
-      levelAvailable: 1,
+      levelAvailable: 3,
       bonusSpells: ['Faerie Fire', 'Sleep'],
     },
     {
       name: 'Celestial Patron',
       description: 'Your patron is a being of the Upper Planes.',
       features: ['Healing Light: Pool of d6s equal to 1 + warlock level, bonus action heal', 'Patron Spells: Always have Cure Wounds and Guiding Bolt prepared'],
-      levelAvailable: 1,
+      levelAvailable: 3,
       bonusSpells: ['Cure Wounds', 'Guiding Bolt'],
     },
     {
       name: 'Fiend Patron',
       description: 'You have made a pact with a fiend from the lower planes.',
       features: ['Dark One\'s Blessing: Gain temp HP = CHA mod + warlock level on killing hostile', 'Patron Spells: Always have Burning Hands and Command prepared'],
-      levelAvailable: 1,
+      levelAvailable: 3,
       bonusSpells: ['Burning Hands', 'Command'],
     },
     {
       name: 'Great Old One Patron',
       description: 'Your patron is a mysterious entity from the Far Realm.',
       features: ['Awakened Mind: Telepathic communication within 30 ft', 'Patron Spells: Always have Dissonant Whispers and Tasha\'s Hideous Laughter prepared'],
-      levelAvailable: 1,
+      levelAvailable: 3,
       bonusSpells: ['Dissonant Whispers', "Tasha's Hideous Laughter"],
     },
   ],
@@ -1091,6 +1091,62 @@ export const SPECIES_SUGGESTED_LANGUAGES: Record<Species, string[]> = {
 
 export type DamageType = 'acid' | 'bludgeoning' | 'cold' | 'fire' | 'force' | 'lightning' | 'necrotic' | 'piercing' | 'poison' | 'psychic' | 'radiant' | 'slashing' | 'thunder';
 export type Condition = 'blinded' | 'charmed' | 'deafened' | 'frightened' | 'grappled' | 'incapacitated' | 'invisible' | 'paralyzed' | 'petrified' | 'poisoned' | 'prone' | 'restrained' | 'stunned' | 'unconscious' | 'exhaustion';
+
+// Species ancestry/heritage choices
+export interface SpeciesChoiceOption {
+  id: string;
+  name: string;
+  description: string;
+  damageType?: DamageType;  // For Dragonborn breath weapon/resistance
+  breathShape?: '15-ft cone' | '30-ft line';  // For Dragonborn
+}
+
+export interface SpeciesChoice {
+  id: string;
+  name: string;
+  description: string;
+  options: SpeciesChoiceOption[];
+}
+
+// Dragonborn Draconic Ancestry options
+export const DRAGONBORN_ANCESTRY: SpeciesChoice = {
+  id: 'draconic-ancestry',
+  name: 'Draconic Ancestry',
+  description: 'Choose your dragon ancestor. This determines your breath weapon damage type, save type, and resistance.',
+  options: [
+    { id: 'black', name: 'Black Dragon', description: 'Acid damage, 30-ft line, Dexterity save', damageType: 'acid', breathShape: '30-ft line' },
+    { id: 'blue', name: 'Blue Dragon', description: 'Lightning damage, 30-ft line, Dexterity save', damageType: 'lightning', breathShape: '30-ft line' },
+    { id: 'brass', name: 'Brass Dragon', description: 'Fire damage, 30-ft line, Dexterity save', damageType: 'fire', breathShape: '30-ft line' },
+    { id: 'bronze', name: 'Bronze Dragon', description: 'Lightning damage, 30-ft line, Dexterity save', damageType: 'lightning', breathShape: '30-ft line' },
+    { id: 'copper', name: 'Copper Dragon', description: 'Acid damage, 30-ft line, Dexterity save', damageType: 'acid', breathShape: '30-ft line' },
+    { id: 'gold', name: 'Gold Dragon', description: 'Fire damage, 15-ft cone, Dexterity save', damageType: 'fire', breathShape: '15-ft cone' },
+    { id: 'green', name: 'Green Dragon', description: 'Poison damage, 15-ft cone, Constitution save', damageType: 'poison', breathShape: '15-ft cone' },
+    { id: 'red', name: 'Red Dragon', description: 'Fire damage, 15-ft cone, Dexterity save', damageType: 'fire', breathShape: '15-ft cone' },
+    { id: 'silver', name: 'Silver Dragon', description: 'Cold damage, 15-ft cone, Constitution save', damageType: 'cold', breathShape: '15-ft cone' },
+    { id: 'white', name: 'White Dragon', description: 'Cold damage, 15-ft cone, Constitution save', damageType: 'cold', breathShape: '15-ft cone' },
+  ],
+};
+
+// Goliath Giant Ancestry options (2024 PHB)
+export const GOLIATH_ANCESTRY: SpeciesChoice = {
+  id: 'giant-ancestry',
+  name: 'Giant Ancestry',
+  description: 'Choose your giant ancestor. This grants you a special ability usable Proficiency Bonus times per Long Rest.',
+  options: [
+    { id: 'cloud', name: 'Cloud Giant', description: 'Bonus action to become Invisible until start of next turn or until you attack/cast spell' },
+    { id: 'fire', name: 'Fire Giant', description: 'When you hit with an attack, deal extra 1d10 fire damage' },
+    { id: 'frost', name: 'Frost Giant', description: 'When you take damage, use reaction to reduce it by 1d12 + Constitution modifier' },
+    { id: 'hill', name: 'Hill Giant', description: 'Bonus action to knock target prone when you hit with attack (Strength save DC 8 + STR + Prof)' },
+    { id: 'stone', name: 'Stone Giant', description: 'When you take damage, use reaction to gain +1d10 temp HP until start of next turn' },
+    { id: 'storm', name: 'Storm Giant', description: 'Reaction when hit: deal 1d8 lightning damage to attacker within 60 feet' },
+  ],
+};
+
+// Map species to their choices
+export const SPECIES_CHOICES: Partial<Record<Species, SpeciesChoice>> = {
+  dragonborn: DRAGONBORN_ANCESTRY,
+  goliath: GOLIATH_ANCESTRY,
+};
 
 export interface SpeciesTraits {
   darkvision: number; // 0 if none, otherwise distance in feet

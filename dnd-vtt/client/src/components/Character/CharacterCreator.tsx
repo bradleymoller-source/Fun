@@ -39,6 +39,7 @@ import {
   BACKGROUNDS_2024,
   ORIGIN_FEATS,
   SPECIES_TRAITS,
+  SPECIES_CHOICES,
   SPECIES_SUGGESTED_LANGUAGES,
   STANDARD_LANGUAGES,
   RARE_LANGUAGES,
@@ -75,6 +76,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
   const [name, setName] = useState('');
   const [species, setSpecies] = useState<Species>('human');
   const [subspecies, setSubspecies] = useState<string>('');
+  const [speciesChoice, setSpeciesChoice] = useState<string>('');  // For Dragonborn ancestry, Goliath giant type, etc.
   const [characterClass, setCharacterClass] = useState<CharacterClass>('fighter');
   const [subclass, setSubclass] = useState<string>('');
   const [subclassChoices, setSubclassChoices] = useState<Record<string, string[]>>({});
@@ -136,7 +138,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
   // Portrait
   const [portrait, setPortrait] = useState('');
 
-  // Reset subspecies and languages when species changes
+  // Reset subspecies, languages, and species choice when species changes
   useEffect(() => {
     const info = SPECIES_INFO[species];
     if (info.subspecies && info.subspecies.length > 0) {
@@ -150,6 +152,13 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       setLanguages(['Common', ...suggested]);
     } else {
       setLanguages(['Common']);
+    }
+    // Set default species choice (e.g., dragon ancestry, giant ancestry)
+    const speciesChoiceData = SPECIES_CHOICES[species];
+    if (speciesChoiceData && speciesChoiceData.options.length > 0) {
+      setSpeciesChoice(speciesChoiceData.options[0].id);
+    } else {
+      setSpeciesChoice('');
     }
     // Reset human bonus feat when species changes
     setHumanBonusFeat(null);
@@ -807,6 +816,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       playerId,
       name,
       species,
+      speciesChoice: speciesChoice || undefined,
       characterClass,
       subclass: subclass || undefined,
       subclassChoices: Object.keys(subclassChoices).length > 0 ? subclassChoices : undefined,
@@ -943,6 +953,28 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
           <p className="text-parchment/60 text-xs mt-1">
             {speciesInfo.subspecies.find(s => s.name === subspecies)?.description}
           </p>
+        </div>
+      )}
+
+      {/* Species Choice (Dragonborn Ancestry, Goliath Giant Type, etc.) */}
+      {SPECIES_CHOICES[species] && (
+        <div className="bg-amber-900/20 border border-amber-500/50 p-3 rounded">
+          <label className="block text-amber-400 text-sm mb-1">{SPECIES_CHOICES[species]!.name}</label>
+          <p className="text-parchment/70 text-xs mb-2">{SPECIES_CHOICES[species]!.description}</p>
+          <select
+            value={speciesChoice}
+            onChange={(e) => setSpeciesChoice(e.target.value)}
+            className="w-full bg-parchment text-dark-wood px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-gold"
+          >
+            {SPECIES_CHOICES[species]!.options.map(opt => (
+              <option key={opt.id} value={opt.id}>{opt.name}</option>
+            ))}
+          </select>
+          {speciesChoice && (
+            <p className="text-parchment/70 text-xs mt-2">
+              {SPECIES_CHOICES[species]!.options.find(o => o.id === speciesChoice)?.description}
+            </p>
+          )}
         </div>
       )}
 
