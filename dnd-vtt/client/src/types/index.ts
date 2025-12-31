@@ -315,6 +315,7 @@ export interface Character {
   skin?: string;
   hair?: string;
   appearance?: string;
+  portrait?: string;  // URL or base64 data URI for character portrait
 
   // Metadata
   createdAt: string;

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Panel } from '../ui/Panel';
+import { PortraitSelector } from './PortraitSelector';
 import type { Character, Species, CharacterClass, AbilityScores, SkillName } from '../../types';
 import {
   SPECIES_NAMES,
@@ -130,6 +131,9 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
   const [bonds, setBonds] = useState('');
   const [flaws, setFlaws] = useState('');
   const [backstory, setBackstory] = useState('');
+
+  // Portrait
+  const [portrait, setPortrait] = useState('');
 
   // Reset subspecies and languages when species changes
   useEffect(() => {
@@ -673,6 +677,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       eyes: appearance.eyes || undefined,
       hair: appearance.hair || undefined,
       skin: appearance.skin || undefined,
+      portrait: portrait || undefined,
       createdAt: now,
       updatedAt: now,
     };
@@ -1530,6 +1535,12 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
   const renderDetailsStep = () => (
     <div className="space-y-4">
       <h3 className="font-medieval text-lg text-gold">Personality & Backstory</h3>
+
+      {/* Portrait */}
+      <div className="bg-dark-wood p-3 rounded border border-leather">
+        <h4 className="text-gold text-sm mb-2">Character Portrait</h4>
+        <PortraitSelector value={portrait} onChange={setPortrait} />
+      </div>
 
       {/* Appearance Fields */}
       <div className="bg-dark-wood p-3 rounded border border-leather">

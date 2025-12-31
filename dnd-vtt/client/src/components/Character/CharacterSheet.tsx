@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import type { Character, CharacterClass, AbilityScores, SkillName, Condition } from '../../types';
 import {
   ABILITY_NAMES,
@@ -14,6 +14,8 @@ import {
   getSkillModifier,
   SPELL_SLOTS_BY_LEVEL,
 } from '../../data/dndData';
+import { Tooltip, RULE_TOOLTIPS } from '../ui/Tooltip';
+import { Button } from '../ui/Button';
 
 type SheetTab = 'stats' | 'skills' | 'combat' | 'equipment' | 'spells' | 'bio';
 
@@ -28,13 +30,17 @@ interface CharacterSheetProps {
   character: Character;
   onUpdate?: (updates: Partial<Character>) => void;
   onRoll?: (notation: string, label: string) => void;
+  onImport?: (character: Character) => void;
   isEditable?: boolean;
+  showExportImport?: boolean;
 }
 
-export function CharacterSheet({ character, onUpdate, onRoll, isEditable = true }: CharacterSheetProps) {
+export function CharacterSheet({ character, onUpdate, onRoll, onImport, isEditable = true, showExportImport = true }: CharacterSheetProps) {
   const [activeTab, setActiveTab] = useState<SheetTab>('stats');
   const [showConditionPicker, setShowConditionPicker] = useState(false);
   const [expandedFeature, setExpandedFeature] = useState<string | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const profBonus = getProficiencyBonus(character.level);
   const hitDie = CLASS_HIT_DICE[character.characterClass];
@@ -199,6 +205,66 @@ export function CharacterSheet({ character, onUpdate, onRoll, isEditable = true 
     });
   };
 
+  // Export character to JSON file
+  const handleExport = () => {
+    const exportData = {
+      ...character,
+      exportedAt: new Date().toISOString(),
+      version: '1.0',
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${character.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_character.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // Import character from JSON file
+  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const imported = JSON.parse(event.target?.result as string);
+
+        // Validate required fields
+        if (!imported.name || !imported.species || !imported.characterClass) {
+          setImportError('Invalid character file: missing required fields');
+          return;
+        }
+
+        // Generate new ID and update metadata
+        const newCharacter: Character = {
+          ...imported,
+          id: `char-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          playerId: character.playerId, // Keep current player ID
+          updatedAt: new Date().toISOString(),
+        };
+
+        setImportError(null);
+        onImport?.(newCharacter);
+      } catch {
+        setImportError('Failed to parse character file');
+      }
+    };
+    reader.onerror = () => {
+      setImportError('Failed to read file');
+    };
+    reader.readAsText(file);
+
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const tabs: { id: SheetTab; label: string }[] = [
     { id: 'stats', label: 'Stats' },
     { id: 'skills', label: 'Skills' },
@@ -209,33 +275,76 @@ export function CharacterSheet({ character, onUpdate, onRoll, isEditable = true 
   ];
 
   const renderHeader = () => (
-    <div className="text-center border-b border-leather pb-4 mb-4">
-      <div className="flex justify-center items-center gap-2 mb-1">
-        {/* Inspiration */}
-        {isEditable && (
-          <button
-            onClick={handleToggleInspiration}
-            className={`w-6 h-6 rounded-full border-2 transition-colors ${
-              character.inspiration
-                ? 'bg-gold border-gold text-dark-wood'
-                : 'border-parchment/50 text-parchment/50 hover:border-gold'
-            }`}
-            title={character.inspiration ? 'Has Inspiration' : 'No Inspiration'}
-          >
-            ★
-          </button>
+    <div className="border-b border-leather pb-4 mb-4">
+      <div className="flex items-start gap-4">
+        {/* Portrait */}
+        {character.portrait && (
+          <div className="w-16 h-16 rounded-lg border-2 border-gold/50 overflow-hidden flex-shrink-0">
+            <img
+              src={character.portrait}
+              alt={character.name}
+              className="w-full h-full object-cover"
+            />
+          </div>
         )}
-        <h2 className="font-medieval text-2xl text-gold">{character.name}</h2>
+
+        <div className="flex-1 text-center">
+          <div className="flex justify-center items-center gap-2 mb-1">
+            {/* Inspiration */}
+            {isEditable && (
+              <Tooltip content={RULE_TOOLTIPS.proficiencyBonus.replace('proficiency bonus', 'Inspiration point')}>
+                <button
+                  onClick={handleToggleInspiration}
+                  className={`w-6 h-6 rounded-full border-2 transition-colors ${
+                    character.inspiration
+                      ? 'bg-gold border-gold text-dark-wood'
+                      : 'border-parchment/50 text-parchment/50 hover:border-gold'
+                  }`}
+                  title={character.inspiration ? 'Has Inspiration' : 'No Inspiration'}
+                >
+                  ★
+                </button>
+              </Tooltip>
+            )}
+            <h2 className="font-medieval text-2xl text-gold">{character.name}</h2>
+          </div>
+          <p className="text-parchment">
+            Level {character.level} {SPECIES_NAMES[character.species]} {CLASS_NAMES[character.characterClass]}
+          </p>
+          {character.subclass && (
+            <p className="text-gold/70 text-sm">{character.subclass}</p>
+          )}
+          <p className="text-parchment/70 text-sm">
+            {character.background} • {character.alignment || 'Unaligned'}
+          </p>
+        </div>
       </div>
-      <p className="text-parchment">
-        Level {character.level} {SPECIES_NAMES[character.species]} {CLASS_NAMES[character.characterClass]}
-      </p>
-      {character.subclass && (
-        <p className="text-gold/70 text-sm">{character.subclass}</p>
+
+      {/* Export/Import Buttons */}
+      {showExportImport && (
+        <div className="flex justify-center gap-2 mt-3">
+          <Button size="sm" variant="secondary" onClick={handleExport}>
+            Export
+          </Button>
+          {onImport && (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                onChange={handleImportFile}
+                className="hidden"
+              />
+              <Button size="sm" variant="secondary" onClick={() => fileInputRef.current?.click()}>
+                Import
+              </Button>
+            </>
+          )}
+        </div>
       )}
-      <p className="text-parchment/70 text-sm">
-        {character.background} • {character.alignment || 'Unaligned'}
-      </p>
+      {importError && (
+        <p className="text-red-400 text-xs text-center mt-2">{importError}</p>
+      )}
     </div>
   );
 
@@ -321,28 +430,34 @@ export function CharacterSheet({ character, onUpdate, onRoll, isEditable = true 
 
   const renderQuickStats = () => (
     <div className="grid grid-cols-4 gap-2 mb-4">
-      <div className="bg-dark-wood p-2 rounded border border-leather text-center">
-        <div className="text-gold font-bold text-xl">{character.armorClass}</div>
-        <div className="text-parchment/70 text-xs">AC</div>
-      </div>
-      <button
-        onClick={handleRollInitiative}
-        disabled={!onRoll}
-        className="bg-dark-wood p-2 rounded border border-leather text-center hover:border-gold transition-colors disabled:hover:border-leather"
-      >
-        <div className="text-gold font-bold text-xl">
-          {formatModifier(character.initiative)}
+      <Tooltip content={RULE_TOOLTIPS.armorClass}>
+        <div className="bg-dark-wood p-2 rounded border border-leather text-center cursor-help">
+          <div className="text-gold font-bold text-xl">{character.armorClass}</div>
+          <div className="text-parchment/70 text-xs">AC</div>
         </div>
-        <div className="text-parchment/70 text-xs">Initiative</div>
-      </button>
+      </Tooltip>
+      <Tooltip content={RULE_TOOLTIPS.initiative}>
+        <button
+          onClick={handleRollInitiative}
+          disabled={!onRoll}
+          className="bg-dark-wood p-2 rounded border border-leather text-center hover:border-gold transition-colors disabled:hover:border-leather w-full"
+        >
+          <div className="text-gold font-bold text-xl">
+            {formatModifier(character.initiative)}
+          </div>
+          <div className="text-parchment/70 text-xs">Initiative</div>
+        </button>
+      </Tooltip>
       <div className="bg-dark-wood p-2 rounded border border-leather text-center">
         <div className="text-gold font-bold text-xl">{character.speed} ft</div>
         <div className="text-parchment/70 text-xs">Speed</div>
       </div>
-      <div className="bg-dark-wood p-2 rounded border border-leather text-center">
-        <div className="text-gold font-bold text-xl">+{profBonus}</div>
-        <div className="text-parchment/70 text-xs">Prof</div>
-      </div>
+      <Tooltip content={RULE_TOOLTIPS.proficiencyBonus}>
+        <div className="bg-dark-wood p-2 rounded border border-leather text-center cursor-help">
+          <div className="text-gold font-bold text-xl">+{profBonus}</div>
+          <div className="text-parchment/70 text-xs">Prof</div>
+        </div>
+      </Tooltip>
     </div>
   );
 
@@ -350,9 +465,11 @@ export function CharacterSheet({ character, onUpdate, onRoll, isEditable = true 
     <div className="bg-dark-wood p-3 rounded border border-leather mb-4">
       <div className="flex items-center justify-between mb-2">
         <span className="text-parchment text-sm">Hit Points</span>
-        <span className="text-parchment/70 text-xs">
-          {character.hitDiceRemaining}d{hitDie} remaining
-        </span>
+        <Tooltip content={RULE_TOOLTIPS.hitDice}>
+          <span className="text-parchment/70 text-xs cursor-help">
+            {character.hitDiceRemaining}d{hitDie} remaining
+          </span>
+        </Tooltip>
       </div>
       <div className="flex items-center gap-2 mb-2">
         {isEditable && (
@@ -379,7 +496,9 @@ export function CharacterSheet({ character, onUpdate, onRoll, isEditable = true 
 
       {/* Temp HP */}
       <div className="flex items-center justify-center gap-2 mb-2">
-        <span className="text-blue-400 text-xs">Temp HP:</span>
+        <Tooltip content={RULE_TOOLTIPS.temporaryHitPoints}>
+          <span className="text-blue-400 text-xs cursor-help">Temp HP:</span>
+        </Tooltip>
         {isEditable ? (
           <input
             type="number"
@@ -405,7 +524,9 @@ export function CharacterSheet({ character, onUpdate, onRoll, isEditable = true 
 
   const renderDeathSaves = () => (
     <div className="bg-red-900/30 p-3 rounded border border-red-500 mb-4">
-      <div className="text-red-300 font-semibold mb-2 text-center">Death Saving Throws</div>
+      <Tooltip content={RULE_TOOLTIPS.deathSaves}>
+        <div className="text-red-300 font-semibold mb-2 text-center cursor-help">Death Saving Throws</div>
+      </Tooltip>
       <div className="flex justify-around">
         <div className="text-center">
           <div className="text-green-400 text-xs mb-1">Successes</div>
@@ -453,20 +574,24 @@ export function CharacterSheet({ character, onUpdate, onRoll, isEditable = true 
 
   const renderRestButtons = () => (
     <div className="flex gap-2 mb-4">
-      <button
-        onClick={handleShortRest}
-        disabled={!isEditable}
-        className="flex-1 py-1 text-xs bg-amber-900/50 text-amber-300 rounded border border-amber-500/50 hover:bg-amber-900/70 disabled:opacity-50"
-      >
-        Short Rest
-      </button>
-      <button
-        onClick={handleLongRest}
-        disabled={!isEditable}
-        className="flex-1 py-1 text-xs bg-blue-900/50 text-blue-300 rounded border border-blue-500/50 hover:bg-blue-900/70 disabled:opacity-50"
-      >
-        Long Rest
-      </button>
+      <Tooltip content={RULE_TOOLTIPS.shortRest}>
+        <button
+          onClick={handleShortRest}
+          disabled={!isEditable}
+          className="flex-1 py-1 text-xs bg-amber-900/50 text-amber-300 rounded border border-amber-500/50 hover:bg-amber-900/70 disabled:opacity-50"
+        >
+          Short Rest
+        </button>
+      </Tooltip>
+      <Tooltip content={RULE_TOOLTIPS.longRest}>
+        <button
+          onClick={handleLongRest}
+          disabled={!isEditable}
+          className="flex-1 py-1 text-xs bg-blue-900/50 text-blue-300 rounded border border-blue-500/50 hover:bg-blue-900/70 disabled:opacity-50"
+        >
+          Long Rest
+        </button>
+      </Tooltip>
     </div>
   );
 
@@ -485,30 +610,33 @@ export function CharacterSheet({ character, onUpdate, onRoll, isEditable = true 
           const modifier = getAbilityModifier(score);
           const isProficient = character.savingThrowProficiencies.includes(ability);
           const saveMod = modifier + (isProficient ? profBonus : 0);
+          const tooltipKey = ability as keyof typeof RULE_TOOLTIPS;
 
           return (
-            <div key={ability} className="bg-dark-wood p-3 rounded border border-leather text-center">
-              <div className="text-parchment/70 text-xs mb-1">{ABILITY_NAMES[ability]}</div>
-              <button
-                onClick={() => handleRollAbility(ability)}
-                disabled={!onRoll}
-                className="text-gold font-bold text-2xl hover:text-yellow-300 disabled:hover:text-gold"
-                title={`Roll ${ABILITY_NAMES[ability]} check`}
-              >
-                {score}
-              </button>
-              <div className="text-parchment font-bold">{formatModifier(modifier)}</div>
-              <div className="mt-2 pt-2 border-t border-leather">
+            <Tooltip key={ability} content={RULE_TOOLTIPS[tooltipKey]} position="bottom">
+              <div className="bg-dark-wood p-3 rounded border border-leather text-center cursor-help">
+                <div className="text-parchment/70 text-xs mb-1">{ABILITY_NAMES[ability]}</div>
                 <button
-                  onClick={() => handleRollSave(ability)}
+                  onClick={() => handleRollAbility(ability)}
                   disabled={!onRoll}
-                  className={`text-xs hover:underline ${isProficient ? 'text-gold' : 'text-parchment/50'}`}
-                  title={`Roll ${ABILITY_NAMES[ability]} save`}
+                  className="text-gold font-bold text-2xl hover:text-yellow-300 disabled:hover:text-gold"
+                  title={`Roll ${ABILITY_NAMES[ability]} check`}
                 >
-                  Save: {formatModifier(saveMod)} {isProficient && '●'}
+                  {score}
                 </button>
+                <div className="text-parchment font-bold">{formatModifier(modifier)}</div>
+                <div className="mt-2 pt-2 border-t border-leather">
+                  <button
+                    onClick={() => handleRollSave(ability)}
+                    disabled={!onRoll}
+                    className={`text-xs hover:underline ${isProficient ? 'text-gold' : 'text-parchment/50'}`}
+                    title={`Roll ${ABILITY_NAMES[ability]} save`}
+                  >
+                    Save: {formatModifier(saveMod)} {isProficient && '●'}
+                  </button>
+                </div>
               </div>
-            </div>
+            </Tooltip>
           );
         })}
       </div>
@@ -527,16 +655,18 @@ export function CharacterSheet({ character, onUpdate, onRoll, isEditable = true 
 
     return (
       <div className="space-y-4">
-        <div className="bg-dark-wood p-2 rounded border border-leather text-center">
-          <span className="text-parchment/70 text-sm">Passive Perception: </span>
-          <span className="text-gold font-bold">
-            {10 + getSkillModifier(
-              character.abilityScores.wisdom,
-              character.skillProficiencies.perception,
-              profBonus
-            )}
-          </span>
-        </div>
+        <Tooltip content={RULE_TOOLTIPS.passivePerception}>
+          <div className="bg-dark-wood p-2 rounded border border-leather text-center cursor-help">
+            <span className="text-parchment/70 text-sm">Passive Perception: </span>
+            <span className="text-gold font-bold">
+              {10 + getSkillModifier(
+                character.abilityScores.wisdom,
+                character.skillProficiencies.perception,
+                profBonus
+              )}
+            </span>
+          </div>
+        </Tooltip>
 
         {(Object.keys(skillsByAbility) as (keyof AbilityScores)[]).map(ability => {
           const skills = skillsByAbility[ability];
@@ -709,7 +839,9 @@ export function CharacterSheet({ character, onUpdate, onRoll, isEditable = true 
 
     return (
       <div className="mb-4">
-        <h4 className="text-gold font-semibold mb-2">Spell Slots</h4>
+        <Tooltip content={RULE_TOOLTIPS.spellSlots}>
+          <h4 className="text-gold font-semibold mb-2 cursor-help inline-block">Spell Slots</h4>
+        </Tooltip>
         <div className="flex flex-wrap gap-2">
           {spellSlots.map((slots, idx) => {
             if (slots === 0) return null;
