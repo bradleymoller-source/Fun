@@ -4,57 +4,115 @@ import type { Request, Response } from 'express';
 // Initialize Google Generative AI client - uses GOOGLE_API_KEY env variable
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '');
 
+// Find the position of a JSON parse error
+function findJsonErrorPosition(jsonStr: string): number {
+  try {
+    JSON.parse(jsonStr);
+    return -1; // No error
+  } catch (e) {
+    const match = String(e).match(/position\s+(\d+)/i);
+    if (match) {
+      return parseInt(match[1], 10);
+    }
+    return -1;
+  }
+}
+
 // Attempt to repair common JSON issues from AI-generated output
 function repairJson(jsonStr: string): string {
-  let repaired = jsonStr;
-
-  // Remove any leading/trailing whitespace
-  repaired = repaired.trim();
+  let repaired = jsonStr.trim();
 
   // Remove trailing commas before } or ]
   repaired = repaired.replace(/,(\s*[}\]])/g, '$1');
 
-  // Fix unescaped newlines in strings (common AI mistake)
-  // This is tricky - we need to be inside a string context
-  // Simple approach: replace literal newlines that are clearly inside strings
-  repaired = repaired.replace(/:\s*"([^"]*)\n([^"]*)"(?=\s*[,}\]])/g, ': "$1\\n$2"');
-
-  // Count braces to check balance
+  // Balance braces
   const openBraces = (repaired.match(/{/g) || []).length;
   const closeBraces = (repaired.match(/}/g) || []).length;
 
-  // Add missing closing braces
   if (openBraces > closeBraces) {
-    const missing = openBraces - closeBraces;
-    console.log(`Adding ${missing} missing closing brace(s)`);
-    repaired = repaired + '}'.repeat(missing);
+    repaired = repaired + '}'.repeat(openBraces - closeBraces);
   }
 
-  // Remove extra closing braces (truncate from the end)
-  if (closeBraces > openBraces) {
-    const extra = closeBraces - openBraces;
-    console.log(`Removing ${extra} extra closing brace(s)`);
-    for (let i = 0; i < extra; i++) {
-      const lastBrace = repaired.lastIndexOf('}');
-      if (lastBrace !== -1) {
-        repaired = repaired.substring(0, lastBrace) + repaired.substring(lastBrace + 1);
-      }
-    }
-  }
-
-  // Check bracket balance too
+  // Balance brackets
   const openBrackets = (repaired.match(/\[/g) || []).length;
   const closeBrackets = (repaired.match(/\]/g) || []).length;
 
   if (openBrackets > closeBrackets) {
-    const missing = openBrackets - closeBrackets;
-    console.log(`Adding ${missing} missing closing bracket(s)`);
-    // Find appropriate place to add them (before last })
     const lastBrace = repaired.lastIndexOf('}');
-    repaired = repaired.substring(0, lastBrace) + ']'.repeat(missing) + repaired.substring(lastBrace);
+    repaired = repaired.substring(0, lastBrace) + ']'.repeat(openBrackets - closeBrackets) + repaired.substring(lastBrace);
   }
 
   return repaired;
+}
+
+// Try to fix JSON by removing problematic character at error position
+function tryFixAtPosition(jsonStr: string, errorPos: number): string | null {
+  // Look at characters around the error position
+  const start = Math.max(0, errorPos - 50);
+  const end = Math.min(jsonStr.length, errorPos + 50);
+  const context = jsonStr.substring(start, end);
+  console.log(`Error context around position ${errorPos}: ...${context}...`);
+
+  // Common fixes for "Unexpected token }"
+  // Check if there's an extra } that shouldn't be there
+  const charAtError = jsonStr[errorPos];
+
+  if (charAtError === '}') {
+    // Try removing this brace
+    const fixed = jsonStr.substring(0, errorPos) + jsonStr.substring(errorPos + 1);
+    try {
+      JSON.parse(fixed);
+      console.log('Fixed by removing extra } at position ' + errorPos);
+      return fixed;
+    } catch {
+      // Didn't work, try other fixes
+    }
+  }
+
+  // Try removing characters one at a time around the error
+  for (let offset = -5; offset <= 5; offset++) {
+    const pos = errorPos + offset;
+    if (pos >= 0 && pos < jsonStr.length) {
+      const char = jsonStr[pos];
+      if (char === '}' || char === ']' || char === ',') {
+        const fixed = jsonStr.substring(0, pos) + jsonStr.substring(pos + 1);
+        try {
+          JSON.parse(fixed);
+          console.log(`Fixed by removing '${char}' at position ${pos}`);
+          return fixed;
+        } catch {
+          // Continue trying
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+// Iteratively fix JSON errors
+function iterativeJsonRepair(jsonStr: string, maxAttempts: number = 10): string {
+  let current = jsonStr;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const errorPos = findJsonErrorPosition(current);
+    if (errorPos === -1) {
+      return current; // Valid JSON
+    }
+
+    console.log(`Repair attempt ${attempt + 1}: error at position ${errorPos}`);
+
+    const fixed = tryFixAtPosition(current, errorPos);
+    if (fixed) {
+      current = fixed;
+    } else {
+      // If we can't fix at this position, try basic repair
+      current = repairJson(current);
+      break;
+    }
+  }
+
+  return current;
 }
 
 // Try to parse JSON with multiple repair attempts
@@ -66,47 +124,31 @@ function parseJsonWithRepair(jsonStr: string): any {
     console.log('Initial parse failed, attempting repair...');
   }
 
-  // Try with repair
-  const repaired = repairJson(jsonStr);
+  // Try iterative repair (fixing errors one at a time)
+  const iterativeFixed = iterativeJsonRepair(jsonStr);
   try {
-    return JSON.parse(repaired);
+    return JSON.parse(iterativeFixed);
   } catch (e) {
-    console.log('Repair attempt 1 failed, trying aggressive repair...');
+    console.log('Iterative repair failed, trying structural repair...');
   }
 
-  // More aggressive repair: find the last valid-looking end
-  // Look for patterns like "}" at end of obvious sections
-  let aggressive = repaired;
-
-  // Try to find where the JSON might have been truncated
-  // Look for the epilogue or sequelHooks section as a marker
-  const epilogueMatch = aggressive.match(/"epilogue"\s*:\s*\{[\s\S]*?"sequelHooks"\s*:\s*\[[\s\S]*?\]/);
-  if (epilogueMatch) {
-    const endOfMatch = aggressive.indexOf(epilogueMatch[0]) + epilogueMatch[0].length;
-    // Find what comes after and try to clean it up
-    const afterMatch = aggressive.substring(endOfMatch);
-    if (!afterMatch.trim().startsWith('}')) {
-      // Need to close the epilogue and root objects
-      aggressive = aggressive.substring(0, endOfMatch) + '}}';
-      console.log('Truncated at epilogue section');
-    }
-  }
-
+  // Try basic repair
+  const basicRepaired = repairJson(jsonStr);
   try {
-    return JSON.parse(aggressive);
+    return JSON.parse(basicRepaired);
   } catch (e) {
-    // Final attempt: find balanced braces manually
-    console.log('Aggressive repair failed, trying brace balancing...');
+    console.log('Basic repair failed, trying to extract valid JSON...');
   }
 
-  // Last resort: find the first { and try to balance from there
+  // Last resort: try to find the largest valid JSON substring
+  // by finding balanced braces from the start
   const firstBrace = jsonStr.indexOf('{');
   if (firstBrace === -1) throw new Error('No JSON object found');
 
   let depth = 0;
   let inString = false;
   let escapeNext = false;
-  let endPos = firstBrace;
+  let lastValidEnd = firstBrace;
 
   for (let i = firstBrace; i < jsonStr.length; i++) {
     const char = jsonStr[i];
@@ -131,20 +173,24 @@ function parseJsonWithRepair(jsonStr: string): any {
       if (char === '}') {
         depth--;
         if (depth === 0) {
-          endPos = i;
+          lastValidEnd = i;
           break;
         }
       }
     }
   }
 
-  // If we didn't find balanced braces, use what we have and close it
-  let finalJson = jsonStr.substring(firstBrace, endPos + 1);
+  let finalJson = jsonStr.substring(firstBrace, lastValidEnd + 1);
+
+  // If still not balanced, add closing braces
   if (depth > 0) {
+    console.log(`Adding ${depth} closing braces to complete JSON`);
     finalJson = jsonStr.substring(firstBrace) + '}'.repeat(depth);
   }
 
-  return JSON.parse(repairJson(finalJson));
+  // Final attempt with repairs
+  const finalRepaired = repairJson(finalJson);
+  return JSON.parse(finalRepaired);
 }
 
 // Types for campaign generation
