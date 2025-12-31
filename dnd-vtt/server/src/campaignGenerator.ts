@@ -352,73 +352,173 @@ function generateRoomFeatures(type: DungeonRoom['type']): string[] {
 }
 
 function buildCampaignPrompt(request: CampaignRequest): string {
-  return `You are an expert D&D 5e Dungeon Master. Create a complete campaign outline as JSON.
+  return `You are an expert D&D 5e Dungeon Master creating a DETAILED, READY-TO-RUN campaign module.
 
 Campaign Request:
 - Theme: ${request.theme}
 - Setting: ${request.setting}
 - Party Level: ${request.partyLevel}
 - Party Size: ${request.partySize}
-- Number of Sessions: ${request.sessionCount || 4}
-- Tone: ${request.tone || 'balanced'}
+- Number of Sessions/Acts: ${request.sessionCount || 3}
+- Tone: ${request.tone || 'serious'}
 
-Generate a campaign with the following structure. Return ONLY valid JSON:
+Create an immersive, narrative-rich campaign with READ-ALOUD TEXT, detailed NPCs, puzzles, and tactical combat encounters.
+
+Return ONLY valid JSON with this structure:
 
 \`\`\`json
 {
-  "title": "Campaign Title",
-  "synopsis": "2-3 sentence campaign overview",
-  "hook": "How the party gets involved",
-  "arc": {
-    "beginning": "Act 1 summary",
-    "middle": "Act 2 summary",
-    "climax": "Final confrontation",
-    "resolution": "Epilogue possibilities"
-  },
+  "title": "Evocative Campaign Title",
+  "synopsis": "3-4 sentence dramatic overview setting the stakes",
+  "hook": "Compelling reason the party gets involved",
+  "estimatedDuration": "Total estimated play time (e.g., '4-6 hours')",
+  "acts": [
+    {
+      "number": 1,
+      "title": "Act Title",
+      "estimatedDuration": "90-120 min",
+      "summary": "What happens in this act",
+      "settingTheScene": {
+        "readAloud": "2-3 paragraphs of atmospheric boxed text for the DM to read aloud to players. Describe sights, sounds, smells. Set the mood. This should be evocative prose.",
+        "dmNotes": "Behind-the-screen notes about what's really happening"
+      },
+      "keyNpcs": [
+        {
+          "name": "Full NPC Name",
+          "role": "Quest Giver / Ally / Villain / Information",
+          "appearance": "Detailed physical description (age, clothing, distinguishing features)",
+          "personality": "How they act, speak, their mannerisms",
+          "keyInformation": [
+            "Important fact with DC check if needed (e.g., 'DC 15 Persuasion reveals...')",
+            "Another key piece of information",
+            "Quest-relevant detail with game mechanics"
+          ],
+          "secret": "What they're hiding (if anything)"
+        }
+      ],
+      "services": [
+        {"item": "Healing Potion (2d4+2)", "cost": "50gp"},
+        {"item": "Holy Water (vial)", "cost": "25gp"}
+      ],
+      "objectives": ["Primary goal", "Optional secondary goal"],
+      "transitionText": "Read-aloud text bridging to the next act or location"
+    }
+  ],
+  "encounters": [
+    {
+      "name": "Encounter Name",
+      "act": 1,
+      "type": "combat",
+      "readAloud": "Boxed text describing what players see as combat begins",
+      "setup": "Tactical situation - where enemies are positioned, terrain features",
+      "enemies": [
+        {"name": "Monster Name", "count": 2, "cr": "1/2", "hp": 22, "ac": 13, "tactics": "How this enemy fights"}
+      ],
+      "difficulty": "medium",
+      "terrain": ["Difficult terrain areas", "Cover positions", "Environmental hazards"],
+      "dynamicElements": "What changes during the fight (reinforcements, collapse, etc.)",
+      "rewards": {"xp": 200, "gold": "2d10 gp", "items": ["Specific loot items"]}
+    },
+    {
+      "name": "Puzzle Name",
+      "act": 2,
+      "type": "puzzle",
+      "readAloud": "Description of the puzzle as players encounter it",
+      "mechanics": "How the puzzle works mechanically",
+      "hints": ["Hint 1 (DC 12 Investigation)", "Hint 2 (DC 15 Arcana)"],
+      "solution": "The actual solution",
+      "consequences": {
+        "success": "What happens on success",
+        "failure": "What happens on failure (trap, combat, etc.)"
+      }
+    }
+  ],
   "npcs": [
     {
       "name": "NPC Name",
       "race": "Race",
-      "occupation": "Job/Role",
-      "personality": "Brief personality",
-      "motivation": "What they want",
-      "secret": "Hidden agenda (optional)",
+      "occupation": "Role",
+      "appearance": "Detailed physical description",
+      "personality": "Behavioral traits and speaking style",
+      "motivation": "What drives them",
+      "keyInformation": ["Important facts they know"],
+      "secret": "Hidden agenda",
       "isAlly": true
     }
   ],
   "locations": [
     {
       "name": "Location Name",
-      "type": "town/dungeon/wilderness/etc",
-      "description": "2-3 sentences",
-      "features": ["Notable feature 1", "Notable feature 2"],
-      "encounters": ["Possible encounter 1"],
-      "treasure": ["Possible loot"]
+      "type": "town/dungeon/wilderness",
+      "readAloud": "Atmospheric description for players",
+      "description": "DM information about the location",
+      "features": ["Interactive elements", "Points of interest"],
+      "secrets": ["Hidden areas or information (with DC checks)"],
+      "encounters": ["What might happen here"],
+      "treasure": ["Specific loot with values"]
     }
   ],
-  "encounters": [
+  "dungeonLevels": [
     {
-      "name": "Encounter Name",
-      "description": "Setup and context",
-      "difficulty": "medium",
-      "monsters": [{"name": "Monster", "count": 2, "cr": "1"}],
-      "tactics": "How enemies fight",
-      "rewards": ["XP", "Loot"]
+      "level": 1,
+      "name": "Level Name",
+      "description": "Overview of this dungeon level",
+      "rooms": [
+        {
+          "id": "1A",
+          "name": "Room Name",
+          "readAloud": "Boxed text description",
+          "contents": "What's in the room",
+          "encounter": "Combat/trap/puzzle reference",
+          "exits": ["North to 1B", "East to 1C"],
+          "secrets": "Hidden elements (DC to find)"
+        }
+      ]
     }
   ],
-  "sessionOutlines": [
-    {
-      "number": 1,
-      "title": "Session Title",
-      "summary": "What happens",
-      "objectives": ["Goal 1", "Goal 2"]
-    }
-  ]
+  "climax": {
+    "title": "Final Confrontation Name",
+    "readAloud": "Dramatic setup text",
+    "boss": {
+      "name": "Boss Name",
+      "description": "Appearance and demeanor",
+      "tactics": "How the boss fights phase by phase",
+      "legendaryActions": "If applicable",
+      "weakness": "How clever players can gain advantage"
+    },
+    "environmentalFactors": ["Lair actions or terrain effects"],
+    "victoryConditions": "What counts as winning",
+    "rewards": {"xp": 500, "gold": "100gp", "items": ["Magic item or special reward"]}
+  },
+  "resolution": {
+    "readAloud": "Epilogue text if players succeed",
+    "consequences": "How the world changes",
+    "hooks": ["Potential sequel hooks", "Loose threads"]
+  },
+  "appendix": {
+    "randomEncounters": [
+      {"roll": "1-2", "encounter": "Description", "difficulty": "easy"}
+    ],
+    "lootTable": [
+      {"roll": "1-10", "item": "Item description", "value": "50gp"}
+    ],
+    "factions": [
+      {"name": "Faction Name", "goals": "What they want", "attitude": "How they view the party"}
+    ]
+  }
 }
 \`\`\`
 
-Create 3-5 NPCs, 3-5 locations, 4-6 encounters appropriate for level ${request.partyLevel}, and ${request.sessionCount || 4} session outlines.
-Use monsters from D&D 5e SRD. Ensure encounters are balanced for ${request.partySize} level ${request.partyLevel} characters.`;
+IMPORTANT GUIDELINES:
+- Write EVOCATIVE read-aloud text with sensory details (sights, sounds, smells, atmosphere)
+- Include specific DC checks for skill challenges
+- Make NPCs memorable with distinct speech patterns and appearances
+- Design tactical combat with terrain, cover, and dynamic elements
+- Create puzzles with multiple solution paths
+- Balance encounters for ${request.partySize} level ${request.partyLevel} characters
+- Use D&D 5e SRD monsters and appropriate CR ratings
+- Include at least 3 detailed combat encounters and 1 puzzle per act
+- Provide specific treasure with gold values and magic items appropriate for level ${request.partyLevel}`;
 }
 
 // Generate just a dungeon map
