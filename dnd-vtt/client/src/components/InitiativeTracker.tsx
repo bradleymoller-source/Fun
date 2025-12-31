@@ -190,14 +190,51 @@ export function InitiativeTracker({
               <span className="text-parchment"> for initiative</span>
             </div>
           ) : (
-            <Button
-              size="sm"
-              onClick={handlePlayerRollInitiative}
-              className="w-full"
-              disabled={!playerName}
-            >
-              🎲 Roll Initiative
-            </Button>
+            <div className="space-y-2">
+              <Button
+                size="sm"
+                onClick={handlePlayerRollInitiative}
+                className="w-full"
+                disabled={!playerName}
+              >
+                🎲 Roll Initiative
+              </Button>
+              <div className="flex items-center gap-2">
+                <span className="text-parchment/70 text-xs">or enter:</span>
+                <Input
+                  placeholder="Init"
+                  value={newInit}
+                  onChange={(e) => setNewInit(e.target.value)}
+                  type="number"
+                  className="w-16 text-sm py-1"
+                />
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => {
+                    if (!playerId || !playerName || !newInit.trim()) return;
+                    const initValue = parseInt(newInit, 10);
+                    if (isNaN(initValue)) return;
+
+                    const entry: InitiativeEntry = {
+                      id: `init-player-${playerId}`,
+                      name: playerName,
+                      initiative: initValue,
+                      isNpc: false,
+                      isActive: false,
+                      playerId: playerId,
+                      maxHp: playerMaxHp,
+                      currentHp: playerMaxHp,
+                    };
+                    onAddEntry(entry);
+                    setNewInit('');
+                  }}
+                  disabled={!playerName || !newInit.trim()}
+                >
+                  Add
+                </Button>
+              </div>
+            </div>
           )}
         </div>
       )}
