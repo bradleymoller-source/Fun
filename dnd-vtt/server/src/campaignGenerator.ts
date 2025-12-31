@@ -497,7 +497,424 @@ export interface DungeonMap {
   theme: string;
 }
 
-// Generate campaign using Google Gemini API
+// Helper to extract JSON from AI response
+function extractJsonFromResponse(text: string): string {
+  // Pattern 1: ```json ... ```
+  const jsonBlockMatch = text.match(/```json\n?([\s\S]*?)\n?```/);
+  if (jsonBlockMatch) {
+    return jsonBlockMatch[1];
+  }
+
+  // Pattern 2: ``` ... ```
+  const codeBlockMatch = text.match(/```\n?([\s\S]*?)\n?```/);
+  if (codeBlockMatch) {
+    return codeBlockMatch[1];
+  }
+
+  // Pattern 3: Direct JSON object
+  const directMatch = text.match(/\{[\s\S]*\}/);
+  if (directMatch) {
+    return directMatch[0];
+  }
+
+  return text;
+}
+
+// Helper to call Gemini API and parse response
+async function callGeminiAndParse(prompt: string, partName: string): Promise<any> {
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+
+  console.log(`Generating ${partName}...`);
+  const result = await model.generateContent(prompt);
+  const text = result.response.text();
+
+  console.log(`${partName} response length: ${text.length}`);
+
+  const jsonStr = extractJsonFromResponse(text);
+  return parseJsonWithRepair(jsonStr);
+}
+
+// Build prompt for Overview + Act 1
+function buildOverviewAndAct1Prompt(request: CampaignRequest): string {
+  const adventureType = request.adventureType || 'dungeon_crawl';
+  const adventureInstructions = getAdventureTypeInstructions(adventureType);
+
+  return `You are a master D&D 5e Dungeon Master. Create the OVERVIEW and ACT 1 for an adventure.
+
+PARAMETERS:
+- Adventure Type: ${adventureType.replace('_', ' ').toUpperCase()}
+- Theme: ${request.theme}
+- Setting: ${request.setting}
+- Party Level: ${request.partyLevel}
+- Party Size: ${request.partySize}
+- Tone: ${request.tone || 'serious'}
+
+TYPE GUIDANCE:
+${adventureInstructions}
+
+Return ONLY valid JSON with this structure:
+
+\`\`\`json
+{
+  "title": "Evocative Adventure Title",
+  "synopsis": "3-4 sentence dramatic overview establishing threat, stakes, and why heroes are needed.",
+  "hook": "The inciting incident with specific details: reward amount, deadline, or personal connection.",
+  "arc": {
+    "beginning": "Act 1 summary (1 sentence)",
+    "middle": "Act 2 summary (1 sentence)",
+    "climax": "Act 3 summary (1 sentence)",
+    "resolution": "Epilogue summary (1 sentence)"
+  },
+  "overview": {
+    "readAloud": "Opening narration (2 paragraphs with vivid sensory details)",
+    "backstory": "True history - what caused this threat, who is the villain, what do they want",
+    "themes": ["Primary theme", "Secondary theme"]
+  },
+  "act1": {
+    "title": "Act 1 Title",
+    "estimatedDuration": "45-60 minutes",
+    "overview": "What happens in Act 1",
+    "settingTheScene": {
+      "readAloud": "Arrival description (2 paragraphs with sensory details)",
+      "dmNotes": "What's really happening behind the scenes"
+    },
+    "questGiver": {
+      "name": "Quest Giver Name",
+      "role": "Position (Elder, Mayor, etc.)",
+      "appearance": "Physical description",
+      "personality": "How they speak and act",
+      "dialogue": {
+        "greeting": "Initial dialogue",
+        "questPitch": "How they explain the problem",
+        "ifQuestioned": "Responses to questions"
+      },
+      "reward": {"offered": "Initial reward", "negotiated": "Better reward"},
+      "keyInformation": ["Fact 1", "Fact 2", "Fact 3"]
+    },
+    "keyNpcs": [
+      {
+        "name": "Innkeeper Name",
+        "role": "Innkeeper",
+        "location": "The local tavern",
+        "appearance": "Physical description",
+        "personality": "Character traits",
+        "dialogue": {"greeting": "Welcome!", "gossip": "Local rumors"},
+        "keyInformation": ["Rumor 1", "Warning"],
+        "services": [{"item": "Room", "cost": "5sp"}, {"item": "Meal", "cost": "2sp"}]
+      },
+      {
+        "name": "Blacksmith Name",
+        "role": "Blacksmith",
+        "location": "The forge",
+        "appearance": "Physical description",
+        "personality": "Gruff but fair",
+        "dialogue": {"greeting": "Looking to buy?", "gossip": "Monster sightings"},
+        "keyInformation": ["Practical advice", "Terrain knowledge"],
+        "services": [{"item": "Weapon repair", "cost": "varies"}]
+      },
+      {
+        "name": "Merchant Name",
+        "role": "Merchant",
+        "location": "Market",
+        "appearance": "Well-dressed",
+        "personality": "Shrewd negotiator",
+        "dialogue": {"greeting": "Need supplies?", "gossip": "Trade news"},
+        "keyInformation": ["Sells gear", "Buys loot"],
+        "services": [{"item": "Potions", "cost": "50gp"}]
+      },
+      {
+        "name": "Priest Name",
+        "role": "Temple Priest",
+        "location": "Local temple",
+        "appearance": "Robed, holy symbol",
+        "personality": "Compassionate",
+        "dialogue": {"greeting": "Blessings, travelers", "gossip": "Omens and dreams"},
+        "keyInformation": ["Spiritual insight", "Can identify curses"],
+        "services": [{"item": "Cure Wounds", "cost": "10gp donation"}]
+      },
+      {
+        "name": "Elder Name",
+        "role": "Local Historian",
+        "location": "Tavern corner",
+        "appearance": "Weathered, old scars",
+        "personality": "Loves to tell stories",
+        "dialogue": {"greeting": "Sit down, young one...", "gossip": "Ancient legends"},
+        "keyInformation": ["Dungeon history", "Secret weakness"],
+        "services": []
+      },
+      {
+        "name": "Stranger Name",
+        "role": "Mysterious Figure",
+        "location": "Shadows",
+        "appearance": "Hooded, watching",
+        "personality": "Cryptic",
+        "dialogue": {"greeting": "You seek [objective]. Interesting.", "gossip": "Cryptic hints"},
+        "keyInformation": ["Knows something crucial"],
+        "services": []
+      }
+    ],
+    "travelToDestination": {
+      "readAloud": "Travel narration (1-2 paragraphs)",
+      "duration": "Travel time"
+    },
+    "transitionToAct2": "Read-aloud text as party arrives at the dungeon entrance"
+  }
+}
+\`\`\`
+
+REQUIREMENTS:
+- Create 6 distinct NPCs with unique personalities and useful information
+- Include specific dialogue lines for each NPC
+- Make the quest giver compelling with clear motivation`;
+}
+
+// Build prompt for Act 2 (Dungeon/Encounters)
+function buildAct2Prompt(request: CampaignRequest, overviewData: any): string {
+  const adventureType = request.adventureType || 'dungeon_crawl';
+
+  return `You are a master D&D 5e Dungeon Master. Create ACT 2 (the dungeon/adventure site) for this adventure:
+
+ADVENTURE CONTEXT:
+- Title: ${overviewData.title}
+- Synopsis: ${overviewData.synopsis}
+- Theme: ${request.theme}
+- Setting: ${request.setting}
+- Party Level: ${request.partyLevel}
+- Party Size: ${request.partySize}
+
+Return ONLY valid JSON with this structure:
+
+\`\`\`json
+{
+  "act2": {
+    "title": "Act 2 Title (e.g., 'The Crimson Depths')",
+    "estimatedDuration": "60-90 minutes",
+    "overview": "The dungeon/adventure site and its dangers",
+    "dungeonOverview": {
+      "name": "Dungeon Name",
+      "history": "Brief history of this place",
+      "readAloud": "Entrance description (what players see approaching)",
+      "atmosphere": "Overall mood",
+      "lightingConditions": "Bright/dim/dark light",
+      "environmentalHazards": ["Hazard 1", "Hazard 2"]
+    },
+    "rooms": [
+      {
+        "id": "1",
+        "name": "Entrance Chamber",
+        "readAloud": "Detailed description (2 paragraphs with sensory details)",
+        "dimensions": "30ft x 40ft",
+        "lighting": "Dim light",
+        "exits": ["North: door to Room 2"],
+        "contents": {
+          "obvious": ["What's visible"],
+          "hidden": ["DC 15 Perception reveals..."]
+        },
+        "treasure": []
+      },
+      {
+        "id": "2",
+        "name": "Guard Room",
+        "readAloud": "Description with combat setup",
+        "dimensions": "25ft x 25ft",
+        "lighting": "Torchlight",
+        "exits": ["South: Room 1", "East: Room 3"],
+        "contents": {"obvious": ["Guards present"], "hidden": ["Hidden cache"]},
+        "treasure": [{"item": "Gold pouch", "value": "15gp"}]
+      },
+      {
+        "id": "3",
+        "name": "Trap Corridor",
+        "readAloud": "Long hallway description",
+        "dimensions": "10ft x 60ft",
+        "lighting": "Dark",
+        "exits": ["West: Room 2", "East: Room 4"],
+        "contents": {"obvious": ["Strange floor tiles"], "hidden": ["Trap mechanism"]},
+        "treasure": []
+      },
+      {
+        "id": "4",
+        "name": "Central Chamber",
+        "readAloud": "Large room description for major fight",
+        "dimensions": "50ft x 50ft",
+        "lighting": "Magical light",
+        "exits": ["West: Room 3", "North: Room 5"],
+        "contents": {"obvious": ["Enemies"], "hidden": ["Secret door"]},
+        "treasure": [{"item": "Chest", "value": "50gp"}]
+      },
+      {
+        "id": "5",
+        "name": "Pre-Boss Chamber",
+        "readAloud": "Tense description approaching final area",
+        "dimensions": "35ft x 35ft",
+        "lighting": "Dim",
+        "exits": ["South: Room 4", "North: Boss Chamber"],
+        "contents": {"obvious": ["Elite guards"], "hidden": ["Warning signs"]},
+        "treasure": [{"item": "Key", "value": "opens boss door"}]
+      }
+    ],
+    "encounters": [
+      {
+        "name": "Entry Guards",
+        "location": "Room 2",
+        "type": "combat",
+        "readAloud": "Combat begins as guards spot intruders",
+        "enemies": [{"name": "Guard", "count": 3, "cr": "1/8", "hp": 11, "ac": 13}],
+        "tactics": "Guards raise alarm, fight defensively",
+        "terrain": "Tables for cover",
+        "difficulty": "easy",
+        "rewards": {"xp": 75, "loot": ["3 shortswords", "15gp"]}
+      },
+      {
+        "name": "Ambush",
+        "location": "Room 4",
+        "type": "combat",
+        "readAloud": "Enemies spring from hiding",
+        "enemies": [{"name": "Cultist", "count": 4, "cr": "1/4", "hp": 9, "ac": 12}, {"name": "Cult Fanatic", "count": 1, "cr": "2", "hp": 33, "ac": 13}],
+        "tactics": "Fanatic casts spells while cultists swarm",
+        "terrain": "Pillars for cover, raised platform",
+        "difficulty": "medium",
+        "rewards": {"xp": 250, "loot": ["Ritual dagger (25gp)", "Spell scroll"]}
+      },
+      {
+        "name": "Elite Guard",
+        "location": "Room 5",
+        "type": "combat",
+        "readAloud": "The villain's best warriors bar the way",
+        "enemies": [{"name": "Veteran", "count": 2, "cr": "3", "hp": 58, "ac": 17}],
+        "tactics": "Coordinated attacks, one holds chokepoint while other flanks",
+        "terrain": "Narrow doorway, weapon racks",
+        "difficulty": "hard",
+        "rewards": {"xp": 400, "loot": ["Quality weapons (100gp)", "Boss chamber key"]}
+      }
+    ],
+    "traps": [
+      {
+        "name": "Pressure Plate Darts",
+        "location": "Room 3",
+        "trigger": "Weight on tiles",
+        "detection": "DC 14 Perception",
+        "effect": "2d6 piercing damage, DC 13 Dex save for half",
+        "disarm": "DC 12 Thieves' Tools"
+      }
+    ],
+    "puzzles": [
+      {
+        "name": "Door Riddle",
+        "location": "Between Room 4 and 5",
+        "readAloud": "An inscription on the door reads...",
+        "solution": "The answer is...",
+        "hints": [{"method": "DC 12 Investigation", "reveal": "First hint"}],
+        "reward": "Door opens peacefully"
+      }
+    ],
+    "transitionToAct3": "Read-aloud text as party approaches the final chamber"
+  }
+}
+\`\`\`
+
+REQUIREMENTS:
+- Include exactly 3 COMBAT encounters with full enemy stats (name, count, cr, hp, ac)
+- Encounters should escalate: easy -> medium -> hard
+- Include at least 1 trap and 1 puzzle
+- Create 5-6 interconnected rooms
+- Use SRD monsters appropriate for level ${request.partyLevel}`;
+}
+
+// Build prompt for Act 3 + Epilogue
+function buildAct3AndEpiloguePrompt(request: CampaignRequest, overviewData: any): string {
+  return `You are a master D&D 5e Dungeon Master. Create ACT 3 (boss fight) and EPILOGUE for this adventure:
+
+ADVENTURE CONTEXT:
+- Title: ${overviewData.title}
+- Synopsis: ${overviewData.synopsis}
+- Theme: ${request.theme}
+- Party Level: ${request.partyLevel}
+- Party Size: ${request.partySize}
+
+Return ONLY valid JSON with this structure:
+
+\`\`\`json
+{
+  "act3": {
+    "title": "Act 3 Title",
+    "estimatedDuration": "30-45 minutes",
+    "overview": "The final confrontation",
+    "approach": {
+      "readAloud": "Description approaching boss chamber - building tension",
+      "warnings": "Signs of danger ahead",
+      "lastChance": "Final opportunity to prepare"
+    },
+    "bossEncounter": {
+      "chamberDescription": {
+        "readAloud": "Boss chamber description (2 paragraphs). Dramatic, atmospheric.",
+        "dimensions": "60ft x 60ft",
+        "terrain": ["Throne/altar", "Pillars", "Hazardous area"],
+        "interactables": ["Chandelier to drop", "Braziers to kick over"]
+      },
+      "villain": {
+        "name": "Villain Name",
+        "appearance": "Dramatic physical description",
+        "motivation": "Why they're doing this",
+        "stats": {"cr": "4", "hp": 85, "ac": 15},
+        "dialogue": {
+          "onSighting": "What villain says when party enters",
+          "monologue": "Brief villain speech",
+          "duringCombat": ["Taunt 1", "Taunt 2"],
+          "ifDefeated": "Final words"
+        },
+        "tactics": {
+          "phase1": "Opening tactics (full HP)",
+          "phase2": "Desperate tactics (below half)",
+          "signature": "Their signature move"
+        },
+        "weakness": "How clever players gain advantage",
+        "morale": "Will they flee or fight to death?"
+      },
+      "minions": [{"name": "Minion type", "count": 2, "cr": "1/2", "hp": 22, "ac": 13}],
+      "rewards": {
+        "xp": 1100,
+        "gold": "200gp",
+        "items": [{"name": "Magic Item", "description": "What it does"}],
+        "villainLoot": "What's on the villain"
+      }
+    },
+    "aftermath": {
+      "readAloud": "Immediate aftermath of victory",
+      "discoveries": "What party learns after battle"
+    }
+  },
+  "epilogue": {
+    "title": "Epilogue",
+    "estimatedDuration": "15-20 minutes",
+    "returnToTown": {
+      "readAloud": "Arrival back in town - how do people react?",
+      "questGiverReaction": "How quest giver responds to success"
+    },
+    "rewards": {
+      "promised": "The agreed reward",
+      "bonus": "Extra rewards for exceptional performance",
+      "reputation": "How their reputation changed"
+    },
+    "looseEnds": [
+      {"thread": "Unresolved plot point", "hint": "Future hook"}
+    ],
+    "sequelHooks": [
+      {"name": "Next Adventure Hook", "setup": "What hints at future"}
+    ],
+    "closingNarration": "Final read-aloud wrapping up the adventure"
+  }
+}
+\`\`\`
+
+REQUIREMENTS:
+- Boss should be appropriate CR for level ${request.partyLevel} party of ${request.partySize}
+- Include villain dialogue and multiple combat phases
+- Create satisfying epilogue with closure and future hooks
+- Include at least one magic item reward`;
+}
+
+// Generate campaign using Google Gemini API - SPLIT GENERATION
 export async function generateCampaign(req: Request, res: Response) {
   try {
     const request: CampaignRequest = req.body;
@@ -510,7 +927,98 @@ export async function generateCampaign(req: Request, res: Response) {
       return res.status(500).json({ error: 'GOOGLE_API_KEY not configured. Add it in Render Environment Variables.' });
     }
 
-    console.log('Starting campaign generation with theme:', request.theme, 'setting:', request.setting);
+    console.log('Starting SPLIT campaign generation with theme:', request.theme, 'setting:', request.setting);
+
+    // Part 1: Generate Overview + Act 1
+    let overviewAndAct1;
+    try {
+      const prompt1 = buildOverviewAndAct1Prompt(request);
+      overviewAndAct1 = await callGeminiAndParse(prompt1, 'Overview + Act 1');
+    } catch (error) {
+      console.error('Failed to generate Overview + Act 1:', error);
+      return res.status(500).json({
+        error: 'Failed to generate campaign overview',
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+
+    // Part 2: Generate Act 2 (Dungeon)
+    let act2Data;
+    try {
+      const prompt2 = buildAct2Prompt(request, overviewAndAct1);
+      act2Data = await callGeminiAndParse(prompt2, 'Act 2');
+    } catch (error) {
+      console.error('Failed to generate Act 2:', error);
+      // Continue with partial data
+      act2Data = { act2: null };
+    }
+
+    // Part 3: Generate Act 3 + Epilogue
+    let act3Data;
+    try {
+      const prompt3 = buildAct3AndEpiloguePrompt(request, overviewAndAct1);
+      act3Data = await callGeminiAndParse(prompt3, 'Act 3 + Epilogue');
+    } catch (error) {
+      console.error('Failed to generate Act 3:', error);
+      // Continue with partial data
+      act3Data = { act3: null, epilogue: null };
+    }
+
+    // Merge all parts into complete campaign
+    const campaign: GeneratedCampaign = {
+      ...overviewAndAct1,
+      act2: act2Data.act2 || null,
+      act3: act3Data.act3 || null,
+      epilogue: act3Data.epilogue || null,
+      // Legacy fields for backward compatibility
+      npcs: [],
+      locations: [],
+      encounters: act2Data.act2?.encounters || [],
+      sessionOutlines: [{
+        number: 1,
+        title: overviewAndAct1.title || 'Adventure',
+        summary: overviewAndAct1.synopsis || '',
+        objectives: ['Complete Act 1', 'Complete Act 2', 'Defeat the boss', 'Return victorious']
+      }]
+    };
+
+    // Generate dungeon map if requested
+    if (request.includeMap) {
+      try {
+        campaign.dungeonMap = await generateDungeonMap(request, campaign);
+      } catch (mapError) {
+        console.error('Dungeon map generation failed, using procedural:', mapError);
+        campaign.dungeonMap = generateProceduralDungeon(request.theme);
+      }
+    }
+
+    console.log('Campaign generated successfully:', campaign.title);
+    return res.json(campaign);
+
+  } catch (error) {
+    console.error('Unexpected campaign generation error:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return res.status(500).json({
+      error: 'Failed to generate campaign',
+      details: errorMessage
+    });
+  }
+}
+
+// Legacy single-prompt generation (kept for reference)
+export async function generateCampaignLegacy(req: Request, res: Response) {
+  try {
+    const request: CampaignRequest = req.body;
+
+    if (!request.theme || !request.setting) {
+      return res.status(400).json({ error: 'Theme and setting are required' });
+    }
+
+    if (!process.env.GOOGLE_API_KEY) {
+      return res.status(500).json({ error: 'GOOGLE_API_KEY not configured. Add it in Render Environment Variables.' });
+    }
+
+    console.log('Starting LEGACY campaign generation with theme:', request.theme, 'setting:', request.setting);
 
     const prompt = buildCampaignPrompt(request);
 
@@ -547,33 +1055,7 @@ export async function generateCampaign(req: Request, res: Response) {
       console.log('Short response content:', text);
     }
 
-    // Try multiple patterns to extract JSON
-    let jsonStr = '';
-
-    // Pattern 1: ```json ... ```
-    const jsonBlockMatch = text.match(/```json\n?([\s\S]*?)\n?```/);
-    if (jsonBlockMatch) {
-      jsonStr = jsonBlockMatch[1];
-      console.log('Extracted via json code block');
-    } else {
-      // Pattern 2: ``` ... ```
-      const codeBlockMatch = text.match(/```\n?([\s\S]*?)\n?```/);
-      if (codeBlockMatch) {
-        jsonStr = codeBlockMatch[1];
-        console.log('Extracted via generic code block');
-      } else {
-        // Pattern 3: Direct JSON object
-        const directMatch = text.match(/\{[\s\S]*\}/);
-        if (directMatch) {
-          jsonStr = directMatch[0];
-          console.log('Extracted via direct JSON match');
-        } else {
-          jsonStr = text;
-          console.log('Using raw response as JSON');
-        }
-      }
-    }
-
+    const jsonStr = extractJsonFromResponse(text);
     console.log('Extracted JSON length:', jsonStr.length);
 
     try {

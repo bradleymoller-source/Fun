@@ -1880,7 +1880,14 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
           {isGenerating && (
             <div className="text-center text-parchment/70 text-sm">
               <div className="animate-pulse">Consulting the ancient tomes...</div>
-              <div className="text-xs text-parchment/50 mt-1">This may take 30-60 seconds</div>
+              <div className="text-xs text-parchment/50 mt-1">
+                Generating in 3 parts: Overview → Dungeon → Boss Fight
+              </div>
+              <div className="flex justify-center gap-1 mt-2">
+                <div className="w-2 h-2 bg-gold rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                <div className="w-2 h-2 bg-gold rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                <div className="w-2 h-2 bg-gold rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+              </div>
             </div>
           )}
         </div>
