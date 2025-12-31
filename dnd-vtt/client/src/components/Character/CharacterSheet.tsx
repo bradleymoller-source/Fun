@@ -16,6 +16,7 @@ import {
   SPELL_SLOTS_BY_LEVEL,
   HALF_CASTER_SPELL_SLOTS,
   WARLOCK_SPELL_SLOTS,
+  getSpellDetails,
 } from '../../data/dndData';
 import { Tooltip, RULE_TOOLTIPS } from '../ui/Tooltip';
 import { Button } from '../ui/Button';
@@ -42,6 +43,7 @@ export function CharacterSheet({ character, onUpdate, onRoll, onImport, isEditab
   const [activeTab, setActiveTab] = useState<SheetTab>('stats');
   const [showConditionPicker, setShowConditionPicker] = useState(false);
   const [expandedFeature, setExpandedFeature] = useState<string | null>(null);
+  const [expandedSpell, setExpandedSpell] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -1021,6 +1023,118 @@ export function CharacterSheet({ character, onUpdate, onRoll, onImport, isEditab
     );
   };
 
+  // Render a single expandable spell card
+  const renderSpellCard = (spellName: string, isCantrip: boolean) => {
+    const details = getSpellDetails(spellName);
+    const isExpanded = expandedSpell === spellName;
+    const bgColor = isCantrip ? 'bg-purple-900/30' : 'bg-blue-900/30';
+    const borderColor = isCantrip ? 'border-purple-500/50' : 'border-blue-500/50';
+    const textColor = isCantrip ? 'text-purple-300' : 'text-blue-300';
+    const hoverBorder = isCantrip ? 'hover:border-purple-400' : 'hover:border-blue-400';
+
+    return (
+      <div key={spellName} className={`${bgColor} rounded border ${borderColor} ${hoverBorder} transition-colors overflow-hidden`}>
+        <button
+          onClick={() => setExpandedSpell(isExpanded ? null : spellName)}
+          className="w-full px-3 py-2 flex justify-between items-center text-left"
+        >
+          <span className={`${textColor} font-medium text-sm`}>{spellName}</span>
+          <span className="text-parchment/50 text-xs">{isExpanded ? '▼' : '▶'}</span>
+        </button>
+
+        {isExpanded && details && (
+          <div className="px-3 pb-3 border-t border-leather/50 space-y-2">
+            {/* Spell metadata row */}
+            <div className="flex flex-wrap gap-2 mt-2 text-xs">
+              <span className="bg-dark-wood px-2 py-0.5 rounded text-parchment/80 capitalize">
+                {details.school}
+              </span>
+              {details.concentration && (
+                <span className="bg-yellow-900/50 text-yellow-400 px-2 py-0.5 rounded">
+                  Concentration
+                </span>
+              )}
+              {details.ritual && (
+                <span className="bg-green-900/50 text-green-400 px-2 py-0.5 rounded">
+                  Ritual
+                </span>
+              )}
+            </div>
+
+            {/* Spell properties grid */}
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+              <div>
+                <span className="text-parchment/50">Casting Time: </span>
+                <span className="text-parchment">{details.castingTime}</span>
+              </div>
+              <div>
+                <span className="text-parchment/50">Range: </span>
+                <span className="text-parchment">{details.range}</span>
+              </div>
+              <div>
+                <span className="text-parchment/50">Duration: </span>
+                <span className="text-parchment">{details.duration}</span>
+              </div>
+              <div>
+                <span className="text-parchment/50">Components: </span>
+                <span className="text-parchment">{details.components}</span>
+              </div>
+            </div>
+
+            {/* Damage/Healing info */}
+            {(details.damage || details.healing || details.savingThrow || details.attackType) && (
+              <div className="flex flex-wrap gap-2 text-xs">
+                {details.damage && (
+                  <span className="bg-red-900/40 text-red-300 px-2 py-0.5 rounded">
+                    {details.damage} {details.damageType || 'damage'}
+                  </span>
+                )}
+                {details.healing && (
+                  <span className="bg-green-900/40 text-green-300 px-2 py-0.5 rounded">
+                    {details.healing} healing
+                  </span>
+                )}
+                {details.attackType && (
+                  <span className="bg-orange-900/40 text-orange-300 px-2 py-0.5 rounded">
+                    {details.attackType === 'melee' ? 'Melee Spell Attack' : 'Ranged Spell Attack'}
+                  </span>
+                )}
+                {details.savingThrow && (
+                  <span className="bg-cyan-900/40 text-cyan-300 px-2 py-0.5 rounded">
+                    {ABILITY_ABBREVIATIONS[details.savingThrow]} Save
+                  </span>
+                )}
+                {details.areaOfEffect && (
+                  <span className="bg-amber-900/40 text-amber-300 px-2 py-0.5 rounded">
+                    {details.areaOfEffect}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Description */}
+            <p className="text-parchment/80 text-xs leading-relaxed">{details.description}</p>
+
+            {/* Higher levels */}
+            {details.higherLevels && (
+              <div className="text-xs">
+                <span className="text-gold font-semibold">At Higher Levels: </span>
+                <span className="text-parchment/70">{details.higherLevels}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Fallback if no details found */}
+        {isExpanded && !details && (
+          <div className="px-3 pb-3 border-t border-leather/50">
+            <p className="text-parchment/50 text-xs mt-2 italic">Spell details not available.</p>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderSpellsTab = () => {
     // Check for simple cantrips/spells or full spellcasting
     const hasCantrips = character.cantrips && character.cantrips.length > 0;
@@ -1059,30 +1173,22 @@ export function CharacterSheet({ character, onUpdate, onRoll, onImport, isEditab
         {/* Spell Slots */}
         {renderSpellSlots()}
 
-        {/* Cantrips (Simple list) */}
+        {/* Cantrips - Expandable cards */}
         {hasCantrips && (
           <div>
-            <h4 className="text-gold font-semibold mb-2">Cantrips</h4>
-            <div className="flex flex-wrap gap-1">
-              {character.cantrips!.map(cantrip => (
-                <span key={cantrip} className="bg-blue-900/30 text-blue-300 px-2 py-1 rounded text-sm border border-blue-500/50">
-                  {cantrip}
-                </span>
-              ))}
+            <h4 className="text-purple-400 font-semibold mb-2">Cantrips</h4>
+            <div className="space-y-1">
+              {character.cantrips!.map(cantrip => renderSpellCard(cantrip, true))}
             </div>
           </div>
         )}
 
-        {/* Spells (Simple list) */}
+        {/* Spells Known - Expandable cards */}
         {hasSpells && (
           <div>
-            <h4 className="text-gold font-semibold mb-2">Spells Known</h4>
-            <div className="flex flex-wrap gap-1">
-              {character.spells!.map(spell => (
-                <span key={spell} className="bg-blue-900/30 text-blue-300 px-2 py-1 rounded text-sm border border-blue-500/50">
-                  {spell}
-                </span>
-              ))}
+            <h4 className="text-blue-400 font-semibold mb-2">Spells Known</h4>
+            <div className="space-y-1">
+              {character.spells!.map(spell => renderSpellCard(spell, false))}
             </div>
           </div>
         )}
@@ -1094,16 +1200,7 @@ export function CharacterSheet({ character, onUpdate, onRoll, onImport, isEditab
             <div className="space-y-1">
               {character.spellcasting!.spells
                 .sort((a, b) => a.level - b.level)
-                .map(spell => (
-                  <div key={spell.id} className="bg-dark-wood p-2 rounded border border-leather">
-                    <div className="flex justify-between items-center">
-                      <span className="text-parchment">{spell.name}</span>
-                      <span className="text-parchment/70 text-xs">
-                        {spell.level === 0 ? 'Cantrip' : `Level ${spell.level}`}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                .map(spell => renderSpellCard(spell.name, spell.level === 0))}
             </div>
           </div>
         )}
