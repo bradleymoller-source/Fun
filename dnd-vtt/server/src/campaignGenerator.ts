@@ -1,0 +1,467 @@
+import Anthropic from '@anthropic-ai/sdk';
+import type { Request, Response } from 'express';
+
+// Initialize Anthropic client - uses ANTHROPIC_API_KEY env variable
+const anthropic = new Anthropic();
+
+// Types for campaign generation
+export interface CampaignRequest {
+  theme: string;
+  setting: string;
+  partyLevel: number;
+  partySize: number;
+  sessionCount?: number;
+  tone?: 'serious' | 'lighthearted' | 'horror' | 'epic';
+  includeMap?: boolean;
+}
+
+export interface GeneratedNPC {
+  name: string;
+  race: string;
+  occupation: string;
+  personality: string;
+  motivation: string;
+  secret?: string;
+  isAlly: boolean;
+}
+
+export interface GeneratedLocation {
+  name: string;
+  type: string;
+  description: string;
+  features: string[];
+  encounters?: string[];
+  treasure?: string[];
+}
+
+export interface GeneratedEncounter {
+  name: string;
+  description: string;
+  difficulty: 'easy' | 'medium' | 'hard' | 'deadly';
+  monsters: { name: string; count: number; cr: string }[];
+  tactics: string;
+  rewards: string[];
+}
+
+export interface GeneratedCampaign {
+  title: string;
+  synopsis: string;
+  hook: string;
+  arc: {
+    beginning: string;
+    middle: string;
+    climax: string;
+    resolution: string;
+  };
+  npcs: GeneratedNPC[];
+  locations: GeneratedLocation[];
+  encounters: GeneratedEncounter[];
+  sessionOutlines: { number: number; title: string; summary: string; objectives: string[] }[];
+  dungeonMap?: DungeonMap;
+}
+
+export interface DungeonRoom {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  type: 'entrance' | 'corridor' | 'room' | 'boss' | 'treasure' | 'trap' | 'secret';
+  name: string;
+  description: string;
+  connections: string[];
+  encounter?: GeneratedEncounter;
+  features?: string[];
+}
+
+export interface DungeonMap {
+  name: string;
+  width: number;
+  height: number;
+  rooms: DungeonRoom[];
+  theme: string;
+}
+
+// Generate campaign using Claude API
+export async function generateCampaign(req: Request, res: Response) {
+  try {
+    const request: CampaignRequest = req.body;
+
+    if (!request.theme || !request.setting) {
+      return res.status(400).json({ error: 'Theme and setting are required' });
+    }
+
+    const prompt = buildCampaignPrompt(request);
+
+    const message = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 8000,
+      messages: [
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+    });
+
+    // Extract text content
+    const textContent = message.content.find(block => block.type === 'text');
+    if (!textContent || textContent.type !== 'text') {
+      return res.status(500).json({ error: 'No text response from Claude' });
+    }
+
+    // Parse the JSON response
+    const jsonMatch = textContent.text.match(/```json\n?([\s\S]*?)\n?```/);
+    if (!jsonMatch) {
+      // Try to parse directly if no code block
+      try {
+        const campaign = JSON.parse(textContent.text);
+        return res.json(campaign);
+      } catch {
+        return res.status(500).json({ error: 'Failed to parse campaign response', raw: textContent.text });
+      }
+    }
+
+    const campaign: GeneratedCampaign = JSON.parse(jsonMatch[1]);
+
+    // Generate dungeon map if requested
+    if (request.includeMap) {
+      campaign.dungeonMap = await generateDungeonMap(request, campaign);
+    }
+
+    res.json(campaign);
+  } catch (error) {
+    console.error('Campaign generation error:', error);
+    res.status(500).json({ error: 'Failed to generate campaign', details: String(error) });
+  }
+}
+
+// Generate a dungeon map based on campaign
+async function generateDungeonMap(request: CampaignRequest, campaign: GeneratedCampaign): Promise<DungeonMap> {
+  const prompt = `You are a dungeon designer for D&D 5e. Create a dungeon map layout as JSON for:
+Theme: ${request.theme}
+Setting: ${request.setting}
+Party Level: ${request.partyLevel}
+Campaign Title: ${campaign.title}
+
+Generate a dungeon with 8-15 rooms. Return ONLY valid JSON in this format:
+{
+  "name": "Dungeon Name",
+  "width": 20,
+  "height": 20,
+  "theme": "dungeon theme",
+  "rooms": [
+    {
+      "id": "room-1",
+      "x": 0,
+      "y": 8,
+      "width": 3,
+      "height": 3,
+      "type": "entrance",
+      "name": "Dungeon Entrance",
+      "description": "The entrance to the dungeon...",
+      "connections": ["room-2"],
+      "features": ["Stone doors", "Ancient runes"]
+    }
+  ]
+}
+
+Room types: entrance, corridor, room, boss, treasure, trap, secret
+Ensure rooms connect logically and don't overlap. Place entrance at edge.
+Use grid coordinates (0-19 for x and y).`;
+
+  try {
+    const message = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 4000,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const textContent = message.content.find(block => block.type === 'text');
+    if (!textContent || textContent.type !== 'text') {
+      return generateProceduralDungeon(request.theme);
+    }
+
+    const jsonMatch = textContent.text.match(/```json\n?([\s\S]*?)\n?```/) ||
+                      textContent.text.match(/\{[\s\S]*\}/);
+
+    if (jsonMatch) {
+      const mapJson = jsonMatch[1] || jsonMatch[0];
+      return JSON.parse(mapJson);
+    }
+
+    return generateProceduralDungeon(request.theme);
+  } catch (error) {
+    console.error('Dungeon map generation error:', error);
+    return generateProceduralDungeon(request.theme);
+  }
+}
+
+// Fallback procedural dungeon generator
+function generateProceduralDungeon(theme: string): DungeonMap {
+  const rooms: DungeonRoom[] = [];
+  const roomCount = 8 + Math.floor(Math.random() * 8); // 8-15 rooms
+
+  const roomTypes: DungeonRoom['type'][] = ['entrance', 'room', 'room', 'room', 'corridor', 'treasure', 'trap', 'boss', 'secret'];
+  const roomNames: Record<DungeonRoom['type'], string[]> = {
+    entrance: ['Grand Entrance', 'Dungeon Gate', 'Ancient Doorway', 'Cavern Mouth'],
+    corridor: ['Dark Passage', 'Winding Tunnel', 'Narrow Hall', 'Carved Corridor'],
+    room: ['Guard Room', 'Storage Chamber', 'Empty Hall', 'Ruined Study', 'Armory'],
+    boss: ['Throne Room', 'Inner Sanctum', 'Dark Heart', 'Final Chamber'],
+    treasure: ['Vault', 'Treasury', 'Hoard Room', 'Gold Chamber'],
+    trap: ['Trapped Hall', 'Danger Room', 'Pit Chamber', 'Blade Gallery'],
+    secret: ['Hidden Chamber', 'Secret Study', 'Concealed Vault', 'Mystery Room'],
+  };
+
+  // Place entrance
+  rooms.push({
+    id: 'room-1',
+    x: 0,
+    y: 8,
+    width: 3,
+    height: 3,
+    type: 'entrance',
+    name: 'Dungeon Entrance',
+    description: `The entrance to this ${theme} dungeon.`,
+    connections: ['room-2'],
+    features: ['Heavy stone doors', 'Warning inscriptions'],
+  });
+
+  // Generate remaining rooms
+  let currentX = 4;
+  let currentY = 8;
+
+  for (let i = 2; i <= roomCount; i++) {
+    const type = i === roomCount ? 'boss' : roomTypes[Math.floor(Math.random() * roomTypes.length)];
+    const names = roomNames[type];
+    const name = names[Math.floor(Math.random() * names.length)];
+
+    const width = type === 'corridor' ? 1 : 2 + Math.floor(Math.random() * 3);
+    const height = type === 'corridor' ? 3 + Math.floor(Math.random() * 4) : 2 + Math.floor(Math.random() * 3);
+
+    // Move position
+    if (Math.random() > 0.5) {
+      currentX += width + 1;
+      if (currentX > 17) {
+        currentX = 4;
+        currentY += 4;
+      }
+    } else {
+      currentY += height + 1;
+      if (currentY > 17) {
+        currentY = 2;
+        currentX += 5;
+      }
+    }
+
+    rooms.push({
+      id: `room-${i}`,
+      x: Math.min(currentX, 17),
+      y: Math.min(currentY, 17),
+      width,
+      height,
+      type,
+      name,
+      description: `A ${type} in the ${theme} dungeon.`,
+      connections: i < roomCount ? [`room-${i + 1}`] : [],
+      features: generateRoomFeatures(type),
+    });
+  }
+
+  // Add connections from previous rooms
+  for (let i = 1; i < rooms.length; i++) {
+    if (!rooms[i - 1].connections.includes(rooms[i].id)) {
+      rooms[i - 1].connections.push(rooms[i].id);
+    }
+  }
+
+  return {
+    name: `${theme.charAt(0).toUpperCase() + theme.slice(1)} Dungeon`,
+    width: 20,
+    height: 20,
+    rooms,
+    theme,
+  };
+}
+
+function generateRoomFeatures(type: DungeonRoom['type']): string[] {
+  const features: Record<DungeonRoom['type'], string[][]> = {
+    entrance: [['Heavy doors', 'Ancient carvings'], ['Broken statues', 'Dusty floor']],
+    corridor: [['Torch sconces', 'Cobwebs'], ['Dripping water', 'Rat holes']],
+    room: [['Broken furniture', 'Old tapestries'], ['Cracked pillars', 'Debris']],
+    boss: [['Throne', 'Dark altar'], ['Treasure piles', 'Ritual circle']],
+    treasure: [['Locked chests', 'Gold piles'], ['Magic items', 'Gems']],
+    trap: [['Pressure plates', 'Dart holes'], ['Pit traps', 'Poison needles']],
+    secret: [['Hidden door', 'Secret switch'], ['Concealed passage', 'False wall']],
+  };
+
+  const options = features[type];
+  return options[Math.floor(Math.random() * options.length)];
+}
+
+function buildCampaignPrompt(request: CampaignRequest): string {
+  return `You are an expert D&D 5e Dungeon Master. Create a complete campaign outline as JSON.
+
+Campaign Request:
+- Theme: ${request.theme}
+- Setting: ${request.setting}
+- Party Level: ${request.partyLevel}
+- Party Size: ${request.partySize}
+- Number of Sessions: ${request.sessionCount || 4}
+- Tone: ${request.tone || 'balanced'}
+
+Generate a campaign with the following structure. Return ONLY valid JSON:
+
+\`\`\`json
+{
+  "title": "Campaign Title",
+  "synopsis": "2-3 sentence campaign overview",
+  "hook": "How the party gets involved",
+  "arc": {
+    "beginning": "Act 1 summary",
+    "middle": "Act 2 summary",
+    "climax": "Final confrontation",
+    "resolution": "Epilogue possibilities"
+  },
+  "npcs": [
+    {
+      "name": "NPC Name",
+      "race": "Race",
+      "occupation": "Job/Role",
+      "personality": "Brief personality",
+      "motivation": "What they want",
+      "secret": "Hidden agenda (optional)",
+      "isAlly": true
+    }
+  ],
+  "locations": [
+    {
+      "name": "Location Name",
+      "type": "town/dungeon/wilderness/etc",
+      "description": "2-3 sentences",
+      "features": ["Notable feature 1", "Notable feature 2"],
+      "encounters": ["Possible encounter 1"],
+      "treasure": ["Possible loot"]
+    }
+  ],
+  "encounters": [
+    {
+      "name": "Encounter Name",
+      "description": "Setup and context",
+      "difficulty": "medium",
+      "monsters": [{"name": "Monster", "count": 2, "cr": "1"}],
+      "tactics": "How enemies fight",
+      "rewards": ["XP", "Loot"]
+    }
+  ],
+  "sessionOutlines": [
+    {
+      "number": 1,
+      "title": "Session Title",
+      "summary": "What happens",
+      "objectives": ["Goal 1", "Goal 2"]
+    }
+  ]
+}
+\`\`\`
+
+Create 3-5 NPCs, 3-5 locations, 4-6 encounters appropriate for level ${request.partyLevel}, and ${request.sessionCount || 4} session outlines.
+Use monsters from D&D 5e SRD. Ensure encounters are balanced for ${request.partySize} level ${request.partyLevel} characters.`;
+}
+
+// Generate just a dungeon map
+export async function generateDungeonMapEndpoint(req: Request, res: Response) {
+  try {
+    const { theme, partyLevel, roomCount } = req.body;
+
+    if (!theme) {
+      return res.status(400).json({ error: 'Theme is required' });
+    }
+
+    const dungeonMap = generateProceduralDungeon(theme);
+
+    // Optionally enhance with Claude
+    if (req.body.enhance) {
+      const prompt = `Enhance this dungeon map with better descriptions. Theme: ${theme}, Party Level: ${partyLevel || 1}.
+Current map: ${JSON.stringify(dungeonMap)}
+
+Return the enhanced map as JSON with better room names, descriptions, and features. Keep the same structure.`;
+
+      try {
+        const message = await anthropic.messages.create({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 4000,
+          messages: [{ role: 'user', content: prompt }],
+        });
+
+        const textContent = message.content.find(block => block.type === 'text');
+        if (textContent && textContent.type === 'text') {
+          const jsonMatch = textContent.text.match(/```json\n?([\s\S]*?)\n?```/) ||
+                            textContent.text.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const enhanced = JSON.parse(jsonMatch[1] || jsonMatch[0]);
+            return res.json(enhanced);
+          }
+        }
+      } catch (enhanceError) {
+        console.error('Enhancement failed, returning procedural map:', enhanceError);
+      }
+    }
+
+    res.json(dungeonMap);
+  } catch (error) {
+    console.error('Dungeon map generation error:', error);
+    res.status(500).json({ error: 'Failed to generate dungeon map', details: String(error) });
+  }
+}
+
+// Quick encounter generation
+export async function generateEncounter(req: Request, res: Response) {
+  try {
+    const { partyLevel, partySize, difficulty, environment, theme } = req.body;
+
+    const prompt = `Generate a D&D 5e encounter as JSON for:
+- Party: ${partySize || 4} characters at level ${partyLevel || 1}
+- Difficulty: ${difficulty || 'medium'}
+- Environment: ${environment || 'dungeon'}
+- Theme: ${theme || 'generic fantasy'}
+
+Return ONLY valid JSON:
+{
+  "name": "Encounter Name",
+  "description": "2-3 sentence setup",
+  "difficulty": "${difficulty || 'medium'}",
+  "monsters": [{"name": "SRD Monster Name", "count": 2, "cr": "1/2"}],
+  "tactics": "How monsters fight",
+  "rewards": ["XP total", "Possible loot"],
+  "terrain": ["Terrain feature 1", "Terrain feature 2"],
+  "complications": "Optional twist or complication"
+}
+
+Use only SRD monsters. Balance for the party.`;
+
+    const message = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const textContent = message.content.find(block => block.type === 'text');
+    if (!textContent || textContent.type !== 'text') {
+      return res.status(500).json({ error: 'No response from Claude' });
+    }
+
+    const jsonMatch = textContent.text.match(/```json\n?([\s\S]*?)\n?```/) ||
+                      textContent.text.match(/\{[\s\S]*?\}/);
+
+    if (jsonMatch) {
+      const encounter = JSON.parse(jsonMatch[1] || jsonMatch[0]);
+      return res.json(encounter);
+    }
+
+    res.status(500).json({ error: 'Failed to parse encounter' });
+  } catch (error) {
+    console.error('Encounter generation error:', error);
+    res.status(500).json({ error: 'Failed to generate encounter', details: String(error) });
+  }
+}

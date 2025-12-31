@@ -12,6 +12,8 @@ import { ChatPanel } from './ChatPanel';
 import { InitiativeTracker } from './InitiativeTracker';
 import { MonsterPanel } from './Monster/MonsterPanel';
 import { PartyDashboard } from './PartyDashboard';
+import { EncounterBuilder } from './EncounterBuilder';
+import { CampaignGenerator } from './CampaignGenerator';
 import type { Token, DiceRoll, ChatMessage, InitiativeEntry, FogArea, Character } from '../types';
 
 type MapOrientation = 'landscape' | 'portrait';
@@ -587,6 +589,25 @@ export function DMView() {
                 onNextTurn={handleNextTurn}
                 onStartCombat={handleStartCombat}
                 onEndCombat={handleEndCombat}
+              />
+            </Panel>
+
+            {/* Campaign Generator */}
+            <Panel>
+              <h2 className="font-medieval text-xl text-gold mb-4">
+                AI Campaign Generator
+              </h2>
+              <CampaignGenerator />
+            </Panel>
+
+            {/* Encounter Builder */}
+            <Panel>
+              <h2 className="font-medieval text-xl text-gold mb-4">
+                Encounter Builder
+              </h2>
+              <EncounterBuilder
+                allCharacters={allCharacters}
+                onAddTokens={(tokens) => tokens.forEach(t => handleAddToken(t))}
               />
             </Panel>
 

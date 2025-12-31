@@ -4,6 +4,7 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import { setupSocketHandlers } from './socketHandlers';
 import { loadSessionsFromDb, cleanupExpiredSessions } from './sessionManager';
+import { generateCampaign, generateDungeonMapEndpoint, generateEncounter } from './campaignGenerator';
 
 const app = express();
 const httpServer = createServer(app);
@@ -24,6 +25,11 @@ app.use(express.json());
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// Campaign generation endpoints
+app.post('/api/campaign/generate', generateCampaign);
+app.post('/api/campaign/dungeon', generateDungeonMapEndpoint);
+app.post('/api/campaign/encounter', generateEncounter);
 
 // Load existing sessions from database
 loadSessionsFromDb();

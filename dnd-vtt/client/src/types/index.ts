@@ -243,6 +243,7 @@ export interface Character {
   species: Species;
   subspecies?: string;  // e.g., "High Elf", "Hill Dwarf"
   speciesChoice?: string;  // e.g., "gold" for Gold Dragon ancestry, "frost" for Frost Giant
+  highElfCantrip?: string;  // Wizard cantrip chosen by High Elves
   characterClass: CharacterClass;
   subclass?: string;
   subclassChoices?: Record<string, string[]>;  // Map of choice ID to selected option IDs (e.g., { "maneuvers": ["riposte", "parry", "precision-attack"] })

@@ -59,6 +59,8 @@ import {
   // Origin feat proficiency options
   ARTISAN_TOOLS,
   MUSICAL_INSTRUMENTS,
+  // Species trait choices
+  HIGH_ELF_CANTRIPS,
 } from '../../data/dndData';
 import type { ShopItem, OriginFeatName } from '../../data/dndData';
 
@@ -86,6 +88,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
   const [species, setSpecies] = useState<Species>('human');
   const [subspecies, setSubspecies] = useState<string>('');
   const [speciesChoice, setSpeciesChoice] = useState<string>('');  // For Dragonborn ancestry, Goliath giant type, etc.
+  const [highElfCantrip, setHighElfCantrip] = useState<string>('');  // For High Elf wizard cantrip choice
   const [characterClass, setCharacterClass] = useState<CharacterClass>('fighter');
   const [subclass, setSubclass] = useState<string>('');
   const [subclassChoices, setSubclassChoices] = useState<Record<string, string[]>>({});
@@ -178,6 +181,8 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     }
     // Reset human bonus feat when species changes
     setHumanBonusFeat(null);
+    // Reset High Elf cantrip when species changes
+    setHighElfCantrip('');
   }, [species]);
 
   // Reset ASI selections when background changes (ASI is now tied to background abilities)
@@ -849,6 +854,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       name,
       species,
       speciesChoice: speciesChoice || undefined,
+      highElfCantrip: highElfCantrip || undefined,
       characterClass,
       subclass: subclass || undefined,
       subclassChoices: Object.keys(subclassChoices).length > 0 ? subclassChoices : undefined,
@@ -879,7 +885,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       equipment,
       currency: { copper: 0, silver: 0, electrum: 0, gold: startingGold, platinum: 0 },
       features,
-      cantrips: selectedCantrips,
+      cantrips: highElfCantrip ? [...selectedCantrips, highElfCantrip] : selectedCantrips,
       spells: selectedSpells,
       personalityTraits,
       ideals,
@@ -1411,6 +1417,24 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
               {SPECIES_CHOICES[species]!.options.find(o => o.id === speciesChoice)?.description}
             </p>
           )}
+        </div>
+      )}
+
+      {/* High Elf Cantrip Choice */}
+      {species === 'elf' && speciesChoice === 'high-elf' && (
+        <div className="bg-blue-900/20 border border-blue-500/50 p-3 rounded">
+          <label className="block text-blue-400 text-sm mb-1">High Elf Cantrip</label>
+          <p className="text-parchment/70 text-xs mb-2">Choose one cantrip from the Wizard spell list. Intelligence is your spellcasting ability for it.</p>
+          <select
+            value={highElfCantrip}
+            onChange={(e) => setHighElfCantrip(e.target.value)}
+            className="w-full bg-parchment text-dark-wood px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-gold"
+          >
+            <option value="">Select a cantrip...</option>
+            {HIGH_ELF_CANTRIPS.map(cantrip => (
+              <option key={cantrip} value={cantrip}>{cantrip}</option>
+            ))}
+          </select>
         </div>
       )}
 

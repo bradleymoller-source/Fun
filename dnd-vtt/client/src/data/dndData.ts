@@ -1287,10 +1287,83 @@ export const GOLIATH_ANCESTRY: SpeciesChoice = {
   ],
 };
 
+// Aasimar Celestial Revelation (2024 PHB)
+export const AASIMAR_REVELATION: SpeciesChoice = {
+  id: 'celestial-revelation',
+  name: 'Celestial Revelation',
+  description: 'Choose your celestial revelation form. At 3rd level, you can transform for 1 minute as a bonus action.',
+  options: [
+    { id: 'heavenly-wings', name: 'Heavenly Wings', description: 'Sprout spectral wings, fly speed equal to walking speed. Deal extra radiant damage equal to proficiency bonus once per turn.' },
+    { id: 'inner-radiance', name: 'Inner Radiance', description: 'Shed bright light in 10 ft radius. At end of each of your turns, deal radiant damage equal to proficiency bonus to one creature within 10 ft.' },
+    { id: 'necrotic-shroud', name: 'Necrotic Shroud', description: 'Eyes become pools of darkness. Creatures within 10 ft must succeed on CHA save or be frightened. Deal extra necrotic damage equal to proficiency bonus once per turn.' },
+  ],
+};
+
+// Elf Lineage (2024 PHB)
+export const ELF_LINEAGE: SpeciesChoice = {
+  id: 'elf-lineage',
+  name: 'Elven Lineage',
+  description: 'Choose your elven lineage. This determines additional traits and abilities.',
+  options: [
+    { id: 'high-elf', name: 'High Elf', description: 'You know one cantrip of your choice from the Wizard spell list. Intelligence is your spellcasting ability for it.' },
+    { id: 'wood-elf', name: 'Wood Elf', description: 'Your walking speed increases to 35 feet. You can attempt to hide when lightly obscured by natural phenomena.' },
+    { id: 'drow', name: 'Dark Elf (Drow)', description: 'Superior Darkvision (120 ft). You know the Dancing Lights cantrip. At 3rd level, Faerie Fire. At 5th level, Darkness.' },
+  ],
+};
+
+// Gnome Lineage (2024 PHB)
+export const GNOME_LINEAGE: SpeciesChoice = {
+  id: 'gnome-lineage',
+  name: 'Gnomish Lineage',
+  description: 'Choose your gnomish lineage. This determines additional traits and abilities.',
+  options: [
+    { id: 'forest-gnome', name: 'Forest Gnome', description: 'You know the Minor Illusion cantrip. You can speak with Small beasts.' },
+    { id: 'rock-gnome', name: 'Rock Gnome', description: 'You have proficiency with Tinker\'s Tools. You can create Tiny clockwork devices.' },
+  ],
+};
+
+// Tiefling Fiendish Legacy (2024 PHB)
+export const TIEFLING_LEGACY: SpeciesChoice = {
+  id: 'fiendish-legacy',
+  name: 'Fiendish Legacy',
+  description: 'Choose your fiendish legacy. This determines your damage resistance and innate spells.',
+  options: [
+    { id: 'abyssal', name: 'Abyssal', description: 'Poison resistance. Know Poison Spray cantrip. At 3rd level: Ray of Sickness. At 5th level: Hold Person.' },
+    { id: 'chthonic', name: 'Chthonic', description: 'Necrotic resistance. Know Chill Touch cantrip. At 3rd level: False Life. At 5th level: Ray of Enfeeblement.' },
+    { id: 'infernal', name: 'Infernal', description: 'Fire resistance. Know Thaumaturgy cantrip. At 3rd level: Hellish Rebuke. At 5th level: Darkness.' },
+  ],
+};
+
+// Halfling Subspecies (2024 PHB)
+export const HALFLING_TYPE: SpeciesChoice = {
+  id: 'halfling-type',
+  name: 'Halfling Type',
+  description: 'Choose your halfling type. This determines additional traits.',
+  options: [
+    { id: 'lightfoot', name: 'Lightfoot', description: 'You can hide behind a creature at least one size larger than you.' },
+    { id: 'stout', name: 'Stout', description: 'Resistance to poison damage and advantage on saves against poison.' },
+  ],
+};
+
+// High Elf cantrip options (wizard cantrips available to High Elves)
+export const HIGH_ELF_CANTRIPS: string[] = [
+  'Acid Splash', 'Blade Ward', 'Booming Blade', 'Chill Touch', 'Control Flames',
+  'Create Bonfire', 'Dancing Lights', 'Fire Bolt', 'Friends', 'Frostbite',
+  'Green-Flame Blade', 'Gust', 'Infestation', 'Light', 'Lightning Lure',
+  'Mage Hand', 'Mending', 'Message', 'Mind Sliver', 'Minor Illusion',
+  'Mold Earth', 'Poison Spray', 'Prestidigitation', 'Ray of Frost',
+  'Shape Water', 'Shocking Grasp', 'Sword Burst', 'Thunderclap', 'Toll the Dead', 'True Strike'
+];
+
 // Map species to their choices
 export const SPECIES_CHOICES: Partial<Record<Species, SpeciesChoice>> = {
   dragonborn: DRAGONBORN_ANCESTRY,
   goliath: GOLIATH_ANCESTRY,
+  aasimar: AASIMAR_REVELATION,
+  elf: ELF_LINEAGE,
+  gnome: GNOME_LINEAGE,
+  tiefling: TIEFLING_LEGACY,
+  halfling: HALFLING_TYPE,
 };
 
 export interface SpeciesTraits {
