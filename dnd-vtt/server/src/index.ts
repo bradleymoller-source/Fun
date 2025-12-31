@@ -4,7 +4,7 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import { setupSocketHandlers } from './socketHandlers';
 import { loadSessionsFromDb, cleanupExpiredSessions } from './sessionManager';
-import { generateCampaign, generateDungeonMapEndpoint, generateEncounter, generateBattleMap, generateActBattleMaps } from './campaignGenerator';
+import { generateCampaign, generateDungeonMapEndpoint, generateEncounter, generateBattleMap, generateActBattleMaps, generateSceneImage } from './campaignGenerator';
 
 const app = express();
 const httpServer = createServer(app);
@@ -40,6 +40,7 @@ app.post('/api/campaign/dungeon', generateDungeonMapEndpoint);
 app.post('/api/campaign/encounter', generateEncounter);
 app.post('/api/campaign/battlemap', generateBattleMap);
 app.post('/api/campaign/battlemaps', generateActBattleMaps);
+app.post('/api/campaign/scene', generateSceneImage);
 
 // Global error handler to ensure JSON responses
 app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {

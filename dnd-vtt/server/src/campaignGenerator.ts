@@ -806,6 +806,49 @@ export function generateBattleMapUrl(
   return `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true`;
 }
 
+// Generate a beautiful scene/landscape image URL for setting the scene
+export function generateSceneImageUrl(
+  location: string,
+  style: string = 'fantasy medieval',
+  mood: string = 'vibrant and inviting',
+  timeOfDay: string = 'golden hour sunset'
+): string {
+  const prompt = `${location}, ${style} art style, ${mood}, ${timeOfDay} lighting, highly detailed digital painting, epic fantasy illustration, concept art, artstation trending, dramatic composition, beautiful scenery, no text, no watermark, 8k quality`;
+
+  const encodedPrompt = encodeURIComponent(prompt);
+  return `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1280&height=720&nologo=true`;
+}
+
+// Scene image generation endpoint
+export async function generateSceneImage(req: Request, res: Response) {
+  try {
+    const { location, style, mood, timeOfDay, name } = req.body;
+
+    if (!location) {
+      return res.status(400).json({ error: 'Location description is required' });
+    }
+
+    const imageUrl = generateSceneImageUrl(
+      location,
+      style || 'fantasy medieval',
+      mood || 'vibrant and inviting',
+      timeOfDay || 'golden hour sunset'
+    );
+
+    res.json({
+      name: name || 'Scene',
+      imageUrl,
+      location,
+      style,
+      mood,
+      timeOfDay
+    });
+  } catch (error) {
+    console.error('Scene image generation error:', error);
+    res.status(500).json({ error: 'Failed to generate scene image', details: String(error) });
+  }
+}
+
 // Battle map generation endpoint
 export async function generateBattleMap(req: Request, res: Response) {
   try {

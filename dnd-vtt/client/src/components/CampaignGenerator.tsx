@@ -152,6 +152,10 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
   const [battleMaps, setBattleMaps] = useState<Record<string, string>>({});
   const [generatingMapId, setGeneratingMapId] = useState<string | null>(null);
 
+  // Scene image state
+  const [sceneImages, setSceneImages] = useState<Record<string, string>>({});
+  const [generatingSceneId, setGeneratingSceneId] = useState<string | null>(null);
+
   const handleGenerate = async () => {
     setIsGenerating(true);
     setError(null);
@@ -313,6 +317,32 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
       console.error('Batch battle map generation error:', err);
     } finally {
       setGeneratingMapId(null);
+    }
+  };
+
+  // Generate a beautiful scene image for a location
+  const handleGenerateSceneImage = async (
+    id: string,
+    location: string,
+    mood: string = 'vibrant and inviting',
+    timeOfDay: string = 'golden hour sunset'
+  ) => {
+    setGeneratingSceneId(id);
+    try {
+      const response = await fetch(`${SERVER_URL}/api/campaign/scene`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ location, mood, timeOfDay, name: id }),
+      });
+
+      const data = await response.json();
+      if (data.imageUrl) {
+        setSceneImages(prev => ({ ...prev, [id]: data.imageUrl }));
+      }
+    } catch (err) {
+      console.error('Scene image generation error:', err);
+    } finally {
+      setGeneratingSceneId(null);
     }
   };
 
@@ -623,8 +653,61 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
         if (!campaign.act1) return <p className="text-parchment/50">Act 1 data not available</p>;
         return (
           <div className="space-y-4 max-h-96 overflow-y-auto">
-            <h3 className="text-xl font-medieval text-gold">{campaign.act1.title}</h3>
-            {campaign.act1.estimatedDuration && <p className="text-parchment/50 text-xs">Duration: {campaign.act1.estimatedDuration}</p>}
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-xl font-medieval text-gold">{campaign.act1.title}</h3>
+                {campaign.act1.estimatedDuration && <p className="text-parchment/50 text-xs">Duration: {campaign.act1.estimatedDuration}</p>}
+              </div>
+              {!sceneImages['act1-city'] && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => handleGenerateSceneImage(
+                    'act1-city',
+                    `fantasy medieval ${campaign.act1?.title || 'village'} town square with market stalls, cobblestone streets, timber-framed buildings, adventurers, bustling crowd`,
+                    'warm and inviting, busy marketplace atmosphere',
+                    'golden hour morning light'
+                  )}
+                  disabled={generatingSceneId === 'act1-city'}
+                >
+                  {generatingSceneId === 'act1-city' ? 'Generating...' : 'Generate City Image'}
+                </Button>
+              )}
+            </div>
+
+            {/* Scene Setting Image */}
+            {sceneImages['act1-city'] ? (
+              <div className="relative rounded-lg overflow-hidden border-2 border-gold/50">
+                <img
+                  src={sceneImages['act1-city']}
+                  alt={`${campaign.act1.title} scene`}
+                  className="w-full h-48 object-cover"
+                  loading="lazy"
+                />
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3">
+                  <p className="text-gold font-medieval text-lg">{campaign.act1.title}</p>
+                </div>
+                <button
+                  onClick={() => handleGenerateSceneImage(
+                    'act1-city',
+                    `fantasy medieval ${campaign.act1?.title || 'village'} town square with market stalls, cobblestone streets, timber-framed buildings, adventurers, bustling crowd`,
+                    'warm and inviting, busy marketplace atmosphere',
+                    'golden hour morning light'
+                  )}
+                  className="absolute top-2 right-2 bg-dark-wood/80 text-gold text-xs px-2 py-1 rounded hover:bg-dark-wood"
+                >
+                  Regenerate
+                </button>
+              </div>
+            ) : generatingSceneId === 'act1-city' ? (
+              <div className="h-48 bg-leather/20 rounded-lg flex items-center justify-center border-2 border-dashed border-gold/30">
+                <div className="text-center">
+                  <div className="animate-pulse text-gold">Generating city scene...</div>
+                  <p className="text-parchment/50 text-xs mt-1">This may take a moment</p>
+                </div>
+              </div>
+            ) : null}
+
             <p className="text-parchment/80 text-sm">{campaign.act1.overview}</p>
 
             {campaign.act1.settingTheScene?.readAloud && (
