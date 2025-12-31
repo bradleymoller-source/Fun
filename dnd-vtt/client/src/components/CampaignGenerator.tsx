@@ -1110,21 +1110,77 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
         );
 
       case 'npcs':
+        // Gather NPCs from multiple sources
+        const allNpcs: any[] = [];
+
+        // Quest giver from Act 1
+        if (campaign.act1?.questGiver) {
+          allNpcs.push({ ...campaign.act1.questGiver, _type: 'questGiver' });
+        }
+
+        // Key NPCs from Act 1
+        if (campaign.act1?.keyNpcs) {
+          allNpcs.push(...campaign.act1.keyNpcs.map((npc: any) => ({ ...npc, _type: 'keyNpc' })));
+        }
+
+        // Legacy top-level NPCs
+        if (campaign.npcs) {
+          allNpcs.push(...campaign.npcs.map((npc: any) => ({ ...npc, _type: 'legacy' })));
+        }
+
+        // Boss villain from Act 3
+        if (campaign.act3?.bossEncounter?.villain) {
+          allNpcs.push({ ...campaign.act3.bossEncounter.villain, _type: 'villain' });
+        }
+
         return (
           <div className="space-y-3 max-h-96 overflow-y-auto">
-            {campaign.npcs?.map((npc, i) => (
-              <div key={i} className={`p-3 rounded-lg border ${npc.isAlly ? 'bg-green-900/20 border-green-500/50' : 'bg-red-900/20 border-red-500/50'}`}>
+            {allNpcs.length === 0 && (
+              <p className="text-parchment/50 text-sm">No NPCs found in this campaign.</p>
+            )}
+            {allNpcs.map((npc, i) => (
+              <div key={i} className={`p-3 rounded-lg border ${
+                npc._type === 'villain' ? 'bg-red-900/20 border-red-500/50' :
+                npc._type === 'questGiver' ? 'bg-blue-900/20 border-blue-500/50' :
+                'bg-green-900/20 border-green-500/50'
+              }`}>
                 <div className="flex justify-between items-start">
                   <h4 className="text-gold font-medieval">{npc.name}</h4>
-                  <span className={`text-xs px-2 py-0.5 rounded ${npc.isAlly ? 'bg-green-500/30 text-green-300' : 'bg-red-500/30 text-red-300'}`}>
-                    {npc.isAlly ? 'Ally' : 'Enemy'}
+                  <span className={`text-xs px-2 py-0.5 rounded ${
+                    npc._type === 'villain' ? 'bg-red-500/30 text-red-300' :
+                    npc._type === 'questGiver' ? 'bg-blue-500/30 text-blue-300' :
+                    'bg-green-500/30 text-green-300'
+                  }`}>
+                    {npc._type === 'villain' ? 'Villain' :
+                     npc._type === 'questGiver' ? 'Quest Giver' :
+                     npc.role || 'NPC'}
                   </span>
                 </div>
-                <p className="text-parchment/70 text-xs">{npc.race} {npc.occupation}</p>
-                <p className="text-parchment/80 text-sm mt-1">{npc.personality}</p>
-                <p className="text-parchment/60 text-xs mt-1"><strong>Wants:</strong> {npc.motivation}</p>
-                {npc.secret && (
-                  <p className="text-amber-400/70 text-xs mt-1 italic"><strong>Secret:</strong> {npc.secret}</p>
+                {npc.appearance && <p className="text-parchment/70 text-xs mt-1">{npc.appearance}</p>}
+                {npc.personality && <p className="text-parchment/80 text-sm mt-1">{npc.personality}</p>}
+                {npc.attitude && <p className="text-parchment/60 text-xs mt-1"><strong>Attitude:</strong> {npc.attitude}</p>}
+                {npc.motivation && <p className="text-parchment/60 text-xs mt-1"><strong>Motivation:</strong> {npc.motivation}</p>}
+                {npc.dialogue?.greeting && (
+                  <p className="text-blue-300 text-xs mt-2 italic">"{npc.dialogue.greeting}"</p>
+                )}
+                {npc.dialogue?.gossip && (
+                  <p className="text-purple-300 text-xs mt-1"><strong>Gossip:</strong> {npc.dialogue.gossip}</p>
+                )}
+                {npc.keyInformation && npc.keyInformation.length > 0 && (
+                  <div className="mt-2">
+                    <strong className="text-xs text-gold">Key Info:</strong>
+                    <ul className="text-xs text-parchment/70 list-disc list-inside">
+                      {npc.keyInformation.map((info: string, j: number) => <li key={j}>{info}</li>)}
+                    </ul>
+                  </div>
+                )}
+                {npc.services && npc.services.length > 0 && (
+                  <div className="mt-2 text-xs">
+                    <strong className="text-gold">Services:</strong>
+                    {npc.services.map((s: any, j: number) => (
+                      <span key={j} className="ml-2 text-parchment/70">{s.item}: {s.cost}</span>
+                    ))}
+                  </div>
                 )}
               </div>
             ))}
@@ -1132,14 +1188,40 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
         );
 
       case 'encounters':
+        // Gather encounters from multiple sources
+        const allEncounters: any[] = [];
+
+        // Encounters from Act 2
+        if (campaign.act2?.encounters) {
+          allEncounters.push(...campaign.act2.encounters);
+        }
+
+        // Legacy top-level encounters
+        if (campaign.encounters) {
+          allEncounters.push(...campaign.encounters);
+        }
+
+        // Potential conflicts from Act 1
+        if (campaign.act1?.potentialConflicts) {
+          allEncounters.push(...campaign.act1.potentialConflicts.map((c: any) => ({
+            ...c,
+            difficulty: 'optional',
+            _type: 'conflict'
+          })));
+        }
+
         return (
           <div className="space-y-3 max-h-96 overflow-y-auto">
-            {campaign.encounters?.map((enc, i) => {
+            {allEncounters.length === 0 && (
+              <p className="text-parchment/50 text-sm">No encounters found in this campaign.</p>
+            )}
+            {allEncounters.map((enc, i) => {
               const diffColors: Record<string, string> = {
                 easy: 'bg-green-500/30 text-green-300',
                 medium: 'bg-yellow-500/30 text-yellow-300',
                 hard: 'bg-orange-500/30 text-orange-300',
                 deadly: 'bg-red-500/30 text-red-300',
+                optional: 'bg-purple-500/30 text-purple-300',
               };
               return (
                 <div key={i} className="p-3 rounded-lg bg-purple-900/20 border border-purple-500/50">
@@ -1149,11 +1231,31 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
                       {enc.difficulty}
                     </span>
                   </div>
-                  <p className="text-parchment/80 text-sm mt-1">{enc.description}</p>
-                  <div className="mt-2 text-xs text-parchment/70">
-                    <strong>Monsters:</strong> {enc.monsters?.map(m => `${m.count}x ${m.name} (CR ${m.cr})`).join(', ')}
-                  </div>
-                  <p className="text-parchment/60 text-xs mt-1"><strong>Tactics:</strong> {enc.tactics}</p>
+                  {enc.readAloud && (
+                    <div className="bg-amber-900/30 border-l-4 border-amber-500 p-2 rounded-r mt-2 text-xs italic text-parchment/90">
+                      {enc.readAloud}
+                    </div>
+                  )}
+                  {enc.description && <p className="text-parchment/80 text-sm mt-1">{enc.description}</p>}
+                  {enc.enemies && enc.enemies.length > 0 && (
+                    <div className="mt-2 text-xs text-parchment/70">
+                      <strong>Enemies:</strong> {enc.enemies.map((m: any) => `${m.count}x ${m.name} (CR ${m.cr})`).join(', ')}
+                    </div>
+                  )}
+                  {enc.monsters && enc.monsters.length > 0 && (
+                    <div className="mt-2 text-xs text-parchment/70">
+                      <strong>Monsters:</strong> {enc.monsters.map((m: any) => `${m.count}x ${m.name} (CR ${m.cr})`).join(', ')}
+                    </div>
+                  )}
+                  {enc.tactics && <p className="text-parchment/60 text-xs mt-1"><strong>Tactics:</strong> {enc.tactics}</p>}
+                  {enc.terrain && <p className="text-parchment/60 text-xs mt-1"><strong>Terrain:</strong> {enc.terrain}</p>}
+                  {enc.rewards && (
+                    <p className="text-yellow-400 text-xs mt-1">
+                      <strong>Rewards:</strong> {typeof enc.rewards === 'object' ?
+                        `${enc.rewards.xp} XP, ${enc.rewards.loot?.join(', ') || ''}` :
+                        enc.rewards}
+                    </p>
+                  )}
                 </div>
               );
             })}
