@@ -796,6 +796,16 @@ export interface OriginFeat {
   name: OriginFeatName;
   description: string;
   benefits: string[];
+  // Optional choice fields for feats that grant selections
+  cantripsFrom?: CharacterClass; // Which class's cantrip list to choose from
+  cantripCount?: number;         // How many cantrips to choose
+  spellsFrom?: CharacterClass;   // Which class's spell list to choose from
+  spellCount?: number;           // How many spells to choose
+  spellLevel?: number;           // What level spells (default 1)
+  proficiencyChoices?: {
+    type: 'artisan' | 'musical' | 'skill' | 'any';
+    count: number;
+  };
 }
 
 export const ORIGIN_FEATS: Record<OriginFeatName, OriginFeat> = {
@@ -815,6 +825,7 @@ export const ORIGIN_FEATS: Record<OriginFeatName, OriginFeat> = {
       '20% discount when buying nonmagical items',
       'Fast Crafting: craft one item from the Fast Crafting table after a Long Rest',
     ],
+    proficiencyChoices: { type: 'artisan', count: 3 },
   },
   'Healer': {
     name: 'Healer',
@@ -841,6 +852,11 @@ export const ORIGIN_FEATS: Record<OriginFeatName, OriginFeat> = {
       'Learn 1 first-level Cleric spell (cast once per Long Rest free, or with spell slots)',
       'Choose INT, WIS, or CHA as your spellcasting ability',
     ],
+    cantripsFrom: 'cleric',
+    cantripCount: 2,
+    spellsFrom: 'cleric',
+    spellCount: 1,
+    spellLevel: 1,
   },
   'Magic Initiate (Druid)': {
     name: 'Magic Initiate (Druid)',
@@ -850,6 +866,11 @@ export const ORIGIN_FEATS: Record<OriginFeatName, OriginFeat> = {
       'Learn 1 first-level Druid spell (cast once per Long Rest free, or with spell slots)',
       'Choose INT, WIS, or CHA as your spellcasting ability',
     ],
+    cantripsFrom: 'druid',
+    cantripCount: 2,
+    spellsFrom: 'druid',
+    spellCount: 1,
+    spellLevel: 1,
   },
   'Magic Initiate (Wizard)': {
     name: 'Magic Initiate (Wizard)',
@@ -859,6 +880,11 @@ export const ORIGIN_FEATS: Record<OriginFeatName, OriginFeat> = {
       'Learn 1 first-level Wizard spell (cast once per Long Rest free, or with spell slots)',
       'Choose INT, WIS, or CHA as your spellcasting ability',
     ],
+    cantripsFrom: 'wizard',
+    cantripCount: 2,
+    spellsFrom: 'wizard',
+    spellCount: 1,
+    spellLevel: 1,
   },
   'Musician': {
     name: 'Musician',
@@ -867,6 +893,7 @@ export const ORIGIN_FEATS: Record<OriginFeatName, OriginFeat> = {
       'Gain proficiency with 3 Musical Instruments of your choice',
       'After a Short or Long Rest, give Heroic Inspiration to allies equal to your Proficiency Bonus',
     ],
+    proficiencyChoices: { type: 'musical', count: 3 },
   },
   'Savage Attacker': {
     name: 'Savage Attacker',
@@ -881,6 +908,7 @@ export const ORIGIN_FEATS: Record<OriginFeatName, OriginFeat> = {
     benefits: [
       'Gain proficiency in any combination of 3 skills or tools of your choice',
     ],
+    proficiencyChoices: { type: 'any', count: 3 },
   },
   'Tavern Brawler': {
     name: 'Tavern Brawler',
@@ -910,6 +938,20 @@ export type ToolProficiency =
   | 'Potter\'s Tools' | 'Smith\'s Tools' | 'Tinker\'s Tools' | 'Weaver\'s Tools' | 'Woodcarver\'s Tools'
   | 'Disguise Kit' | 'Forgery Kit' | 'Gaming Set' | 'Herbalism Kit' | 'Musical Instrument'
   | 'Navigator\'s Tools' | 'Thieves\' Tools' | 'Poisoner\'s Kit';
+
+// Artisan's Tools list for Crafter feat
+export const ARTISAN_TOOLS: string[] = [
+  "Alchemist's Supplies", "Brewer's Supplies", "Calligrapher's Supplies", "Carpenter's Tools",
+  "Cartographer's Tools", "Cobbler's Tools", "Cook's Utensils", "Glassblower's Tools",
+  "Jeweler's Tools", "Leatherworker's Tools", "Mason's Tools", "Painter's Supplies",
+  "Potter's Tools", "Smith's Tools", "Tinker's Tools", "Weaver's Tools", "Woodcarver's Tools",
+];
+
+// Musical Instruments list for Musician feat
+export const MUSICAL_INSTRUMENTS: string[] = [
+  "Bagpipes", "Drum", "Dulcimer", "Flute", "Horn", "Lute", "Lyre", "Pan Flute",
+  "Shawm", "Viol",
+];
 
 // 2024 Background definition
 export interface Background2024 {

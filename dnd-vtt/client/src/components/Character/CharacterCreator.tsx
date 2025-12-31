@@ -56,6 +56,9 @@ import {
   WARLOCK_INVOCATIONS_KNOWN,
   getAvailableInvocations,
   EXPERTISE_CLASSES,
+  // Origin feat proficiency options
+  ARTISAN_TOOLS,
+  MUSICAL_INSTRUMENTS,
 } from '../../data/dndData';
 import type { ShopItem, OriginFeatName } from '../../data/dndData';
 
@@ -89,6 +92,10 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
   const [fightingStyle, setFightingStyle] = useState<string>('');
   const [eldritchInvocations, setEldritchInvocations] = useState<string[]>([]);
   const [expertiseSkills, setExpertiseSkills] = useState<SkillName[]>([]);
+  // Origin feat choices
+  const [originFeatCantrips, setOriginFeatCantrips] = useState<string[]>([]);
+  const [originFeatSpells, setOriginFeatSpells] = useState<string[]>([]);
+  const [originFeatProficiencies, setOriginFeatProficiencies] = useState<string[]>([]);
   const [background, setBackground] = useState('Soldier');
   const [alignment, setAlignment] = useState('True Neutral');
   const [level, setLevel] = useState(1);
@@ -177,6 +184,13 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
   useEffect(() => {
     setAsiPlus2(null);
     setAsiPlus1(null);
+  }, [background]);
+
+  // Reset origin feat choices when background changes
+  useEffect(() => {
+    setOriginFeatCantrips([]);
+    setOriginFeatSpells([]);
+    setOriginFeatProficiencies([]);
   }, [background]);
 
   // Reset skill selections when class/background changes
@@ -1174,6 +1188,146 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
                   <li key={i}>• {b}</li>
                 ))}
               </ul>
+
+              {/* Origin Feat Cantrip Choices (Magic Initiate) */}
+              {originFeat?.cantripsFrom && originFeat?.cantripCount && (
+                <div className="mt-2 p-2 bg-purple-900/20 border border-purple-500/30 rounded">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-purple-400 text-xs font-semibold">Choose Cantrips</span>
+                    <span className={`text-xs px-2 py-0.5 rounded ${
+                      originFeatCantrips.length === originFeat.cantripCount
+                        ? 'bg-green-600/80 text-white'
+                        : 'bg-leather text-parchment/70'
+                    }`}>
+                      {originFeatCantrips.length}/{originFeat.cantripCount}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1 max-h-32 overflow-y-auto">
+                    {(CLASS_CANTRIPS[originFeat.cantripsFrom] || []).map(cantrip => {
+                      const isSelected = originFeatCantrips.includes(cantrip.name);
+                      const atMax = originFeatCantrips.length >= originFeat.cantripCount!;
+                      return (
+                        <button
+                          key={cantrip.name}
+                          onClick={() => {
+                            if (isSelected) {
+                              setOriginFeatCantrips(originFeatCantrips.filter(c => c !== cantrip.name));
+                            } else if (!atMax) {
+                              setOriginFeatCantrips([...originFeatCantrips, cantrip.name]);
+                            }
+                          }}
+                          disabled={!isSelected && atMax}
+                          className={`p-1 rounded text-left text-xs transition-colors ${
+                            isSelected
+                              ? 'bg-purple-600/30 border border-purple-500 text-parchment'
+                              : atMax
+                              ? 'bg-leather/20 text-parchment/40 cursor-not-allowed'
+                              : 'bg-leather/30 hover:bg-leather/50 text-parchment/80'
+                          }`}
+                        >
+                          {isSelected ? '✓ ' : ''}{cantrip.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Origin Feat Spell Choices (Magic Initiate) */}
+              {originFeat?.spellsFrom && originFeat?.spellCount && (
+                <div className="mt-2 p-2 bg-blue-900/20 border border-blue-500/30 rounded">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-blue-400 text-xs font-semibold">Choose 1st-Level Spell</span>
+                    <span className={`text-xs px-2 py-0.5 rounded ${
+                      originFeatSpells.length === originFeat.spellCount
+                        ? 'bg-green-600/80 text-white'
+                        : 'bg-leather text-parchment/70'
+                    }`}>
+                      {originFeatSpells.length}/{originFeat.spellCount}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1 max-h-32 overflow-y-auto">
+                    {(CLASS_SPELLS_LEVEL_1[originFeat.spellsFrom] || []).map(spell => {
+                      const isSelected = originFeatSpells.includes(spell.name);
+                      const atMax = originFeatSpells.length >= originFeat.spellCount!;
+                      return (
+                        <button
+                          key={spell.name}
+                          onClick={() => {
+                            if (isSelected) {
+                              setOriginFeatSpells(originFeatSpells.filter(s => s !== spell.name));
+                            } else if (!atMax) {
+                              setOriginFeatSpells([...originFeatSpells, spell.name]);
+                            }
+                          }}
+                          disabled={!isSelected && atMax}
+                          className={`p-1 rounded text-left text-xs transition-colors ${
+                            isSelected
+                              ? 'bg-blue-600/30 border border-blue-500 text-parchment'
+                              : atMax
+                              ? 'bg-leather/20 text-parchment/40 cursor-not-allowed'
+                              : 'bg-leather/30 hover:bg-leather/50 text-parchment/80'
+                          }`}
+                        >
+                          {isSelected ? '✓ ' : ''}{spell.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Origin Feat Proficiency Choices (Crafter, Musician, Skilled) */}
+              {originFeat?.proficiencyChoices && (
+                <div className="mt-2 p-2 bg-amber-900/20 border border-amber-500/30 rounded">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-amber-400 text-xs font-semibold">
+                      Choose {originFeat.proficiencyChoices.type === 'artisan' ? "Artisan's Tools" :
+                              originFeat.proficiencyChoices.type === 'musical' ? 'Musical Instruments' :
+                              originFeat.proficiencyChoices.type === 'skill' ? 'Skills' : 'Skills or Tools'}
+                    </span>
+                    <span className={`text-xs px-2 py-0.5 rounded ${
+                      originFeatProficiencies.length === originFeat.proficiencyChoices.count
+                        ? 'bg-green-600/80 text-white'
+                        : 'bg-leather text-parchment/70'
+                    }`}>
+                      {originFeatProficiencies.length}/{originFeat.proficiencyChoices.count}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
+                    {(originFeat.proficiencyChoices.type === 'artisan' ? ARTISAN_TOOLS :
+                      originFeat.proficiencyChoices.type === 'musical' ? MUSICAL_INSTRUMENTS :
+                      originFeat.proficiencyChoices.type === 'skill' ? Object.keys(SKILL_NAMES) :
+                      [...Object.keys(SKILL_NAMES), ...ARTISAN_TOOLS]
+                    ).map(prof => {
+                      const isSelected = originFeatProficiencies.includes(prof);
+                      const atMax = originFeatProficiencies.length >= originFeat.proficiencyChoices!.count;
+                      return (
+                        <button
+                          key={prof}
+                          onClick={() => {
+                            if (isSelected) {
+                              setOriginFeatProficiencies(originFeatProficiencies.filter(p => p !== prof));
+                            } else if (!atMax) {
+                              setOriginFeatProficiencies([...originFeatProficiencies, prof]);
+                            }
+                          }}
+                          disabled={!isSelected && atMax}
+                          className={`px-2 py-1 rounded text-xs transition-colors ${
+                            isSelected
+                              ? 'bg-amber-600/30 border border-amber-500 text-parchment'
+                              : atMax
+                              ? 'bg-leather/20 text-parchment/40 cursor-not-allowed'
+                              : 'bg-leather/30 hover:bg-leather/50 text-parchment/80'
+                          }`}
+                        >
+                          {isSelected ? '✓ ' : ''}{typeof prof === 'string' && prof in SKILL_NAMES ? SKILL_NAMES[prof as SkillName] : prof}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1731,7 +1885,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
 
         {cantrips.length > 0 && (
           <div>
-            <h4 className="text-gold text-sm mb-2">
+            <h4 className="text-purple-400 text-sm mb-2">
               Cantrips ({selectedCantrips.length}/{cantripsNeeded})
             </h4>
             <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
@@ -1744,8 +1898,8 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
                     disabled={!isSelected && selectedCantrips.length >= cantripsNeeded}
                     className={`p-2 rounded text-left text-xs transition-colors ${
                       isSelected
-                        ? 'bg-gold/20 border border-gold text-gold'
-                        : 'bg-dark-wood border border-leather text-parchment hover:border-gold/50 disabled:opacity-50'
+                        ? 'bg-purple-500/20 border border-purple-500 text-purple-300'
+                        : 'bg-dark-wood border border-leather text-parchment hover:border-purple-500/50 disabled:opacity-50'
                     }`}
                   >
                     <div className="font-semibold">{cantrip.name}</div>
@@ -1759,7 +1913,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
 
         {spells.length > 0 && (
           <div>
-            <h4 className="text-gold text-sm mb-2">
+            <h4 className="text-blue-400 text-sm mb-2">
               1st Level Spells ({selectedSpells.length}/{Math.min(spellsNeeded, spells.length)})
             </h4>
             <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
@@ -1772,8 +1926,8 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
                     disabled={!isSelected && selectedSpells.length >= spellsNeeded}
                     className={`p-2 rounded text-left text-xs transition-colors ${
                       isSelected
-                        ? 'bg-gold/20 border border-gold text-gold'
-                        : 'bg-dark-wood border border-leather text-parchment hover:border-gold/50 disabled:opacity-50'
+                        ? 'bg-blue-500/20 border border-blue-500 text-blue-300'
+                        : 'bg-dark-wood border border-leather text-parchment hover:border-blue-500/50 disabled:opacity-50'
                     }`}
                   >
                     <div className="font-semibold">{spell.name}</div>
