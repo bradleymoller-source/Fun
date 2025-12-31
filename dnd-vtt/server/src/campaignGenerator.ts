@@ -1,8 +1,8 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import type { Request, Response } from 'express';
 
-// Initialize Anthropic client - uses ANTHROPIC_API_KEY env variable
-const anthropic = new Anthropic();
+// Initialize Google Generative AI client - uses GOOGLE_API_KEY env variable
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '');
 
 // Types for campaign generation
 export interface CampaignRequest {
@@ -82,7 +82,7 @@ export interface DungeonMap {
   theme: string;
 }
 
-// Generate campaign using Claude API
+// Generate campaign using Google Gemini API
 export async function generateCampaign(req: Request, res: Response) {
   try {
     const request: CampaignRequest = req.body;
@@ -91,34 +91,29 @@ export async function generateCampaign(req: Request, res: Response) {
       return res.status(400).json({ error: 'Theme and setting are required' });
     }
 
-    const prompt = buildCampaignPrompt(request);
-
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 8000,
-      messages: [
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-    });
-
-    // Extract text content
-    const textContent = message.content.find(block => block.type === 'text');
-    if (!textContent || textContent.type !== 'text') {
-      return res.status(500).json({ error: 'No text response from Claude' });
+    if (!process.env.GOOGLE_API_KEY) {
+      return res.status(500).json({ error: 'GOOGLE_API_KEY not configured. Add it in Render Environment Variables.' });
     }
 
+    const prompt = buildCampaignPrompt(request);
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    const text = response.text();
+
     // Parse the JSON response
-    const jsonMatch = textContent.text.match(/```json\n?([\s\S]*?)\n?```/);
+    const jsonMatch = text.match(/```json\n?([\s\S]*?)\n?```/);
     if (!jsonMatch) {
       // Try to parse directly if no code block
       try {
-        const campaign = JSON.parse(textContent.text);
+        const campaign = JSON.parse(text);
+        if (request.includeMap) {
+          campaign.dungeonMap = await generateDungeonMap(request, campaign);
+        }
         return res.json(campaign);
       } catch {
-        return res.status(500).json({ error: 'Failed to parse campaign response', raw: textContent.text });
+        return res.status(500).json({ error: 'Failed to parse campaign response', raw: text });
       }
     }
 
@@ -171,19 +166,12 @@ Ensure rooms connect logically and don't overlap. Place entrance at edge.
 Use grid coordinates (0-19 for x and y).`;
 
   try {
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 4000,
-      messages: [{ role: 'user', content: prompt }],
-    });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
 
-    const textContent = message.content.find(block => block.type === 'text');
-    if (!textContent || textContent.type !== 'text') {
-      return generateProceduralDungeon(request.theme);
-    }
-
-    const jsonMatch = textContent.text.match(/```json\n?([\s\S]*?)\n?```/) ||
-                      textContent.text.match(/\{[\s\S]*\}/);
+    const jsonMatch = text.match(/```json\n?([\s\S]*?)\n?```/) ||
+                      text.match(/\{[\s\S]*\}/);
 
     if (jsonMatch) {
       const mapJson = jsonMatch[1] || jsonMatch[0];
@@ -372,7 +360,7 @@ Use monsters from D&D 5e SRD. Ensure encounters are balanced for ${request.party
 // Generate just a dungeon map
 export async function generateDungeonMapEndpoint(req: Request, res: Response) {
   try {
-    const { theme, partyLevel, roomCount } = req.body;
+    const { theme, partyLevel } = req.body;
 
     if (!theme) {
       return res.status(400).json({ error: 'Theme is required' });
@@ -380,28 +368,23 @@ export async function generateDungeonMapEndpoint(req: Request, res: Response) {
 
     const dungeonMap = generateProceduralDungeon(theme);
 
-    // Optionally enhance with Claude
-    if (req.body.enhance) {
+    // Optionally enhance with Gemini
+    if (req.body.enhance && process.env.GOOGLE_API_KEY) {
       const prompt = `Enhance this dungeon map with better descriptions. Theme: ${theme}, Party Level: ${partyLevel || 1}.
 Current map: ${JSON.stringify(dungeonMap)}
 
 Return the enhanced map as JSON with better room names, descriptions, and features. Keep the same structure.`;
 
       try {
-        const message = await anthropic.messages.create({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 4000,
-          messages: [{ role: 'user', content: prompt }],
-        });
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const result = await model.generateContent(prompt);
+        const text = result.response.text();
 
-        const textContent = message.content.find(block => block.type === 'text');
-        if (textContent && textContent.type === 'text') {
-          const jsonMatch = textContent.text.match(/```json\n?([\s\S]*?)\n?```/) ||
-                            textContent.text.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            const enhanced = JSON.parse(jsonMatch[1] || jsonMatch[0]);
-            return res.json(enhanced);
-          }
+        const jsonMatch = text.match(/```json\n?([\s\S]*?)\n?```/) ||
+                          text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const enhanced = JSON.parse(jsonMatch[1] || jsonMatch[0]);
+          return res.json(enhanced);
         }
       } catch (enhanceError) {
         console.error('Enhancement failed, returning procedural map:', enhanceError);
@@ -419,6 +402,10 @@ Return the enhanced map as JSON with better room names, descriptions, and featur
 export async function generateEncounter(req: Request, res: Response) {
   try {
     const { partyLevel, partySize, difficulty, environment, theme } = req.body;
+
+    if (!process.env.GOOGLE_API_KEY) {
+      return res.status(500).json({ error: 'GOOGLE_API_KEY not configured' });
+    }
 
     const prompt = `Generate a D&D 5e encounter as JSON for:
 - Party: ${partySize || 4} characters at level ${partyLevel || 1}
@@ -440,19 +427,12 @@ Return ONLY valid JSON:
 
 Use only SRD monsters. Balance for the party.`;
 
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
-      messages: [{ role: 'user', content: prompt }],
-    });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
 
-    const textContent = message.content.find(block => block.type === 'text');
-    if (!textContent || textContent.type !== 'text') {
-      return res.status(500).json({ error: 'No response from Claude' });
-    }
-
-    const jsonMatch = textContent.text.match(/```json\n?([\s\S]*?)\n?```/) ||
-                      textContent.text.match(/\{[\s\S]*?\}/);
+    const jsonMatch = text.match(/```json\n?([\s\S]*?)\n?```/) ||
+                      text.match(/\{[\s\S]*?\}/);
 
     if (jsonMatch) {
       const encounter = JSON.parse(jsonMatch[1] || jsonMatch[0]);
