@@ -790,6 +790,7 @@ Return the enhanced map as JSON with better room names, descriptions, and featur
 }
 
 // Generate a detailed battle map image URL using Pollinations.ai (free, no API key needed)
+// This is now a fallback - primary method is Gemini
 export function generateBattleMapUrl(
   environment: string,
   theme: string,
@@ -818,6 +819,104 @@ export function generateBattleMapUrl(
   return `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true`;
 }
 
+// Generate image using Google Gemini API
+async function generateImageWithGemini(prompt: string): Promise<string | null> {
+  if (!process.env.GOOGLE_API_KEY) {
+    console.error('GOOGLE_API_KEY not configured for image generation');
+    return null;
+  }
+
+  try {
+    const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
+
+    // Use gemini-2.0-flash-exp with image generation capability
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-2.0-flash-exp',
+      generationConfig: {
+        responseModalities: ['Text', 'Image'],
+      } as any, // Type assertion needed as responseModalities isn't in the base types yet
+    });
+
+    const response = await model.generateContent(prompt);
+    const result = response.response;
+
+    // Extract image data from response
+    if (result.candidates && result.candidates[0]?.content?.parts) {
+      for (const part of result.candidates[0].content.parts) {
+        if ((part as any).inlineData) {
+          const imageData = (part as any).inlineData.data;
+          const mimeType = (part as any).inlineData.mimeType || 'image/png';
+          // Return as data URL
+          return `data:${mimeType};base64,${imageData}`;
+        }
+      }
+    }
+
+    console.log('No image data in Gemini response');
+    return null;
+  } catch (error) {
+    console.error('Gemini image generation error:', error);
+    return null;
+  }
+}
+
+// Build battle map prompt for Gemini
+function buildBattleMapPrompt(
+  environment: string,
+  theme: string,
+  features: string[] = [],
+  lighting: string = 'torchlit',
+  narrativeDescription: string = ''
+): string {
+  const featureList = features.length > 0 ? features.join(', ') : 'stone floors, walls';
+
+  let narrativeElements = '';
+  if (narrativeDescription) {
+    const cleanNarrative = narrativeDescription
+      .replace(/["\n\r]/g, ' ')
+      .substring(0, 300)
+      .trim();
+    narrativeElements = ` The scene shows: ${cleanNarrative}`;
+  }
+
+  return `Generate a top-down battle map for Dungeons and Dragons.
+Location: ${environment}
+Theme: ${theme}
+Lighting: ${lighting}
+Features to include: ${featureList}
+${narrativeElements}
+
+Style requirements:
+- Top-down aerial view perspective
+- Include a subtle square grid overlay for tactical combat (5ft squares)
+- Highly detailed fantasy RPG illustration style
+- Rich, vibrant colors with good contrast
+- Show walls, floors, furniture, and terrain features clearly
+- Professional quality digital painting style
+- No text, labels, or watermarks`;
+}
+
+// Build scene image prompt for Gemini
+function buildScenePrompt(
+  location: string,
+  mood: string = 'vibrant and inviting',
+  timeOfDay: string = 'golden hour sunset'
+): string {
+  return `Generate a beautiful fantasy scene illustration.
+Location: ${location}
+Mood: ${mood}
+Time of day: ${timeOfDay}
+
+Style requirements:
+- Epic fantasy landscape/scene illustration
+- Highly detailed digital painting
+- Dramatic composition with depth
+- Concept art quality, artstation trending style
+- Rich colors and atmospheric lighting
+- Wide cinematic aspect ratio composition
+- No text, labels, or watermarks`;
+}
+
 // Generate a beautiful scene/landscape image URL for setting the scene
 export function generateSceneImageUrl(
   location: string,
@@ -831,15 +930,39 @@ export function generateSceneImageUrl(
   return `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1280&height=720&nologo=true`;
 }
 
-// Scene image generation endpoint
+// Scene image generation endpoint - uses Gemini with Pollinations fallback
 export async function generateSceneImage(req: Request, res: Response) {
   try {
-    const { location, style, mood, timeOfDay, name } = req.body;
+    const { location, style, mood, timeOfDay, name, useGemini = true } = req.body;
 
     if (!location) {
       return res.status(400).json({ error: 'Location description is required' });
     }
 
+    // Try Gemini first if enabled
+    if (useGemini && process.env.GOOGLE_API_KEY) {
+      const prompt = buildScenePrompt(
+        location,
+        mood || 'vibrant and inviting',
+        timeOfDay || 'golden hour sunset'
+      );
+
+      const geminiImage = await generateImageWithGemini(prompt);
+      if (geminiImage) {
+        return res.json({
+          name: name || 'Scene',
+          imageUrl: geminiImage,
+          location,
+          style,
+          mood,
+          timeOfDay,
+          source: 'gemini'
+        });
+      }
+      console.log('Gemini scene generation failed, falling back to Pollinations');
+    }
+
+    // Fallback to Pollinations.ai
     const imageUrl = generateSceneImageUrl(
       location,
       style || 'fantasy medieval',
@@ -853,7 +976,8 @@ export async function generateSceneImage(req: Request, res: Response) {
       location,
       style,
       mood,
-      timeOfDay
+      timeOfDay,
+      source: 'pollinations'
     });
   } catch (error) {
     console.error('Scene image generation error:', error);
@@ -861,16 +985,44 @@ export async function generateSceneImage(req: Request, res: Response) {
   }
 }
 
-// Battle map generation endpoint
+// Battle map generation endpoint - uses Gemini with Pollinations fallback
 export async function generateBattleMap(req: Request, res: Response) {
   try {
-    const { environment, theme, features, lighting, roomName, description } = req.body;
+    const { environment, theme, features, lighting, roomName, description, useGemini = true } = req.body;
 
     if (!environment) {
       return res.status(400).json({ error: 'Environment is required' });
     }
 
-    const mapUrl = generateBattleMapUrl(
+    let imageUrl: string;
+
+    // Try Gemini first if enabled
+    if (useGemini && process.env.GOOGLE_API_KEY) {
+      const prompt = buildBattleMapPrompt(
+        environment,
+        theme || 'fantasy dungeon',
+        features || [],
+        lighting || 'torchlit',
+        description || ''
+      );
+
+      const geminiImage = await generateImageWithGemini(prompt);
+      if (geminiImage) {
+        return res.json({
+          name: roomName || 'Battle Map',
+          imageUrl: geminiImage,
+          environment,
+          theme,
+          features,
+          lighting,
+          source: 'gemini'
+        });
+      }
+      console.log('Gemini image generation failed, falling back to Pollinations');
+    }
+
+    // Fallback to Pollinations.ai
+    imageUrl = generateBattleMapUrl(
       environment,
       theme || 'fantasy dungeon',
       features || [],
@@ -880,11 +1032,12 @@ export async function generateBattleMap(req: Request, res: Response) {
 
     res.json({
       name: roomName || 'Battle Map',
-      imageUrl: mapUrl,
+      imageUrl,
       environment,
       theme,
       features,
-      lighting
+      lighting,
+      source: 'pollinations'
     });
   } catch (error) {
     console.error('Battle map generation error:', error);
@@ -892,28 +1045,56 @@ export async function generateBattleMap(req: Request, res: Response) {
   }
 }
 
-// Generate battle maps for all rooms in an act
+// Generate battle maps for all rooms in an act - uses Gemini with Pollinations fallback
 export async function generateActBattleMaps(req: Request, res: Response) {
   try {
-    const { rooms, dungeonTheme } = req.body;
+    const { rooms, dungeonTheme, useGemini = true } = req.body;
 
     if (!rooms || !Array.isArray(rooms)) {
       return res.status(400).json({ error: 'Rooms array is required' });
     }
 
-    const battleMaps = rooms.map((room: any) => {
+    const battleMaps: Array<{ roomId: string; roomName: string; imageUrl: string; source: string }> = [];
+
+    // Generate maps sequentially to avoid rate limits
+    for (const room of rooms) {
       const environment = room.name || 'dungeon room';
       const features = room.contents?.obvious || room.features || [];
       const lighting = room.lighting || 'torchlit';
-      // Use the room's readAloud description for more accurate map generation
       const description = room.readAloud || room.description || '';
 
-      return {
+      let imageUrl: string;
+      let source = 'pollinations';
+
+      // Try Gemini first
+      if (useGemini && process.env.GOOGLE_API_KEY) {
+        const prompt = buildBattleMapPrompt(
+          environment,
+          dungeonTheme || 'dark dungeon',
+          features,
+          lighting,
+          description
+        );
+
+        const geminiImage = await generateImageWithGemini(prompt);
+        if (geminiImage) {
+          imageUrl = geminiImage;
+          source = 'gemini';
+        } else {
+          // Fallback to Pollinations
+          imageUrl = generateBattleMapUrl(environment, dungeonTheme || 'dark dungeon', features, lighting, description);
+        }
+      } else {
+        imageUrl = generateBattleMapUrl(environment, dungeonTheme || 'dark dungeon', features, lighting, description);
+      }
+
+      battleMaps.push({
         roomId: room.id,
         roomName: room.name,
-        imageUrl: generateBattleMapUrl(environment, dungeonTheme || 'dark dungeon', features, lighting, description)
-      };
-    });
+        imageUrl,
+        source
+      });
+    }
 
     res.json({ battleMaps });
   } catch (error) {
