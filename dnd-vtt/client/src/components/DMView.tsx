@@ -11,7 +11,8 @@ import { DiceRoller } from './DiceRoller';
 import { ChatPanel } from './ChatPanel';
 import { InitiativeTracker } from './InitiativeTracker';
 import { MonsterPanel } from './Monster/MonsterPanel';
-import type { Token, DiceRoll, ChatMessage, InitiativeEntry, FogArea } from '../types';
+import { PartyDashboard } from './PartyDashboard';
+import type { Token, DiceRoll, ChatMessage, InitiativeEntry, FogArea, Character } from '../types';
 
 type MapOrientation = 'landscape' | 'portrait';
 
@@ -21,7 +22,7 @@ const ORIENTATION_SIZES = {
 };
 
 export function DMView() {
-  const { roomCode, dmKey, players, map, savedMaps, addToken: addTokenLocal, addFogArea, toggleFogArea, setFogOfWar, updateInitiativeEntry: updateInitiativeLocal } = useSessionStore();
+  const { roomCode, dmKey, players, map, savedMaps, allCharacters, addToken: addTokenLocal, addFogArea, toggleFogArea, setFogOfWar, updateInitiativeEntry: updateInitiativeLocal } = useSessionStore();
   const {
     kickPlayer,
     addToken,
@@ -38,8 +39,11 @@ export function DMView() {
     nextTurn,
     startCombat,
     endCombat,
+    getAllCharacters,
+    updatePlayerCharacter,
     socket,
   } = useSocket();
+  const [dmNotes, setDmNotes] = useState<Record<string, string>>({});
   const [copied, setCopied] = useState<'code' | 'key' | null>(null);
   const [showPlayers, setShowPlayers] = useState(true);
   const [mapOrientation, setMapOrientation] = useState<MapOrientation>('landscape');
@@ -121,6 +125,33 @@ export function DMView() {
     const timer = setTimeout(syncMapToServer, 500);
     return () => clearTimeout(timer);
   }, [map.imageUrl, map.gridSize, map.showGrid, map.gridOffsetX, map.gridOffsetY, map.fogOfWar]);
+
+  // Load all player characters when DM view mounts
+  useEffect(() => {
+    getAllCharacters().catch(console.error);
+  }, [getAllCharacters]);
+
+  // Periodically refresh characters (every 30 seconds)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      getAllCharacters().catch(console.error);
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [getAllCharacters]);
+
+  // Handle character update from party dashboard
+  const handleUpdateCharacter = async (characterId: string, updates: Partial<Character>) => {
+    try {
+      await updatePlayerCharacter(characterId, updates);
+    } catch (error) {
+      console.error('Failed to update character:', error);
+    }
+  };
+
+  // Handle DM notes (stored locally for now)
+  const handleAddDmNote = (characterId: string, note: string) => {
+    setDmNotes(prev => ({ ...prev, [characterId]: note }));
+  };
 
   const copyToClipboard = (text: string, type: 'code' | 'key') => {
     navigator.clipboard.writeText(text);
@@ -507,6 +538,21 @@ export function DMView() {
                 )}
               </Panel>
             )}
+
+            {/* Party Dashboard - DM view of all player characters */}
+            <Panel>
+              <h2 className="font-medieval text-xl text-gold mb-4">
+                Party Dashboard
+              </h2>
+              <PartyDashboard
+                characters={allCharacters}
+                tokens={map.tokens}
+                onUpdateCharacter={handleUpdateCharacter}
+                onUpdateToken={handleTokenUpdate}
+                onAddDmNote={handleAddDmNote}
+                dmNotes={dmNotes}
+              />
+            </Panel>
 
             {/* Map Library */}
             <Panel>

@@ -685,6 +685,31 @@ export function useSocket() {
     });
   }, []);
 
+  // Update a player's character (DM only - for HP, conditions, etc.)
+  const updatePlayerCharacter = useCallback((characterId: string, updates: Partial<Character>) => {
+    return new Promise<void>((resolve, reject) => {
+      if (!socketRef.current) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      socketRef.current.emit('dm-update-character', { characterId, updates }, (response: any) => {
+        if (response.success) {
+          // Update local state
+          const state = useSessionStore.getState();
+          const updatedCharacters = state.allCharacters.map(c =>
+            c.id === characterId ? { ...c, ...updates, updatedAt: new Date().toISOString() } : c
+          );
+          store.setAllCharacters(updatedCharacters);
+          resolve();
+        } else {
+          store.setError(response.error);
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }, []);
+
   return {
     socket: socketRef.current,
     isConnected: store.isConnected,
@@ -713,5 +738,6 @@ export function useSocket() {
     saveCharacter,
     loadCharacter,
     getAllCharacters,
+    updatePlayerCharacter,
   };
 }
