@@ -38,6 +38,11 @@ interface InitiativeTrackerProps {
   onNextTurn: () => void;
   onStartCombat: () => void;
   onEndCombat: () => void;
+  onRemoveToken?: (tokenId: string) => void;  // Callback to remove token when creature dies
+  // Player-specific props for rolling initiative
+  playerId?: string;
+  playerName?: string;
+  playerMaxHp?: number;
 }
 
 export function InitiativeTracker({
@@ -48,6 +53,10 @@ export function InitiativeTracker({
   onNextTurn,
   onStartCombat,
   onEndCombat,
+  onRemoveToken,
+  playerId,
+  playerName,
+  playerMaxHp,
 }: InitiativeTrackerProps) {
   const { initiative, isInCombat } = useSessionStore();
   const [newName, setNewName] = useState('');
@@ -104,6 +113,31 @@ export function InitiativeTracker({
     setNewMaxHp('');
   };
 
+  // Check if player is already in initiative
+  const playerInInitiative = !isDm && playerId
+    ? initiative.find(e => e.playerId === playerId || e.id === `init-player-${playerId}`)
+    : null;
+
+  // Player initiative roll
+  const handlePlayerRollInitiative = () => {
+    if (!playerId || !playerName) return;
+
+    const roll = Math.floor(Math.random() * 20) + 1;
+
+    const entry: InitiativeEntry = {
+      id: `init-player-${playerId}`,
+      name: playerName,
+      initiative: roll,
+      isNpc: false,
+      isActive: false,
+      playerId: playerId,
+      maxHp: playerMaxHp,
+      currentHp: playerMaxHp,
+    };
+
+    onAddEntry(entry);
+  };
+
   // Toggle a condition on an entry
   const handleToggleCondition = (entryId: string, condition: Condition) => {
     const entry = initiative.find(e => e.id === entryId);
@@ -142,6 +176,28 @@ export function InitiativeTracker({
                 End Combat
               </Button>
             </>
+          )}
+        </div>
+      )}
+
+      {/* Player Initiative Roll (non-DM) */}
+      {!isDm && playerId && (
+        <div className="bg-dark-wood p-3 rounded border border-leather">
+          {playerInInitiative ? (
+            <div className="text-center">
+              <span className="text-parchment">You rolled </span>
+              <span className="text-gold font-bold text-lg">{playerInInitiative.initiative}</span>
+              <span className="text-parchment"> for initiative</span>
+            </div>
+          ) : (
+            <Button
+              size="sm"
+              onClick={handlePlayerRollInitiative}
+              className="w-full"
+              disabled={!playerName}
+            >
+              🎲 Roll Initiative
+            </Button>
           )}
         </div>
       )}
@@ -217,30 +273,44 @@ export function InitiativeTracker({
             const hpPercent = entry.maxHp && entry.currentHp !== undefined
               ? Math.max(0, Math.min(1, entry.currentHp / entry.maxHp))
               : null;
+            const isDead = entry.currentHp !== undefined && entry.currentHp <= 0;
 
             return (
               <div
                 key={entry.id}
                 className={`p-2 rounded transition-all ${
-                  entry.isActive
-                    ? 'bg-gold/20 border-2 border-gold'
-                    : 'bg-dark-wood border border-leather'
+                  isDead
+                    ? 'bg-gray-800/50 border border-gray-600 opacity-50'
+                    : entry.isActive
+                      ? 'bg-gold/20 border-2 border-gold'
+                      : 'bg-dark-wood border border-leather'
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  {/* Position Number */}
+                  {/* Position Number or Skull for dead */}
                   <div
                     className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                      entry.isActive ? 'bg-gold text-dark-wood' : 'bg-leather text-parchment'
+                      isDead
+                        ? 'bg-gray-600 text-gray-400'
+                        : entry.isActive
+                          ? 'bg-gold text-dark-wood'
+                          : 'bg-leather text-parchment'
                     }`}
                   >
-                    {index + 1}
+                    {isDead ? '💀' : index + 1}
                   </div>
 
                   {/* Name and Type */}
                   <div className="flex-1 min-w-0">
-                    <div className={`font-medieval truncate ${entry.isActive ? 'text-gold' : 'text-parchment'}`}>
+                    <div className={`font-medieval truncate ${
+                      isDead
+                        ? 'text-gray-500 line-through'
+                        : entry.isActive
+                          ? 'text-gold'
+                          : 'text-parchment'
+                    }`}>
                       {entry.name}
+                      {isDead && <span className="ml-2 text-red-400 text-xs no-underline">(Dead)</span>}
                     </div>
                     <div className="flex items-center gap-1">
                       <span className="text-parchment/50 text-xs">
@@ -299,13 +369,19 @@ export function InitiativeTracker({
                     {/* HP Bar with +/- buttons */}
                     <div className="flex items-center gap-1">
                       {/* Minus button (damage) */}
-                      {isDm && (
+                      {isDm && !isDead && (
                         <button
                           onClick={() => {
                             const delta = parseInt(hpDelta[entry.id] || '1', 10);
                             if (!isNaN(delta) && delta > 0 && entry.currentHp !== undefined) {
-                              onUpdateEntry(entry.id, { currentHp: Math.max(0, entry.currentHp - delta) });
+                              const newHp = Math.max(0, entry.currentHp - delta);
+                              onUpdateEntry(entry.id, { currentHp: newHp });
                               setHpDelta(prev => ({ ...prev, [entry.id]: '' }));
+
+                              // If creature dropped to 0 HP, remove their token from the map
+                              if (newHp <= 0 && entry.tokenId && onRemoveToken) {
+                                onRemoveToken(entry.tokenId);
+                              }
                             }
                           }}
                           className="w-6 h-6 flex items-center justify-center text-sm bg-red-600 text-white rounded hover:bg-red-500 font-bold"
@@ -328,7 +404,7 @@ export function InitiativeTracker({
                         </span>
                       </div>
 
-                      {/* Plus button (heal) */}
+                      {/* Plus button (heal) - also allows reviving dead creatures */}
                       {isDm && (
                         <button
                           onClick={() => {
@@ -339,14 +415,14 @@ export function InitiativeTracker({
                             }
                           }}
                           className="w-6 h-6 flex items-center justify-center text-sm bg-green-600 text-white rounded hover:bg-green-500 font-bold"
-                          title="Heal"
+                          title={isDead ? "Revive" : "Heal"}
                         >
                           +
                         </button>
                       )}
 
                       {/* HP delta input */}
-                      {isDm && (
+                      {isDm && !isDead && (
                         <input
                           type="number"
                           placeholder="1"

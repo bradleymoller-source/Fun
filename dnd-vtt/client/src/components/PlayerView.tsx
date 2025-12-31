@@ -10,7 +10,7 @@ import { ChatPanel } from './ChatPanel';
 import { InitiativeTracker } from './InitiativeTracker';
 import { CharacterCreator } from './Character/CharacterCreator';
 import { CharacterSheet } from './Character/CharacterSheet';
-import type { DiceRoll, ChatMessage, Character } from '../types';
+import type { DiceRoll, ChatMessage, Character, InitiativeEntry } from '../types';
 
 type MapOrientation = 'landscape' | 'portrait';
 
@@ -21,7 +21,7 @@ const ORIENTATION_SIZES = {
 
 export function PlayerView() {
   const { roomCode, playerName, players, isConnected, playerTab, character, setPlayerTab, setCharacter, updateCharacter } = useSessionStore();
-  const { rollDice, sendChatMessage, moveToken, saveCharacter, socket } = useSocket();
+  const { rollDice, sendChatMessage, moveToken, saveCharacter, addInitiativeEntry, socket } = useSocket();
   const [showParty, setShowParty] = useState(false);
   const [mapOrientation, setMapOrientation] = useState<MapOrientation>('landscape');
   const [mapDimensions, setMapDimensions] = useState(ORIENTATION_SIZES.landscape);
@@ -156,6 +156,15 @@ export function PlayerView() {
     }
   };
 
+  // Player initiative roll handler
+  const handlePlayerInitiativeRoll = async (entry: InitiativeEntry) => {
+    try {
+      await addInitiativeEntry(entry);
+    } catch (error) {
+      console.error('Failed to add initiative entry:', error);
+    }
+  };
+
   // Keyboard shortcuts
   useKeyboardShortcuts({
     isDm: false,
@@ -214,12 +223,15 @@ export function PlayerView() {
           </h2>
           <InitiativeTracker
             isDm={false}
-            onAddEntry={() => {}}
+            onAddEntry={handlePlayerInitiativeRoll}
             onRemoveEntry={() => {}}
             onUpdateEntry={() => {}}
             onNextTurn={() => {}}
             onStartCombat={() => {}}
             onEndCombat={() => {}}
+            playerId={socket?.id}
+            playerName={character?.name || playerName || 'Player'}
+            playerMaxHp={character?.maxHitPoints}
           />
         </Panel>
 

@@ -589,6 +589,7 @@ export function DMView() {
                 onNextTurn={handleNextTurn}
                 onStartCombat={handleStartCombat}
                 onEndCombat={handleEndCombat}
+                onRemoveToken={removeToken}
               />
             </Panel>
 

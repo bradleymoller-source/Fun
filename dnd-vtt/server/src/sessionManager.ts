@@ -348,7 +348,25 @@ export function nextTurn(roomCode: string): InitiativeEntry[] | null {
   if (!session || session.initiative.length === 0) return null;
 
   const currentIndex = session.initiative.findIndex(e => e.isActive);
-  const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % session.initiative.length;
+
+  // Find the next living creature (skip those with 0 HP)
+  let nextIndex = currentIndex;
+  let attempts = 0;
+  const maxAttempts = session.initiative.length;
+
+  do {
+    nextIndex = (nextIndex + 1) % session.initiative.length;
+    attempts++;
+    const nextEntry = session.initiative[nextIndex];
+    // Skip if creature has HP tracking and is at 0 HP
+    const isDead = nextEntry.currentHp !== undefined && nextEntry.currentHp <= 0;
+    if (!isDead) break;
+  } while (attempts < maxAttempts);
+
+  // If all creatures are dead, just move to the next one anyway
+  if (attempts >= maxAttempts) {
+    nextIndex = (currentIndex + 1) % session.initiative.length;
+  }
 
   session.initiative = session.initiative.map((e, i) => ({
     ...e,
@@ -364,9 +382,21 @@ export function startCombat(roomCode: string): { initiative: InitiativeEntry[]; 
   if (!session) return null;
 
   session.isInCombat = true;
+
+  // Find the first living creature to start combat
+  let firstLivingIndex = 0;
+  for (let i = 0; i < session.initiative.length; i++) {
+    const entry = session.initiative[i];
+    const isDead = entry.currentHp !== undefined && entry.currentHp <= 0;
+    if (!isDead) {
+      firstLivingIndex = i;
+      break;
+    }
+  }
+
   session.initiative = session.initiative.map((e, i) => ({
     ...e,
-    isActive: i === 0,
+    isActive: i === firstLivingIndex,
   }));
 
   updateActivity(roomCode);
