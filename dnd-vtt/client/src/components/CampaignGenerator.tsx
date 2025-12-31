@@ -1165,7 +1165,7 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
                   {campaign.act2.rooms.map((room: any, index: number) => {
                     const mapId = `room-${room.id}`;
                     const hasMap = battleMaps[mapId];
-                    const isSaved = hasMap && savedMaps.some(m => m.imageUrl === battleMaps[mapId]);
+                    const isSaved = !!hasMap && savedMaps.some(m => m.imageUrl === battleMaps[mapId]);
                     return (
                       <div key={index} className="bg-dark-wood/50 p-3 rounded-lg border border-leather">
                         <div className="flex justify-between items-start mb-2">
