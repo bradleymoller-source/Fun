@@ -352,118 +352,375 @@ function generateRoomFeatures(type: DungeonRoom['type']): string[] {
 }
 
 function buildCampaignPrompt(request: CampaignRequest): string {
-  return `You are an expert D&D 5e Dungeon Master creating a DETAILED, READY-TO-RUN campaign module.
+  const sessionHours = (request.sessionCount || 1) * 2.5; // Each session ~2.5 hours
 
-Campaign Request:
+  return `You are a master D&D 5e Dungeon Master creating a COMPLETE, READY-TO-RUN adventure module following classic three-act structure.
+
+ADVENTURE PARAMETERS:
 - Theme: ${request.theme}
 - Setting: ${request.setting}
 - Party Level: ${request.partyLevel}
 - Party Size: ${request.partySize}
-- Number of Sessions: ${request.sessionCount || 4}
+- Target Duration: ${sessionHours} hours (${request.sessionCount || 1} session${(request.sessionCount || 1) > 1 ? 's' : ''} of 2-3 hours each)
 - Tone: ${request.tone || 'serious'}
 
-Create an immersive, narrative-rich campaign. Return ONLY valid JSON with this EXACT structure:
+Create an immersive adventure using the CLASSIC D&D THREE-ACT STRUCTURE. Return ONLY valid JSON:
 
 \`\`\`json
 {
-  "title": "Evocative Campaign Title",
-  "synopsis": "3-4 sentence dramatic overview with vivid imagery. Set the stakes, describe the threat, hint at the adventure ahead.",
-  "hook": "Compelling, detailed reason the party gets involved. Include specific details like reward amounts, NPC names, or urgent circumstances.",
+  "title": "Evocative Adventure Title",
+  "synopsis": "3-4 sentence dramatic overview. Establish the threat, the stakes, and why heroes are needed. Paint a vivid picture.",
+  "hook": "The inciting incident that draws the party in. Include specific details: reward amount, urgent deadline, or personal connection.",
+  "targetDuration": "${sessionHours} hours",
   "arc": {
-    "beginning": "Detailed Act 1 description (2-3 paragraphs). Include: opening scene with read-aloud text, key NPCs to meet, initial challenges, and how it transitions to Act 2.",
-    "middle": "Detailed Act 2 description (2-3 paragraphs). Include: the journey/dungeon exploration, major revelations, escalating dangers, puzzles or challenges faced.",
-    "climax": "Detailed Act 3 description (2-3 paragraphs). Include: the final confrontation setup, boss tactics and weaknesses, environmental hazards, victory conditions.",
-    "resolution": "Epilogue possibilities (1-2 paragraphs). Include: rewards, how the world changes, NPC reactions, sequel hooks."
+    "beginning": "Brief Act 1 summary (1 sentence)",
+    "middle": "Brief Act 2 summary (1 sentence)",
+    "climax": "Brief Act 3 summary (1 sentence)",
+    "resolution": "Brief epilogue summary (1 sentence)"
   },
+
+  "overview": {
+    "readAloud": "Opening narration (2-3 paragraphs): Set the scene with vivid sensory details. Describe the world, the atmosphere, recent events that created this situation. This is what the DM reads to start the adventure.",
+    "backstory": "The true history behind the adventure. What happened to cause this threat? Who is the villain and what do they want? Information the DM needs but players must discover.",
+    "themes": ["Primary theme", "Secondary theme"],
+    "warnings": "Any content warnings or mature themes"
+  },
+
+  "act1": {
+    "title": "Act 1 Title (e.g., 'The Village of Millbrook')",
+    "estimatedDuration": "45-60 minutes",
+    "overview": "What happens in Act 1 and its purpose in the story",
+
+    "settingTheScene": {
+      "readAloud": "Arrival description (2 paragraphs): What do players see, hear, smell as they arrive? What's the mood? Include specific sensory details that hint at the problem.",
+      "dmNotes": "What's really happening behind the scenes"
+    },
+
+    "questGiver": {
+      "name": "Quest Giver Name",
+      "role": "Their position (Elder, Mayor, Priest, etc.)",
+      "appearance": "Detailed physical description with age, clothing, distinguishing features",
+      "personality": "How they speak and act. Include verbal tics or accent.",
+      "dialogue": {
+        "greeting": "Initial dialogue when party approaches",
+        "questPitch": "How they explain the problem and ask for help",
+        "persuaded": "Response if party negotiates (DC 15 Persuasion for better reward)",
+        "ifQuestioned": "Responses to likely player questions"
+      },
+      "reward": {"offered": "Initial reward", "negotiated": "Better reward if persuaded", "secret": "Hidden bonus they might offer"},
+      "keyInformation": ["Fact 1 they share freely", "Fact 2 (DC 12 Insight to notice they're hiding something)", "Fact 3 they only share if asked specifically"]
+    },
+
+    "keyNpcs": [
+      {
+        "name": "NPC Name",
+        "role": "Innkeeper/Blacksmith/Priest/Local/etc.",
+        "location": "Where found",
+        "appearance": "Physical description",
+        "personality": "Demeanor and speech pattern",
+        "dialogue": {
+          "greeting": "How they greet strangers",
+          "gossip": "Local rumors they share",
+          "ifBribed": "What DC 12 Persuasion or 5gp reveals"
+        },
+        "keyInformation": ["Useful fact with DC if needed"],
+        "services": [{"item": "Service/Item", "cost": "Price"}]
+      }
+    ],
+
+    "locations": [
+      {
+        "name": "Location Name (Tavern, Temple, Shop, etc.)",
+        "readAloud": "Description for players (1-2 paragraphs with sensory details)",
+        "features": ["Interactive element", "Notable detail"],
+        "npcsPresent": ["NPC names found here"],
+        "secrets": "Hidden information (with DC to discover)"
+      }
+    ],
+
+    "services": {
+      "inn": {"name": "Inn Name", "roomCost": "5sp/night", "mealCost": "2sp", "rumors": ["Rumor 1", "Rumor 2"]},
+      "shops": [
+        {"name": "Shop Name", "keeper": "Shopkeeper Name", "inventory": [{"item": "Item", "cost": "Price"}]}
+      ],
+      "temple": {"name": "Temple Name", "deity": "God served", "services": [{"service": "Healing", "cost": "Donation"}]}
+    },
+
+    "travelToDestination": {
+      "description": "The journey from town to dungeon",
+      "readAloud": "Travel narration (1-2 paragraphs describing the journey, changing landscape, growing danger)",
+      "duration": "Travel time",
+      "encounters": ["Potential travel encounter"]
+    },
+
+    "potentialConflicts": [
+      {
+        "name": "Conflict Name (Ambush, Suspicious Stranger, etc.)",
+        "trigger": "What causes this to happen",
+        "readAloud": "Scene description",
+        "resolution": "How it can be resolved (combat, roleplay, skill checks)",
+        "rewards": ["What players gain"],
+        "skippable": true
+      }
+    ],
+
+    "transitionToAct2": "Read-aloud text transitioning to Act 2 (the party arrives at the dungeon entrance...)"
+  },
+
+  "act2": {
+    "title": "Act 2 Title (e.g., 'The Crimson Depths')",
+    "estimatedDuration": "60-90 minutes",
+    "overview": "The dungeon/adventure site and its dangers",
+
+    "dungeonOverview": {
+      "name": "Dungeon Name",
+      "history": "Brief history of this place",
+      "readAloud": "Entrance description (what players see approaching)",
+      "atmosphere": "Overall mood and environmental details",
+      "lightingConditions": "Bright/dim/dark light",
+      "environmentalHazards": ["Hazard 1", "Hazard 2"]
+    },
+
+    "rooms": [
+      {
+        "id": "1",
+        "name": "Room Name",
+        "readAloud": "Detailed room description (2-3 paragraphs with sensory details). What do players see, hear, smell? What's immediately obvious vs. hidden?",
+        "dimensions": "30ft x 40ft",
+        "lighting": "Dim light from...",
+        "exits": ["North: wooden door to Room 2", "East: collapsed tunnel"],
+        "contents": {
+          "obvious": ["What's immediately visible"],
+          "hidden": ["What DC 15 Perception reveals", "What DC 12 Investigation finds"]
+        },
+        "encounter": {
+          "type": "combat/trap/puzzle/roleplay/none",
+          "description": "What happens here"
+        },
+        "treasure": [{"item": "Item", "location": "Where found", "value": "Worth"}],
+        "connections": "How this room relates to the dungeon's story"
+      }
+    ],
+
+    "encounters": [
+      {
+        "name": "Encounter Name",
+        "location": "Room number/area",
+        "type": "combat",
+        "readAloud": "What players see as combat begins",
+        "enemies": [{"name": "Monster", "count": 2, "cr": "1/2", "hp": 22, "ac": 13}],
+        "tactics": "How enemies fight: initial actions, fallback plans, morale",
+        "terrain": "Combat-relevant terrain features",
+        "dynamicElements": "What changes mid-fight (reinforcements, environmental shifts)",
+        "difficulty": "easy/medium/hard",
+        "rewards": {"xp": 100, "loot": ["Item (value)"]}
+      }
+    ],
+
+    "traps": [
+      {
+        "name": "Trap Name",
+        "location": "Where it is",
+        "trigger": "What sets it off",
+        "detection": "DC 14 Perception to notice",
+        "effect": "What it does (damage, condition, alarm)",
+        "disarm": "DC 12 Thieves' Tools or alternative solution",
+        "ifTriggered": "Full description of trap activating"
+      }
+    ],
+
+    "puzzles": [
+      {
+        "name": "Puzzle Name",
+        "location": "Room number",
+        "readAloud": "What players see (the puzzle elements, any inscriptions, the locked door/chest it guards)",
+        "mechanics": "How it actually works",
+        "hints": [
+          {"method": "DC 12 Investigation", "reveal": "Hint 1"},
+          {"method": "DC 15 Arcana", "reveal": "Hint 2"},
+          {"method": "Inscription translation", "reveal": "Hint 3"}
+        ],
+        "solution": "The correct solution",
+        "reward": "What solving it grants (access, treasure, information)",
+        "failure": "Consequence of wrong answer (damage, alarm, lock permanently)"
+      }
+    ],
+
+    "secrets": [
+      {
+        "name": "Secret Name",
+        "location": "Where hidden",
+        "discovery": "How to find it (DC or trigger)",
+        "contents": "What's revealed",
+        "significance": "Why it matters to the story"
+      }
+    ],
+
+    "transitionToAct3": "Read-aloud text as party approaches the final chamber..."
+  },
+
+  "act3": {
+    "title": "Act 3 Title (e.g., 'The Lord of Bones')",
+    "estimatedDuration": "30-45 minutes",
+    "overview": "The final confrontation",
+
+    "approach": {
+      "readAloud": "Description of the path to the boss chamber - building tension",
+      "warnings": "Signs of danger ahead",
+      "lastChance": "Final opportunity to rest, prepare, turn back"
+    },
+
+    "bossEncounter": {
+      "chamberDescription": {
+        "readAloud": "The boss chamber (2-3 paragraphs). Describe the space, the atmosphere, the villain's presence. Make it dramatic.",
+        "dimensions": "Chamber size",
+        "terrain": ["Terrain feature 1", "Terrain feature 2"],
+        "hazards": ["Environmental hazard"],
+        "interactables": ["Things players can use in combat"]
+      },
+
+      "villain": {
+        "name": "Villain Name",
+        "appearance": "Dramatic physical description",
+        "stats": {"cr": "Appropriate CR", "hp": 0, "ac": 0},
+        "motivation": "Why they're doing this - their twisted logic or tragic backstory",
+
+        "dialogue": {
+          "onSighting": "What villain says when party enters",
+          "monologue": "Villain's speech revealing their plan/motivation",
+          "duringCombat": ["Combat taunt 1", "Combat taunt 2"],
+          "ifDefeated": "Final words",
+          "ifVictorious": "What they say if party loses"
+        },
+
+        "tactics": {
+          "phase1": "Opening tactics (first third of HP)",
+          "phase2": "Desperate tactics (below half HP)",
+          "phase3": "Final stand (below quarter HP)",
+          "signature": "Their signature move or ability"
+        },
+
+        "weakness": "How clever players can gain advantage",
+        "morale": "Will they flee, surrender, or fight to death?"
+      },
+
+      "minions": [{"name": "Minion type", "count": 0, "role": "What they do in the fight"}],
+
+      "rewards": {
+        "xp": 0,
+        "gold": "Amount",
+        "items": [{"name": "Item", "description": "What it is", "value": "Worth or magical properties"}],
+        "villainLoot": "What's on the villain's body"
+      }
+    },
+
+    "aftermath": {
+      "readAloud": "Immediate aftermath of victory (1 paragraph)",
+      "discoveries": "What party learns/finds after the battle",
+      "timeLimit": "Any urgency to leave?"
+    },
+
+    "returnJourney": {
+      "description": "The trip back to town",
+      "changes": "How the environment has changed (curse lifted, monsters fled, etc.)",
+      "encounters": "Any encounters on return (grateful survivors, scavengers, etc.)"
+    }
+  },
+
+  "epilogue": {
+    "title": "Epilogue",
+    "estimatedDuration": "15-20 minutes",
+
+    "returnToTown": {
+      "readAloud": "Arrival back in town (how has word spread? how do people react?)",
+      "questGiverReaction": "How the quest giver responds to success",
+      "townReaction": "How common folk treat the heroes"
+    },
+
+    "rewards": {
+      "promised": "The agreed-upon reward",
+      "bonus": "Any additional rewards for exceptional performance",
+      "reputation": "How their reputation has changed",
+      "titles": "Any titles or honors bestowed"
+    },
+
+    "celebration": {
+      "readAloud": "The celebration scene (feast, ceremony, quiet gratitude)",
+      "npcInteractions": "Brief scenes with key NPCs thanking the party"
+    },
+
+    "looseEnds": [
+      {
+        "thread": "Unresolved plot point",
+        "hint": "How it might come up again"
+      }
+    ],
+
+    "sequelHooks": [
+      {
+        "name": "Hook Name",
+        "setup": "The rumor or event that hints at future adventure",
+        "connection": "How it connects to this adventure"
+      }
+    ],
+
+    "closingNarration": "Final read-aloud text wrapping up the adventure"
+  },
+
   "npcs": [
     {
-      "name": "Full NPC Name",
+      "name": "NPC Name",
       "race": "Race",
-      "occupation": "Role/Title",
-      "personality": "Detailed personality: how they speak (accent, verbal tics), mannerisms, emotional state. Include a memorable quote they might say.",
-      "motivation": "What they want and why. Include specific goals and what they'll do to achieve them.",
-      "secret": "Hidden agenda or secret knowledge. Include DC check to discover (e.g., 'DC 15 Insight reveals they are lying about...')",
-      "isAlly": true,
-      "appearance": "Detailed physical description: age, height, clothing, distinguishing features, how they carry themselves.",
-      "keyInfo": ["Important fact 1 (with DC if skill check needed)", "Important fact 2", "Quest-relevant detail with game mechanics"]
+      "occupation": "Role",
+      "personality": "Personality summary",
+      "motivation": "What they want",
+      "secret": "Hidden knowledge/agenda",
+      "isAlly": true
     }
   ],
+
   "locations": [
     {
-      "name": "Location Name",
-      "type": "town/dungeon/wilderness/building",
-      "description": "Detailed description (2-3 sentences) with sensory details: sights, sounds, smells, atmosphere. This is read-aloud text.",
-      "features": ["Interactive element 1 (with DC if applicable)", "Point of interest 2", "Environmental feature"],
-      "encounters": ["Possible encounter with difficulty"],
-      "treasure": ["Specific item (value in gp)", "Another item"],
-      "secrets": "Hidden areas or information (DC to find)"
+      "name": "Location",
+      "type": "Type",
+      "description": "Description",
+      "features": ["Feature"]
     }
   ],
+
   "encounters": [
     {
-      "name": "Encounter Name",
-      "description": "READ-ALOUD TEXT: 2-3 paragraphs describing what players see. Include atmospheric details, enemy positions, terrain features. This should be evocative prose the DM reads to players.",
-      "difficulty": "easy/medium/hard/deadly",
-      "monsters": [
-        {"name": "Monster Name (from D&D 5e SRD)", "count": 2, "cr": "1/2"}
-      ],
-      "tactics": "Detailed combat tactics: How enemies fight, use terrain, coordinate attacks. Include fallback plans, morale breaks, and any dynamic events (reinforcements, environmental changes).",
-      "rewards": ["XP total for encounter", "Specific loot items with gold values", "Any special rewards"],
-      "terrain": "Terrain features: difficult terrain, cover positions, hazards, interactive elements players can use",
-      "setup": "Tactical positioning: where enemies start, ambush opportunities, escape routes"
+      "name": "Encounter",
+      "description": "Description",
+      "difficulty": "medium",
+      "monsters": [{"name": "Monster", "count": 1, "cr": "1"}],
+      "tactics": "Tactics",
+      "rewards": ["Reward"]
     }
   ],
+
   "sessionOutlines": [
     {
       "number": 1,
-      "title": "Session Title",
-      "summary": "Detailed session summary (2-3 paragraphs): What happens, key scenes, important NPCs, combat encounters, puzzles. Include estimated duration.",
-      "objectives": ["Primary objective", "Secondary/optional objective", "Secret objective players might discover"],
-      "readAloud": "Opening scene read-aloud text for this session (1-2 paragraphs of atmospheric prose)",
-      "keyMoments": ["Dramatic moment 1", "Plot twist or revelation", "Cliffhanger ending"]
+      "title": "Complete Adventure",
+      "summary": "Full adventure in one session",
+      "objectives": ["Complete Act 1", "Complete Act 2", "Complete Act 3", "Epilogue"]
     }
-  ],
-  "puzzles": [
-    {
-      "name": "Puzzle Name",
-      "location": "Where it appears",
-      "description": "What players see (read-aloud text)",
-      "mechanics": "How the puzzle works",
-      "hints": ["Hint 1 (DC 12 Investigation)", "Hint 2 (DC 15 Arcana)", "Hint 3 (DC 10 History)"],
-      "solution": "The actual solution",
-      "reward": "What solving it grants",
-      "failure": "What happens if failed or triggered wrong"
-    }
-  ],
-  "boss": {
-    "name": "Final Boss Name",
-    "description": "Dramatic appearance description",
-    "tactics": "Phase-by-phase combat tactics",
-    "weakness": "How clever players can gain advantage",
-    "monologue": "Villainous speech or dialogue during confrontation",
-    "rewards": {"xp": 500, "gold": "100gp", "items": ["Magic item or special reward"]}
-  },
-  "shopServices": [
-    {"item": "Healing Potion (2d4+2)", "cost": "50gp"},
-    {"item": "Holy Water (vial)", "cost": "25gp"},
-    {"item": "Rope, 50ft", "cost": "1gp"}
-  ],
-  "randomEncounters": [
-    {"roll": "1-2", "encounter": "Description", "difficulty": "easy"},
-    {"roll": "3-4", "encounter": "Description", "difficulty": "medium"}
   ]
 }
 \`\`\`
 
 CRITICAL REQUIREMENTS:
-1. The "description" field in encounters MUST be read-aloud text (evocative prose for the DM to read)
-2. Include specific DC checks throughout (Investigation, Perception, Persuasion, etc.)
-3. All monsters must be from D&D 5e SRD with correct CR ratings
-4. Balance encounters for ${request.partySize} level ${request.partyLevel} characters
-5. Create at least 4-6 detailed encounters (mix of combat and puzzles)
-6. NPCs need memorable personalities with distinct speech patterns
-7. Include specific treasure with gold piece values
-8. Session outlines should have read-aloud opening scenes`;
+1. ALL "readAloud" fields must be evocative prose with sensory details (sights, sounds, smells, textures, atmosphere)
+2. Include specific DC checks throughout (Perception, Investigation, Insight, Persuasion, etc.)
+3. NPCs need distinct personalities with actual dialogue lines, not just descriptions
+4. Combat encounters need tactical depth - terrain, enemy tactics, dynamic elements
+5. Puzzles need multiple hint paths and clear solutions
+6. Use D&D 5e SRD monsters with appropriate CR for level ${request.partyLevel}
+7. Balance total XP for a party of ${request.partySize} level ${request.partyLevel} characters
+8. Include specific gold values and item names for all treasure
+9. Boss needs phases, dialogue, and a weakness clever players can exploit
+10. Ensure the adventure can be completed in approximately ${sessionHours} hours`;
 }
 
 // Generate just a dungeon map

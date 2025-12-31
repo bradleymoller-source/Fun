@@ -51,16 +51,23 @@ interface DungeonMap {
   theme: string;
 }
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 interface GeneratedCampaign {
   title: string;
   synopsis: string;
   hook: string;
+  targetDuration?: string;
   arc: {
     beginning: string;
     middle: string;
     climax: string;
     resolution: string;
   };
+  overview?: any;
+  act1?: any;
+  act2?: any;
+  act3?: any;
+  epilogue?: any;
   npcs: GeneratedNPC[];
   locations: GeneratedLocation[];
   encounters: GeneratedEncounter[];
@@ -128,7 +135,7 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
   const [customSetting, setCustomSetting] = useState('');
   const [partyLevel, setPartyLevel] = useState(1);
   const [partySize, setPartySize] = useState(4);
-  const [sessionCount, setSessionCount] = useState(4);
+  const [sessionCount, setSessionCount] = useState(1);
   const [tone, setTone] = useState<'serious' | 'lighthearted' | 'horror' | 'epic'>('serious');
   const [includeMap, setIncludeMap] = useState(true);
 
@@ -138,7 +145,7 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
   const [campaign, setCampaign] = useState<GeneratedCampaign | null>(null);
 
   // View state
-  const [activeTab, setActiveTab] = useState<'overview' | 'npcs' | 'locations' | 'encounters' | 'sessions' | 'map'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'act1' | 'act2' | 'act3' | 'epilogue' | 'npcs' | 'locations' | 'encounters' | 'sessions' | 'map'>('overview');
   const [selectedRoom, setSelectedRoom] = useState<DungeonRoom | null>(null);
 
   const handleGenerate = async () => {
@@ -413,10 +420,12 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
   const renderTabs = () => {
     const tabs = [
       { id: 'overview', label: 'Overview' },
+      ...(campaign?.act1 ? [{ id: 'act1', label: 'Act 1' }] : []),
+      ...(campaign?.act2 ? [{ id: 'act2', label: 'Act 2' }] : []),
+      ...(campaign?.act3 ? [{ id: 'act3', label: 'Act 3' }] : []),
+      ...(campaign?.epilogue ? [{ id: 'epilogue', label: 'Epilogue' }] : []),
       { id: 'npcs', label: 'NPCs' },
-      { id: 'locations', label: 'Locations' },
       { id: 'encounters', label: 'Encounters' },
-      { id: 'sessions', label: 'Sessions' },
       ...(campaign?.dungeonMap ? [{ id: 'map', label: 'Map' }] : []),
     ];
 
@@ -439,44 +448,431 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
     );
   };
 
+  // Helper to render read-aloud text boxes
+  const renderReadAloud = (text: string) => (
+    <div className="bg-amber-900/30 border-l-4 border-amber-500 p-3 rounded-r-lg italic text-parchment/90 text-sm whitespace-pre-wrap">
+      {text}
+    </div>
+  );
+
+  // Helper to render NPC with dialogue
+  const renderNpcDetail = (npc: any, index: number) => (
+    <div key={index} className="bg-dark-wood/50 p-3 rounded-lg border border-leather mb-3">
+      <h4 className="text-gold font-medieval">{npc.name}</h4>
+      {npc.role && <p className="text-amber-400 text-xs">{npc.role}</p>}
+      {npc.appearance && <p className="text-parchment/70 text-sm mt-1">{npc.appearance}</p>}
+      {npc.personality && <p className="text-parchment/80 text-sm mt-1">{npc.personality}</p>}
+      {npc.dialogue && (
+        <div className="mt-2 space-y-1">
+          {npc.dialogue.greeting && <p className="text-blue-300 text-xs"><strong>Greeting:</strong> "{npc.dialogue.greeting}"</p>}
+          {npc.dialogue.questPitch && <p className="text-green-300 text-xs"><strong>Quest:</strong> "{npc.dialogue.questPitch}"</p>}
+          {npc.dialogue.gossip && <p className="text-purple-300 text-xs"><strong>Gossip:</strong> "{npc.dialogue.gossip}"</p>}
+        </div>
+      )}
+      {npc.keyInformation && (
+        <ul className="mt-2 text-xs text-parchment/70 list-disc list-inside">
+          {npc.keyInformation.map((info: string, i: number) => <li key={i}>{info}</li>)}
+        </ul>
+      )}
+      {npc.services && npc.services.length > 0 && (
+        <div className="mt-2 text-xs">
+          <strong className="text-gold">Services:</strong>
+          {npc.services.map((s: any, i: number) => (
+            <span key={i} className="ml-2 text-parchment/70">{s.item}: {s.cost}</span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  // Helper to render room
+  const renderRoom = (room: any, index: number) => (
+    <div key={index} className="bg-dark-wood/50 p-3 rounded-lg border border-leather mb-3">
+      <div className="flex justify-between items-start">
+        <h4 className="text-gold font-medieval">Room {room.id}: {room.name}</h4>
+        {room.dimensions && <span className="text-xs text-parchment/50">{room.dimensions}</span>}
+      </div>
+      {room.readAloud && <div className="mt-2">{renderReadAloud(room.readAloud)}</div>}
+      {room.contents && (
+        <div className="mt-2 text-xs">
+          {room.contents.obvious && <p className="text-parchment/70"><strong>Visible:</strong> {room.contents.obvious.join(', ')}</p>}
+          {room.contents.hidden && <p className="text-amber-400/70"><strong>Hidden:</strong> {room.contents.hidden.join(', ')}</p>}
+        </div>
+      )}
+      {room.exits && <p className="text-xs text-blue-300 mt-1"><strong>Exits:</strong> {room.exits.join(' | ')}</p>}
+      {room.treasure && room.treasure.length > 0 && (
+        <p className="text-xs text-yellow-400 mt-1"><strong>Treasure:</strong> {room.treasure.map((t: any) => `${t.item} (${t.value})`).join(', ')}</p>
+      )}
+    </div>
+  );
+
   const renderContent = () => {
     if (!campaign) return null;
 
     switch (activeTab) {
       case 'overview':
         return (
-          <div className="space-y-4">
+          <div className="space-y-4 max-h-96 overflow-y-auto">
             <h2 className="text-2xl font-medieval text-gold">{campaign.title}</h2>
+            {campaign.targetDuration && <p className="text-parchment/50 text-xs">Duration: {campaign.targetDuration}</p>}
             <p className="text-parchment">{campaign.synopsis}</p>
+
             <div className="bg-amber-900/30 p-3 rounded-lg border border-amber-500/50">
               <h4 className="text-amber-400 text-sm font-bold mb-1">Adventure Hook</h4>
               <p className="text-parchment/90 text-sm">{campaign.hook}</p>
             </div>
+
+            {campaign.overview?.readAloud && (
+              <div>
+                <h4 className="text-gold text-sm font-bold mb-2">Opening Narration</h4>
+                {renderReadAloud(campaign.overview.readAloud)}
+              </div>
+            )}
+
+            {campaign.overview?.backstory && (
+              <div className="bg-purple-900/20 p-3 rounded-lg border border-purple-500/50">
+                <h4 className="text-purple-400 text-sm font-bold mb-1">Backstory (DM Only)</h4>
+                <p className="text-parchment/80 text-sm">{campaign.overview.backstory}</p>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-dark-wood/50 p-2 rounded">
-                <h5 className="text-gold text-xs mb-1">Beginning</h5>
-                <p className="text-parchment/80 text-xs">{campaign.arc.beginning}</p>
+                <h5 className="text-gold text-xs mb-1">Act 1</h5>
+                <p className="text-parchment/80 text-xs">{campaign.arc?.beginning}</p>
               </div>
               <div className="bg-dark-wood/50 p-2 rounded">
-                <h5 className="text-gold text-xs mb-1">Middle</h5>
-                <p className="text-parchment/80 text-xs">{campaign.arc.middle}</p>
+                <h5 className="text-gold text-xs mb-1">Act 2</h5>
+                <p className="text-parchment/80 text-xs">{campaign.arc?.middle}</p>
               </div>
               <div className="bg-dark-wood/50 p-2 rounded">
-                <h5 className="text-gold text-xs mb-1">Climax</h5>
-                <p className="text-parchment/80 text-xs">{campaign.arc.climax}</p>
+                <h5 className="text-gold text-xs mb-1">Act 3</h5>
+                <p className="text-parchment/80 text-xs">{campaign.arc?.climax}</p>
               </div>
               <div className="bg-dark-wood/50 p-2 rounded">
-                <h5 className="text-gold text-xs mb-1">Resolution</h5>
-                <p className="text-parchment/80 text-xs">{campaign.arc.resolution}</p>
+                <h5 className="text-gold text-xs mb-1">Epilogue</h5>
+                <p className="text-parchment/80 text-xs">{campaign.arc?.resolution}</p>
               </div>
             </div>
           </div>
         );
 
+      case 'act1':
+        if (!campaign.act1) return <p className="text-parchment/50">Act 1 data not available</p>;
+        return (
+          <div className="space-y-4 max-h-96 overflow-y-auto">
+            <h3 className="text-xl font-medieval text-gold">{campaign.act1.title}</h3>
+            {campaign.act1.estimatedDuration && <p className="text-parchment/50 text-xs">Duration: {campaign.act1.estimatedDuration}</p>}
+            <p className="text-parchment/80 text-sm">{campaign.act1.overview}</p>
+
+            {campaign.act1.settingTheScene?.readAloud && (
+              <div>
+                <h4 className="text-gold text-sm font-bold mb-2">Setting the Scene</h4>
+                {renderReadAloud(campaign.act1.settingTheScene.readAloud)}
+                {campaign.act1.settingTheScene.dmNotes && (
+                  <p className="text-purple-400/70 text-xs mt-2 italic">DM Notes: {campaign.act1.settingTheScene.dmNotes}</p>
+                )}
+              </div>
+            )}
+
+            {campaign.act1.questGiver && (
+              <div>
+                <h4 className="text-gold text-sm font-bold mb-2">Quest Giver</h4>
+                {renderNpcDetail(campaign.act1.questGiver, 0)}
+              </div>
+            )}
+
+            {campaign.act1.keyNpcs && campaign.act1.keyNpcs.length > 0 && (
+              <div>
+                <h4 className="text-gold text-sm font-bold mb-2">Key NPCs</h4>
+                {campaign.act1.keyNpcs.map((npc: any, i: number) => renderNpcDetail(npc, i))}
+              </div>
+            )}
+
+            {campaign.act1.services && (
+              <div className="bg-dark-wood/50 p-3 rounded-lg">
+                <h4 className="text-gold text-sm font-bold mb-2">Services & Shops</h4>
+                {campaign.act1.services.inn && (
+                  <div className="mb-2">
+                    <p className="text-amber-400 text-xs font-bold">{campaign.act1.services.inn.name}</p>
+                    <p className="text-parchment/70 text-xs">Room: {campaign.act1.services.inn.roomCost} | Meal: {campaign.act1.services.inn.mealCost}</p>
+                  </div>
+                )}
+                {campaign.act1.services.shops?.map((shop: any, i: number) => (
+                  <div key={i} className="mb-2">
+                    <p className="text-blue-400 text-xs font-bold">{shop.name} ({shop.keeper})</p>
+                    <div className="text-parchment/70 text-xs">
+                      {shop.inventory?.map((item: any, j: number) => (
+                        <span key={j} className="mr-2">{item.item}: {item.cost}</span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {campaign.act1.travelToDestination && (
+              <div>
+                <h4 className="text-gold text-sm font-bold mb-2">Travel to Destination</h4>
+                {campaign.act1.travelToDestination.readAloud && renderReadAloud(campaign.act1.travelToDestination.readAloud)}
+                <p className="text-parchment/50 text-xs mt-1">Duration: {campaign.act1.travelToDestination.duration}</p>
+              </div>
+            )}
+
+            {campaign.act1.potentialConflicts && campaign.act1.potentialConflicts.length > 0 && (
+              <div>
+                <h4 className="text-gold text-sm font-bold mb-2">Potential Conflicts</h4>
+                {campaign.act1.potentialConflicts.map((conflict: any, i: number) => (
+                  <div key={i} className="bg-red-900/20 p-2 rounded border border-red-500/30 mb-2">
+                    <p className="text-red-400 text-sm font-bold">{conflict.name}</p>
+                    <p className="text-parchment/70 text-xs">{conflict.trigger}</p>
+                    {conflict.readAloud && <div className="mt-1">{renderReadAloud(conflict.readAloud)}</div>}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {campaign.act1.transitionToAct2 && (
+              <div>
+                <h4 className="text-gold text-sm font-bold mb-2">Transition to Act 2</h4>
+                {renderReadAloud(campaign.act1.transitionToAct2)}
+              </div>
+            )}
+          </div>
+        );
+
+      case 'act2':
+        if (!campaign.act2) return <p className="text-parchment/50">Act 2 data not available</p>;
+        return (
+          <div className="space-y-4 max-h-96 overflow-y-auto">
+            <h3 className="text-xl font-medieval text-gold">{campaign.act2.title}</h3>
+            {campaign.act2.estimatedDuration && <p className="text-parchment/50 text-xs">Duration: {campaign.act2.estimatedDuration}</p>}
+            <p className="text-parchment/80 text-sm">{campaign.act2.overview}</p>
+
+            {campaign.act2.dungeonOverview && (
+              <div className="bg-dark-wood/50 p-3 rounded-lg">
+                <h4 className="text-gold text-sm font-bold">{campaign.act2.dungeonOverview.name}</h4>
+                <p className="text-parchment/60 text-xs italic">{campaign.act2.dungeonOverview.history}</p>
+                {campaign.act2.dungeonOverview.readAloud && <div className="mt-2">{renderReadAloud(campaign.act2.dungeonOverview.readAloud)}</div>}
+                <p className="text-parchment/50 text-xs mt-1">Lighting: {campaign.act2.dungeonOverview.lightingConditions}</p>
+              </div>
+            )}
+
+            {campaign.act2.rooms && campaign.act2.rooms.length > 0 && (
+              <div>
+                <h4 className="text-gold text-sm font-bold mb-2">Dungeon Rooms</h4>
+                {campaign.act2.rooms.map((room: any, i: number) => renderRoom(room, i))}
+              </div>
+            )}
+
+            {campaign.act2.traps && campaign.act2.traps.length > 0 && (
+              <div>
+                <h4 className="text-gold text-sm font-bold mb-2">Traps</h4>
+                {campaign.act2.traps.map((trap: any, i: number) => (
+                  <div key={i} className="bg-orange-900/20 p-2 rounded border border-orange-500/30 mb-2">
+                    <p className="text-orange-400 text-sm font-bold">{trap.name}</p>
+                    <p className="text-parchment/70 text-xs"><strong>Trigger:</strong> {trap.trigger}</p>
+                    <p className="text-parchment/70 text-xs"><strong>Detect:</strong> {trap.detection}</p>
+                    <p className="text-parchment/70 text-xs"><strong>Effect:</strong> {trap.effect}</p>
+                    <p className="text-green-400/70 text-xs"><strong>Disarm:</strong> {trap.disarm}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {campaign.act2.puzzles && campaign.act2.puzzles.length > 0 && (
+              <div>
+                <h4 className="text-gold text-sm font-bold mb-2">Puzzles</h4>
+                {campaign.act2.puzzles.map((puzzle: any, i: number) => (
+                  <div key={i} className="bg-blue-900/20 p-3 rounded border border-blue-500/30 mb-2">
+                    <p className="text-blue-400 text-sm font-bold">{puzzle.name}</p>
+                    {puzzle.readAloud && <div className="mt-1">{renderReadAloud(puzzle.readAloud)}</div>}
+                    <p className="text-parchment/70 text-xs mt-2"><strong>Mechanics:</strong> {puzzle.mechanics}</p>
+                    {puzzle.hints && (
+                      <div className="mt-1">
+                        <strong className="text-xs text-amber-400">Hints:</strong>
+                        <ul className="text-xs text-parchment/60 list-disc list-inside">
+                          {puzzle.hints.map((hint: any, j: number) => (
+                            <li key={j}>{hint.method}: {hint.reveal}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    <p className="text-green-400/70 text-xs mt-1"><strong>Solution:</strong> {puzzle.solution}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {campaign.act2.transitionToAct3 && (
+              <div>
+                <h4 className="text-gold text-sm font-bold mb-2">Transition to Act 3</h4>
+                {renderReadAloud(campaign.act2.transitionToAct3)}
+              </div>
+            )}
+          </div>
+        );
+
+      case 'act3':
+        if (!campaign.act3) return <p className="text-parchment/50">Act 3 data not available</p>;
+        return (
+          <div className="space-y-4 max-h-96 overflow-y-auto">
+            <h3 className="text-xl font-medieval text-gold">{campaign.act3.title}</h3>
+            {campaign.act3.estimatedDuration && <p className="text-parchment/50 text-xs">Duration: {campaign.act3.estimatedDuration}</p>}
+            <p className="text-parchment/80 text-sm">{campaign.act3.overview}</p>
+
+            {campaign.act3.approach && (
+              <div>
+                <h4 className="text-gold text-sm font-bold mb-2">The Approach</h4>
+                {campaign.act3.approach.readAloud && renderReadAloud(campaign.act3.approach.readAloud)}
+                {campaign.act3.approach.warnings && (
+                  <p className="text-orange-400/70 text-xs mt-1"><strong>Warning Signs:</strong> {campaign.act3.approach.warnings}</p>
+                )}
+              </div>
+            )}
+
+            {campaign.act3.bossEncounter && (
+              <div className="bg-red-900/20 p-3 rounded-lg border border-red-500/50">
+                <h4 className="text-red-400 text-sm font-bold mb-2">Boss Encounter</h4>
+
+                {campaign.act3.bossEncounter.chamberDescription?.readAloud && (
+                  <div className="mb-3">{renderReadAloud(campaign.act3.bossEncounter.chamberDescription.readAloud)}</div>
+                )}
+
+                {campaign.act3.bossEncounter.villain && (
+                  <div className="bg-dark-wood/50 p-2 rounded mb-2">
+                    <p className="text-red-300 font-bold">{campaign.act3.bossEncounter.villain.name}</p>
+                    <p className="text-parchment/70 text-sm">{campaign.act3.bossEncounter.villain.appearance}</p>
+                    <p className="text-parchment/60 text-xs mt-1"><strong>Motivation:</strong> {campaign.act3.bossEncounter.villain.motivation}</p>
+
+                    {campaign.act3.bossEncounter.villain.dialogue && (
+                      <div className="mt-2 space-y-1">
+                        {campaign.act3.bossEncounter.villain.dialogue.onSighting && (
+                          <p className="text-amber-300 text-xs">"{campaign.act3.bossEncounter.villain.dialogue.onSighting}"</p>
+                        )}
+                        {campaign.act3.bossEncounter.villain.dialogue.monologue && (
+                          <p className="text-amber-300 text-xs italic">"{campaign.act3.bossEncounter.villain.dialogue.monologue}"</p>
+                        )}
+                      </div>
+                    )}
+
+                    {campaign.act3.bossEncounter.villain.tactics && (
+                      <div className="mt-2 text-xs">
+                        <strong className="text-gold">Tactics:</strong>
+                        <p className="text-parchment/70">Phase 1: {campaign.act3.bossEncounter.villain.tactics.phase1}</p>
+                        <p className="text-parchment/70">Phase 2: {campaign.act3.bossEncounter.villain.tactics.phase2}</p>
+                        <p className="text-parchment/70">Phase 3: {campaign.act3.bossEncounter.villain.tactics.phase3}</p>
+                      </div>
+                    )}
+
+                    {campaign.act3.bossEncounter.villain.weakness && (
+                      <p className="text-green-400 text-xs mt-2"><strong>Weakness:</strong> {campaign.act3.bossEncounter.villain.weakness}</p>
+                    )}
+                  </div>
+                )}
+
+                {campaign.act3.bossEncounter.rewards && (
+                  <div className="mt-2">
+                    <strong className="text-yellow-400 text-xs">Rewards:</strong>
+                    <p className="text-parchment/70 text-xs">XP: {campaign.act3.bossEncounter.rewards.xp} | Gold: {campaign.act3.bossEncounter.rewards.gold}</p>
+                    {campaign.act3.bossEncounter.rewards.items?.map((item: any, i: number) => (
+                      <p key={i} className="text-yellow-300 text-xs">{item.name}: {item.description}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {campaign.act3.aftermath && (
+              <div>
+                <h4 className="text-gold text-sm font-bold mb-2">Aftermath</h4>
+                {campaign.act3.aftermath.readAloud && renderReadAloud(campaign.act3.aftermath.readAloud)}
+                {campaign.act3.aftermath.discoveries && (
+                  <p className="text-parchment/70 text-xs mt-1">{campaign.act3.aftermath.discoveries}</p>
+                )}
+              </div>
+            )}
+
+            {campaign.act3.returnJourney && (
+              <div>
+                <h4 className="text-gold text-sm font-bold mb-2">Return Journey</h4>
+                <p className="text-parchment/70 text-sm">{campaign.act3.returnJourney.description}</p>
+                {campaign.act3.returnJourney.changes && (
+                  <p className="text-green-400/70 text-xs mt-1">{campaign.act3.returnJourney.changes}</p>
+                )}
+              </div>
+            )}
+          </div>
+        );
+
+      case 'epilogue':
+        if (!campaign.epilogue) return <p className="text-parchment/50">Epilogue data not available</p>;
+        return (
+          <div className="space-y-4 max-h-96 overflow-y-auto">
+            <h3 className="text-xl font-medieval text-gold">{campaign.epilogue.title || 'Epilogue'}</h3>
+            {campaign.epilogue.estimatedDuration && <p className="text-parchment/50 text-xs">Duration: {campaign.epilogue.estimatedDuration}</p>}
+
+            {campaign.epilogue.returnToTown && (
+              <div>
+                <h4 className="text-gold text-sm font-bold mb-2">Return to Town</h4>
+                {campaign.epilogue.returnToTown.readAloud && renderReadAloud(campaign.epilogue.returnToTown.readAloud)}
+                {campaign.epilogue.returnToTown.questGiverReaction && (
+                  <p className="text-parchment/70 text-sm mt-2"><strong>Quest Giver:</strong> {campaign.epilogue.returnToTown.questGiverReaction}</p>
+                )}
+                {campaign.epilogue.returnToTown.townReaction && (
+                  <p className="text-parchment/70 text-sm"><strong>Townfolk:</strong> {campaign.epilogue.returnToTown.townReaction}</p>
+                )}
+              </div>
+            )}
+
+            {campaign.epilogue.rewards && (
+              <div className="bg-yellow-900/20 p-3 rounded-lg border border-yellow-500/50">
+                <h4 className="text-yellow-400 text-sm font-bold mb-2">Rewards</h4>
+                <p className="text-parchment/70 text-sm"><strong>Promised:</strong> {campaign.epilogue.rewards.promised}</p>
+                {campaign.epilogue.rewards.bonus && (
+                  <p className="text-green-400 text-sm"><strong>Bonus:</strong> {campaign.epilogue.rewards.bonus}</p>
+                )}
+                {campaign.epilogue.rewards.reputation && (
+                  <p className="text-blue-400 text-sm"><strong>Reputation:</strong> {campaign.epilogue.rewards.reputation}</p>
+                )}
+                {campaign.epilogue.rewards.titles && (
+                  <p className="text-purple-400 text-sm"><strong>Titles:</strong> {campaign.epilogue.rewards.titles}</p>
+                )}
+              </div>
+            )}
+
+            {campaign.epilogue.celebration && (
+              <div>
+                <h4 className="text-gold text-sm font-bold mb-2">Celebration</h4>
+                {campaign.epilogue.celebration.readAloud && renderReadAloud(campaign.epilogue.celebration.readAloud)}
+              </div>
+            )}
+
+            {campaign.epilogue.sequelHooks && campaign.epilogue.sequelHooks.length > 0 && (
+              <div>
+                <h4 className="text-gold text-sm font-bold mb-2">Sequel Hooks</h4>
+                {campaign.epilogue.sequelHooks.map((hook: any, i: number) => (
+                  <div key={i} className="bg-purple-900/20 p-2 rounded border border-purple-500/30 mb-2">
+                    <p className="text-purple-400 text-sm font-bold">{hook.name}</p>
+                    <p className="text-parchment/70 text-xs">{hook.setup}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {campaign.epilogue.closingNarration && (
+              <div>
+                <h4 className="text-gold text-sm font-bold mb-2">Closing</h4>
+                {renderReadAloud(campaign.epilogue.closingNarration)}
+              </div>
+            )}
+          </div>
+        );
+
       case 'npcs':
         return (
-          <div className="space-y-3 max-h-64 overflow-y-auto">
-            {campaign.npcs.map((npc, i) => (
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            {campaign.npcs?.map((npc, i) => (
               <div key={i} className={`p-3 rounded-lg border ${npc.isAlly ? 'bg-green-900/20 border-green-500/50' : 'bg-red-900/20 border-red-500/50'}`}>
                 <div className="flex justify-between items-start">
                   <h4 className="text-gold font-medieval">{npc.name}</h4>
@@ -495,33 +891,11 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
           </div>
         );
 
-      case 'locations':
-        return (
-          <div className="space-y-3 max-h-64 overflow-y-auto">
-            {campaign.locations.map((loc, i) => (
-              <div key={i} className="p-3 rounded-lg bg-blue-900/20 border border-blue-500/50">
-                <div className="flex justify-between items-start">
-                  <h4 className="text-gold font-medieval">{loc.name}</h4>
-                  <span className="text-xs px-2 py-0.5 rounded bg-blue-500/30 text-blue-300 capitalize">
-                    {loc.type}
-                  </span>
-                </div>
-                <p className="text-parchment/80 text-sm mt-1">{loc.description}</p>
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {loc.features.map((f, j) => (
-                    <span key={j} className="text-xs px-1 py-0.5 bg-leather/50 rounded text-parchment/70">{f}</span>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        );
-
       case 'encounters':
         return (
-          <div className="space-y-3 max-h-64 overflow-y-auto">
-            {campaign.encounters.map((enc, i) => {
-              const diffColors = {
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            {campaign.encounters?.map((enc, i) => {
+              const diffColors: Record<string, string> = {
                 easy: 'bg-green-500/30 text-green-300',
                 medium: 'bg-yellow-500/30 text-yellow-300',
                 hard: 'bg-orange-500/30 text-orange-300',
@@ -531,38 +905,18 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
                 <div key={i} className="p-3 rounded-lg bg-purple-900/20 border border-purple-500/50">
                   <div className="flex justify-between items-start">
                     <h4 className="text-gold font-medieval">{enc.name}</h4>
-                    <span className={`text-xs px-2 py-0.5 rounded capitalize ${diffColors[enc.difficulty]}`}>
+                    <span className={`text-xs px-2 py-0.5 rounded capitalize ${diffColors[enc.difficulty] || 'bg-gray-500/30'}`}>
                       {enc.difficulty}
                     </span>
                   </div>
                   <p className="text-parchment/80 text-sm mt-1">{enc.description}</p>
                   <div className="mt-2 text-xs text-parchment/70">
-                    <strong>Monsters:</strong> {enc.monsters.map(m => `${m.count}x ${m.name} (CR ${m.cr})`).join(', ')}
+                    <strong>Monsters:</strong> {enc.monsters?.map(m => `${m.count}x ${m.name} (CR ${m.cr})`).join(', ')}
                   </div>
                   <p className="text-parchment/60 text-xs mt-1"><strong>Tactics:</strong> {enc.tactics}</p>
                 </div>
               );
             })}
-          </div>
-        );
-
-      case 'sessions':
-        return (
-          <div className="space-y-3 max-h-64 overflow-y-auto">
-            {campaign.sessionOutlines.map((session) => (
-              <div key={session.number} className="p-3 rounded-lg bg-dark-wood/50 border border-leather">
-                <h4 className="text-gold font-medieval">Session {session.number}: {session.title}</h4>
-                <p className="text-parchment/80 text-sm mt-1">{session.summary}</p>
-                <div className="mt-2">
-                  <span className="text-parchment/60 text-xs">Objectives:</span>
-                  <ul className="text-parchment/70 text-xs list-disc list-inside">
-                    {session.objectives.map((obj, i) => (
-                      <li key={i}>{obj}</li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            ))}
           </div>
         );
 
