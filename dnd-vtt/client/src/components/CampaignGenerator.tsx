@@ -156,6 +156,21 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
   const [sceneImages, setSceneImages] = useState<Record<string, string>>({});
   const [generatingSceneId, setGeneratingSceneId] = useState<string | null>(null);
 
+  // Saved battle maps list
+  const [savedMaps, setSavedMaps] = useState<Array<{ id: string; name: string; imageUrl: string; type: string }>>([]);
+
+  // Save a battle map to the list
+  const handleSaveMap = (id: string, name: string, imageUrl: string, type: string = 'dungeon') => {
+    // Check if already saved
+    if (savedMaps.some(m => m.imageUrl === imageUrl)) return;
+    setSavedMaps(prev => [...prev, { id, name, imageUrl, type }]);
+  };
+
+  // Remove a saved map
+  const handleRemoveSavedMap = (imageUrl: string) => {
+    setSavedMaps(prev => prev.filter(m => m.imageUrl !== imageUrl));
+  };
+
   const handleGenerate = async () => {
     setIsGenerating(true);
     setError(null);
@@ -1085,6 +1100,44 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
               )}
             </div>
 
+            {/* Saved Maps Section */}
+            {savedMaps.length > 0 && (
+              <div className="bg-gold/10 p-3 rounded-lg border border-gold/50">
+                <h4 className="text-gold text-sm font-bold mb-2">Saved Maps ({savedMaps.length})</h4>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {savedMaps.map((map, index) => (
+                    <div key={index} className="relative group">
+                      <img
+                        src={map.imageUrl}
+                        alt={map.name}
+                        className="w-full h-24 object-cover rounded border border-gold/30"
+                        loading="lazy"
+                      />
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded flex flex-col items-center justify-center gap-1">
+                        <p className="text-gold text-xs font-bold text-center px-1">{map.name}</p>
+                        <div className="flex gap-1">
+                          <a
+                            href={map.imageUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="bg-gold/80 text-dark-wood text-xs px-2 py-0.5 rounded hover:bg-gold"
+                          >
+                            Open
+                          </a>
+                          <button
+                            onClick={() => handleRemoveSavedMap(map.imageUrl)}
+                            className="bg-red-500/80 text-white text-xs px-2 py-0.5 rounded hover:bg-red-500"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <p className="text-parchment/60 text-sm">
               Generate detailed, illustrated battle maps for combat encounters. These AI-generated maps
               are designed for tactical play.
@@ -1098,6 +1151,7 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
                   {campaign.act2.rooms.map((room: any, index: number) => {
                     const mapId = `room-${room.id}`;
                     const hasMap = battleMaps[mapId];
+                    const isSaved = hasMap && savedMaps.some(m => m.imageUrl === battleMaps[mapId]);
                     return (
                       <div key={index} className="bg-dark-wood/50 p-3 rounded-lg border border-leather">
                         <div className="flex justify-between items-start mb-2">
@@ -1125,14 +1179,23 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
                               className="w-full rounded-lg border border-gold/30"
                               loading="lazy"
                             />
-                            <a
-                              href={battleMaps[mapId]}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="absolute bottom-2 right-2 bg-dark-wood/80 text-gold text-xs px-2 py-1 rounded hover:bg-dark-wood"
-                            >
-                              Full Size
-                            </a>
+                            <div className="absolute bottom-2 right-2 flex gap-1">
+                              <button
+                                onClick={() => handleSaveMap(mapId, room.name, battleMaps[mapId], 'dungeon')}
+                                className={`text-xs px-2 py-1 rounded ${isSaved ? 'bg-green-600 text-white' : 'bg-gold/80 text-dark-wood hover:bg-gold'}`}
+                                disabled={isSaved}
+                              >
+                                {isSaved ? 'Saved' : 'Save'}
+                              </button>
+                              <a
+                                href={battleMaps[mapId]}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="bg-dark-wood/80 text-gold text-xs px-2 py-1 rounded hover:bg-dark-wood"
+                              >
+                                Full Size
+                              </a>
+                            </div>
                           </div>
                         ) : (
                           <div className="h-32 bg-leather/20 rounded flex items-center justify-center text-parchment/50 text-sm">
@@ -1178,14 +1241,23 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
                         className="w-full rounded-lg border border-red-500/30"
                         loading="lazy"
                       />
-                      <a
-                        href={battleMaps['boss-chamber']}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="absolute bottom-2 right-2 bg-dark-wood/80 text-gold text-xs px-2 py-1 rounded hover:bg-dark-wood"
-                      >
-                        Full Size
-                      </a>
+                      <div className="absolute bottom-2 right-2 flex gap-1">
+                        <button
+                          onClick={() => handleSaveMap('boss-chamber', `${campaign.act3?.bossEncounter?.villain?.name || 'Boss'} Lair`, battleMaps['boss-chamber'], 'boss')}
+                          className={`text-xs px-2 py-1 rounded ${savedMaps.some(m => m.imageUrl === battleMaps['boss-chamber']) ? 'bg-green-600 text-white' : 'bg-gold/80 text-dark-wood hover:bg-gold'}`}
+                          disabled={savedMaps.some(m => m.imageUrl === battleMaps['boss-chamber'])}
+                        >
+                          {savedMaps.some(m => m.imageUrl === battleMaps['boss-chamber']) ? 'Saved' : 'Save'}
+                        </button>
+                        <a
+                          href={battleMaps['boss-chamber']}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="bg-dark-wood/80 text-gold text-xs px-2 py-1 rounded hover:bg-dark-wood"
+                        >
+                          Full Size
+                        </a>
+                      </div>
                     </div>
                   ) : (
                     <div className="h-32 bg-red-900/20 rounded flex items-center justify-center text-parchment/50 text-sm">
@@ -1226,14 +1298,23 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
                         className="w-full rounded-lg border border-green-500/30"
                         loading="lazy"
                       />
-                      <a
-                        href={battleMaps['travel-encounter']}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="absolute bottom-2 right-2 bg-dark-wood/80 text-gold text-xs px-2 py-1 rounded hover:bg-dark-wood"
-                      >
-                        Full Size
-                      </a>
+                      <div className="absolute bottom-2 right-2 flex gap-1">
+                        <button
+                          onClick={() => handleSaveMap('travel-encounter', 'Wilderness Ambush Site', battleMaps['travel-encounter'], 'wilderness')}
+                          className={`text-xs px-2 py-1 rounded ${savedMaps.some(m => m.imageUrl === battleMaps['travel-encounter']) ? 'bg-green-600 text-white' : 'bg-gold/80 text-dark-wood hover:bg-gold'}`}
+                          disabled={savedMaps.some(m => m.imageUrl === battleMaps['travel-encounter'])}
+                        >
+                          {savedMaps.some(m => m.imageUrl === battleMaps['travel-encounter']) ? 'Saved' : 'Save'}
+                        </button>
+                        <a
+                          href={battleMaps['travel-encounter']}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="bg-dark-wood/80 text-gold text-xs px-2 py-1 rounded hover:bg-dark-wood"
+                        >
+                          Full Size
+                        </a>
+                      </div>
                     </div>
                   ) : (
                     <div className="h-32 bg-green-900/20 rounded flex items-center justify-center text-parchment/50 text-sm">
