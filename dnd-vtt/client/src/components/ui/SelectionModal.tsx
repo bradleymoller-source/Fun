@@ -21,7 +21,7 @@ export interface SelectionOption {
   // Extra info
   hitDie?: number;
   extra?: Record<string, string | number>;
-  // Image (optional)
+  // Image
   image?: string;
 }
 
@@ -32,7 +32,7 @@ interface SelectionModalProps {
   title: string;
   options: SelectionOption[];
   selectedId?: string;
-  columns?: number; // Ignored in new design, kept for compatibility
+  columns?: number;
 }
 
 const roleColors: Record<string, string> = {
@@ -56,6 +56,37 @@ const powerColors: Record<string, string> = {
   Versatile: 'bg-purple-600',
 };
 
+// Class images from a public D&D art source (silhouettes/icons style)
+const CLASS_IMAGES: Record<string, string> = {
+  barbarian: 'https://www.dndbeyond.com/avatars/thumbnails/6/342/420/618/617258.png',
+  bard: 'https://www.dndbeyond.com/avatars/thumbnails/6/369/420/618/617261.png',
+  cleric: 'https://www.dndbeyond.com/avatars/thumbnails/6/371/420/618/617263.png',
+  druid: 'https://www.dndbeyond.com/avatars/thumbnails/6/346/420/618/617262.png',
+  fighter: 'https://www.dndbeyond.com/avatars/thumbnails/6/359/420/618/617264.png',
+  monk: 'https://www.dndbeyond.com/avatars/thumbnails/6/489/420/618/617265.png',
+  paladin: 'https://www.dndbeyond.com/avatars/thumbnails/6/365/420/618/617267.png',
+  ranger: 'https://www.dndbeyond.com/avatars/thumbnails/6/367/420/618/617268.png',
+  rogue: 'https://www.dndbeyond.com/avatars/thumbnails/6/384/420/618/617269.png',
+  sorcerer: 'https://www.dndbeyond.com/avatars/thumbnails/6/485/420/618/617270.png',
+  warlock: 'https://www.dndbeyond.com/avatars/thumbnails/6/375/420/618/617271.png',
+  wizard: 'https://www.dndbeyond.com/avatars/thumbnails/6/357/420/618/617272.png',
+};
+
+// Species images
+const SPECIES_IMAGES: Record<string, string> = {
+  human: 'https://www.dndbeyond.com/avatars/thumbnails/6/258/420/618/617974.png',
+  elf: 'https://www.dndbeyond.com/avatars/thumbnails/7/639/420/618/617976.png',
+  dwarf: 'https://www.dndbeyond.com/avatars/thumbnails/6/254/420/618/617973.png',
+  halfling: 'https://www.dndbeyond.com/avatars/thumbnails/6/256/420/618/617979.png',
+  gnome: 'https://www.dndbeyond.com/avatars/thumbnails/6/334/420/618/617978.png',
+  halfOrc: 'https://www.dndbeyond.com/avatars/thumbnails/6/466/420/618/617980.png',
+  tiefling: 'https://www.dndbeyond.com/avatars/thumbnails/7/641/420/618/617982.png',
+  dragonborn: 'https://www.dndbeyond.com/avatars/thumbnails/6/340/420/618/617975.png',
+  aasimar: 'https://www.dndbeyond.com/avatars/thumbnails/7/623/420/618/617969.png',
+  goliath: 'https://www.dndbeyond.com/avatars/thumbnails/7/620/420/618/617977.png',
+  orc: 'https://www.dndbeyond.com/avatars/thumbnails/6/466/420/618/617980.png',
+};
+
 export function SelectionModal({
   isOpen,
   onClose,
@@ -64,38 +95,38 @@ export function SelectionModal({
   options,
   selectedId,
 }: SelectionModalProps) {
-  // Find initial index based on selectedId
   const initialIndex = selectedId ? options.findIndex(o => o.id === selectedId) : 0;
   const [currentIndex, setCurrentIndex] = useState(Math.max(0, initialIndex));
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isAnimating, setIsAnimating] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Minimum swipe distance
   const minSwipeDistance = 50;
 
-  // Reset index when modal opens or options change
   useEffect(() => {
     if (isOpen) {
       const idx = selectedId ? options.findIndex(o => o.id === selectedId) : 0;
       setCurrentIndex(Math.max(0, idx));
+      setDragOffset(0);
     }
   }, [isOpen, selectedId, options]);
 
-  // Close on escape key
   useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
-      if (e.key === 'ArrowLeft') goToPrevious();
-      if (e.key === 'ArrowRight') goToNext();
+      if (e.key === 'ArrowLeft') navigateTo(currentIndex - 1);
+      if (e.key === 'ArrowRight') navigateTo(currentIndex + 1);
       if (e.key === 'Enter') handleSelect();
     };
     if (isOpen) {
-      document.addEventListener('keydown', handleEscape);
+      document.addEventListener('keydown', handleKeyDown);
       document.body.style.overflow = 'hidden';
     }
     return () => {
-      document.removeEventListener('keydown', handleEscape);
+      document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = 'unset';
     };
   }, [isOpen, onClose, currentIndex]);
@@ -105,12 +136,12 @@ export function SelectionModal({
   const currentOption = options[currentIndex];
   const isSelected = currentOption.id === selectedId;
 
-  const goToNext = () => {
-    setCurrentIndex((prev) => (prev + 1) % options.length);
-  };
-
-  const goToPrevious = () => {
-    setCurrentIndex((prev) => (prev - 1 + options.length) % options.length);
+  const navigateTo = (index: number) => {
+    if (isAnimating) return;
+    const newIndex = (index + options.length) % options.length;
+    setIsAnimating(true);
+    setCurrentIndex(newIndex);
+    setTimeout(() => setIsAnimating(false), 300);
   };
 
   const handleSelect = () => {
@@ -118,40 +149,58 @@ export function SelectionModal({
     onClose();
   };
 
-  // Touch handlers for swipe
   const onTouchStart = (e: TouchEvent) => {
     setTouchEnd(null);
     setTouchStart(e.targetTouches[0].clientX);
+    setIsDragging(true);
   };
 
   const onTouchMove = (e: TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX);
+    if (!touchStart) return;
+    const currentTouch = e.targetTouches[0].clientX;
+    setTouchEnd(currentTouch);
+    setDragOffset(currentTouch - touchStart);
   };
 
   const onTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
-    const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > minSwipeDistance;
-    const isRightSwipe = distance < -minSwipeDistance;
-
-    if (isLeftSwipe) {
-      goToNext();
-    } else if (isRightSwipe) {
-      goToPrevious();
+    setIsDragging(false);
+    if (!touchStart || !touchEnd) {
+      setDragOffset(0);
+      return;
     }
+
+    const distance = touchStart - touchEnd;
+    if (Math.abs(distance) > minSwipeDistance) {
+      if (distance > 0) {
+        navigateTo(currentIndex + 1);
+      } else {
+        navigateTo(currentIndex - 1);
+      }
+    }
+    setDragOffset(0);
+    setTouchStart(null);
+    setTouchEnd(null);
   };
 
+  // Get image for the option
+  const getImage = (option: SelectionOption): string | undefined => {
+    if (option.image) return option.image;
+    // Check if it's a class
+    if (CLASS_IMAGES[option.id]) return CLASS_IMAGES[option.id];
+    // Check if it's a species
+    if (SPECIES_IMAGES[option.id]) return SPECIES_IMAGES[option.id];
+    return undefined;
+  };
+
+  const image = getImage(currentOption);
   const colorClass = currentOption.color || 'amber';
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center">
+    <div className="fixed inset-0 z-[60]">
       {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/90"
-        onClick={onClose}
-      />
+      <div className="absolute inset-0 bg-black" />
 
-      {/* Modal Container */}
+      {/* Full Screen Container */}
       <div
         ref={containerRef}
         className="relative w-full h-full flex flex-col"
@@ -159,191 +208,207 @@ export function SelectionModal({
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 z-10">
-          <h2 className="text-xl font-bold text-gold">{title}</h2>
+        {/* Header - Minimal */}
+        <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between p-4 bg-gradient-to-b from-black/80 to-transparent">
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-bold text-gold">{title}</h2>
+            <span className="text-parchment/50 text-sm">{currentIndex + 1}/{options.length}</span>
+          </div>
           <button
             onClick={onClose}
-            className="text-parchment/60 hover:text-parchment text-3xl leading-none w-10 h-10 flex items-center justify-center"
+            className="text-parchment/60 hover:text-parchment text-2xl w-10 h-10 flex items-center justify-center"
           >
-            &times;
+            ✕
           </button>
         </div>
 
-        {/* Navigation Dots */}
-        <div className="flex justify-center gap-1.5 px-4 pb-2 z-10">
-          {options.map((_, idx) => (
-            <button
-              key={idx}
-              onClick={() => setCurrentIndex(idx)}
-              className={`w-2 h-2 rounded-full transition-all ${
-                idx === currentIndex
-                  ? 'bg-gold w-6'
-                  : options[idx].id === selectedId
-                  ? 'bg-gold/60'
-                  : 'bg-parchment/30 hover:bg-parchment/50'
-              }`}
-            />
-          ))}
-        </div>
-
-        {/* Card Container */}
-        <div className="flex-1 flex items-center justify-center px-4 pb-4 overflow-hidden">
-          {/* Previous Arrow */}
-          <button
-            onClick={goToPrevious}
-            className="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-12 h-12 flex items-center justify-center text-gold/60 hover:text-gold text-4xl"
+        {/* Card Area */}
+        <div
+          className="flex-1 flex items-center justify-center overflow-hidden"
+          style={{
+            transform: isDragging ? `translateX(${dragOffset}px)` : 'translateX(0)',
+            transition: isDragging ? 'none' : 'transform 0.3s ease-out',
+          }}
+        >
+          {/* Previous Card Preview */}
+          <div
+            className="absolute left-0 w-16 h-full flex items-center justify-center cursor-pointer z-10"
+            onClick={() => navigateTo(currentIndex - 1)}
           >
-            ‹
-          </button>
+            <span className="text-gold/40 hover:text-gold/80 text-5xl transition-colors">‹</span>
+          </div>
 
-          {/* Card */}
+          {/* Main Card - Full Screen */}
           <div
             className={`
-              w-full max-w-md h-full max-h-[70vh]
-              bg-gradient-to-b from-dark-wood to-leather
-              border-4 rounded-xl overflow-hidden
+              w-full h-full
               flex flex-col
-              transition-all duration-200
-              ${isSelected ? 'border-gold shadow-[0_0_20px_rgba(218,165,32,0.4)]' : `border-${colorClass}-500/50`}
+              bg-gradient-to-b from-dark-wood via-leather to-dark-wood
             `}
           >
-            {/* Card Header */}
-            <div className={`p-4 bg-${colorClass}-900/30 border-b border-${colorClass}-500/30`}>
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <h3 className="text-2xl font-bold text-gold">{currentOption.name}</h3>
-                  {currentOption.hitDie && (
-                    <span className="text-parchment/60 text-sm">Hit Die: d{currentOption.hitDie}</span>
-                  )}
+            {/* Image Section */}
+            {image && (
+              <div className="relative h-48 sm:h-64 flex-shrink-0 overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-dark-wood z-10" />
+                <img
+                  src={image}
+                  alt={currentOption.name}
+                  className="w-full h-full object-cover object-top opacity-80"
+                />
+                {/* Overlay gradient */}
+                <div className={`absolute inset-0 bg-gradient-to-br from-${colorClass}-900/40 to-transparent`} />
+              </div>
+            )}
+
+            {/* Content */}
+            <div className={`flex-1 flex flex-col overflow-hidden ${image ? '-mt-12 relative z-20' : 'pt-16'}`}>
+              {/* Title & Badges */}
+              <div className="px-5 pt-4 pb-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3">
+                      <h3 className="text-3xl font-bold text-gold">{currentOption.name}</h3>
+                      {isSelected && <span className="text-gold text-2xl">✓</span>}
+                    </div>
+
+                    {/* Inline Stats Row */}
+                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                      {currentOption.hitDie && (
+                        <span className="text-parchment/70 text-sm bg-black/30 px-2 py-0.5 rounded">
+                          d{currentOption.hitDie}
+                        </span>
+                      )}
+                      {currentOption.keyStats && (
+                        <span className="text-parchment/70 text-sm bg-black/30 px-2 py-0.5 rounded">
+                          {currentOption.keyStats}
+                        </span>
+                      )}
+                      {currentOption.complexity && (
+                        <span className={`${complexityColors[currentOption.complexity].text} text-sm bg-black/30 px-2 py-0.5 rounded`}>
+                          {currentOption.complexity}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                {isSelected && (
-                  <span className="text-gold text-2xl">✓</span>
+
+                {/* Role Badges */}
+                {currentOption.roles && currentOption.roles.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {currentOption.roles.map(role => (
+                      <span
+                        key={role}
+                        className={`${roleColors[role] || 'bg-gray-600'} text-white text-sm px-3 py-1 rounded-full font-medium`}
+                      >
+                        {role}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Power type for feats */}
+                {currentOption.power && (
+                  <div className="flex gap-2 mt-3">
+                    <span className={`${powerColors[currentOption.power]} text-white text-sm px-3 py-1 rounded-full font-medium`}>
+                      {currentOption.power}
+                    </span>
+                  </div>
                 )}
               </div>
 
-              {/* Roles */}
-              {currentOption.roles && currentOption.roles.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-2">
-                  {currentOption.roles.map(role => (
-                    <span
-                      key={role}
-                      className={`${roleColors[role] || 'bg-gray-600'} text-white text-sm px-2 py-1 rounded font-medium`}
-                    >
-                      {role}
-                    </span>
-                  ))}
-                  {currentOption.complexity && (
-                    <span className={`${complexityColors[currentOption.complexity].bg} ${complexityColors[currentOption.complexity].text} text-sm px-2 py-1 rounded border border-current`}>
-                      {currentOption.complexity}
-                    </span>
-                  )}
-                </div>
-              )}
-
-              {/* Power type for feats */}
-              {currentOption.power && (
-                <div className="flex gap-1.5 mt-2">
-                  <span className={`${powerColors[currentOption.power]} text-white text-sm px-2 py-1 rounded font-medium`}>
-                    {currentOption.power}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Card Content - Scrollable */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {/* Playstyle / Summary / Flavor */}
-              {(currentOption.playstyle || currentOption.summary || currentOption.flavor) && (
-                <div>
-                  <p className="text-parchment text-base leading-relaxed">
+              {/* Scrollable Content */}
+              <div className="flex-1 overflow-y-auto px-5 pb-4">
+                {/* Main Description */}
+                {(currentOption.playstyle || currentOption.summary || currentOption.flavor) && (
+                  <p className="text-parchment text-base leading-relaxed mb-4">
                     {currentOption.playstyle || currentOption.summary || currentOption.flavor}
                   </p>
-                </div>
-              )}
+                )}
 
-              {/* Theme (for backgrounds) */}
-              {currentOption.theme && (
-                <div className="bg-black/20 rounded p-3">
-                  <span className="text-gold text-sm font-semibold">Theme</span>
-                  <p className="text-parchment/90 mt-1">{currentOption.theme}</p>
-                </div>
-              )}
+                {/* Theme */}
+                {currentOption.theme && (
+                  <div className="mb-3">
+                    <span className="text-gold/80 text-sm">Theme: </span>
+                    <span className="text-parchment/90">{currentOption.theme}</span>
+                  </div>
+                )}
 
-              {/* Description */}
-              {currentOption.description && !currentOption.playstyle && !currentOption.summary && (
-                <div>
+                {/* Traits */}
+                {currentOption.traits && (
+                  <div className="mb-3">
+                    <span className="text-gold/80 text-sm">Traits: </span>
+                    <span className="text-parchment/90">{currentOption.traits}</span>
+                  </div>
+                )}
+
+                {/* Good For */}
+                {(currentOption.bestFor || currentOption.goodFor) && (
+                  <div className="mb-3">
+                    <span className="text-gold/80 text-sm">Great for: </span>
+                    <span className="text-parchment/90">
+                      {Array.isArray(currentOption.bestFor) ? currentOption.bestFor.join(', ') :
+                       Array.isArray(currentOption.goodFor) ? currentOption.goodFor.join(', ') :
+                       currentOption.goodFor}
+                    </span>
+                  </div>
+                )}
+
+                {/* Extra info as compact list */}
+                {currentOption.extra && Object.entries(currentOption.extra).map(([key, value]) => (
+                  <div key={key} className="mb-2">
+                    <span className="text-gold/80 text-sm">{key}: </span>
+                    <span className="text-parchment/90">{value}</span>
+                  </div>
+                ))}
+
+                {/* Description fallback */}
+                {currentOption.description && !currentOption.playstyle && !currentOption.summary && !currentOption.flavor && (
                   <p className="text-parchment/80">{currentOption.description}</p>
-                </div>
-              )}
+                )}
+              </div>
 
-              {/* Key Stats */}
-              {currentOption.keyStats && (
-                <div className="bg-black/20 rounded p-3">
-                  <span className="text-gold text-sm font-semibold">Key Stats</span>
-                  <p className="text-parchment text-lg font-medium mt-1">{currentOption.keyStats}</p>
-                </div>
-              )}
-
-              {/* Traits (for species) */}
-              {currentOption.traits && (
-                <div className="bg-black/20 rounded p-3">
-                  <span className="text-gold text-sm font-semibold">Key Traits</span>
-                  <p className="text-parchment/90 mt-1">{currentOption.traits}</p>
-                </div>
-              )}
-
-              {/* Best For / Good For */}
-              {(currentOption.bestFor || currentOption.goodFor) && (
-                <div className="bg-black/20 rounded p-3">
-                  <span className="text-gold text-sm font-semibold">Great For</span>
-                  <p className="text-parchment/90 mt-1">
-                    {Array.isArray(currentOption.bestFor) ? currentOption.bestFor.join(', ') :
-                     Array.isArray(currentOption.goodFor) ? currentOption.goodFor.join(', ') :
-                     currentOption.goodFor}
-                  </p>
-                </div>
-              )}
-
-              {/* Extra info */}
-              {currentOption.extra && Object.entries(currentOption.extra).map(([key, value]) => (
-                <div key={key} className="bg-black/20 rounded p-3">
-                  <span className="text-gold text-sm font-semibold">{key}</span>
-                  <p className="text-parchment/90 mt-1">{value}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* Card Footer */}
-            <div className="p-4 border-t border-gold/20 bg-black/20">
-              <button
-                onClick={handleSelect}
-                className={`
-                  w-full py-3 rounded-lg font-bold text-lg transition-all
-                  ${isSelected
-                    ? 'bg-gold/20 text-gold border-2 border-gold'
-                    : 'bg-gold text-dark-wood hover:bg-gold/90'
-                  }
-                `}
-              >
-                {isSelected ? '✓ Selected' : 'Select'}
-              </button>
+              {/* Select Button - Fixed at bottom */}
+              <div className="px-5 pb-5 pt-2 bg-gradient-to-t from-dark-wood to-transparent">
+                <button
+                  onClick={handleSelect}
+                  className={`
+                    w-full py-4 rounded-xl font-bold text-lg transition-all
+                    ${isSelected
+                      ? 'bg-gold/20 text-gold border-2 border-gold'
+                      : 'bg-gold text-dark-wood hover:bg-gold/90 active:scale-98'
+                    }
+                  `}
+                >
+                  {isSelected ? '✓ Currently Selected' : 'Select ' + currentOption.name}
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Next Arrow */}
-          <button
-            onClick={goToNext}
-            className="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-12 h-12 flex items-center justify-center text-gold/60 hover:text-gold text-4xl"
+          {/* Next Card Preview */}
+          <div
+            className="absolute right-0 w-16 h-full flex items-center justify-center cursor-pointer z-10"
+            onClick={() => navigateTo(currentIndex + 1)}
           >
-            ›
-          </button>
+            <span className="text-gold/40 hover:text-gold/80 text-5xl transition-colors">›</span>
+          </div>
         </div>
 
-        {/* Footer Counter */}
-        <div className="text-center pb-4 text-parchment/60">
-          {currentIndex + 1} of {options.length}
-          <span className="text-parchment/40 ml-2">• Swipe or use arrows</span>
+        {/* Bottom Navigation Dots */}
+        <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-1.5 z-20">
+          {options.map((opt, idx) => (
+            <button
+              key={idx}
+              onClick={() => navigateTo(idx)}
+              className={`h-2 rounded-full transition-all ${
+                idx === currentIndex
+                  ? 'bg-gold w-8'
+                  : opt.id === selectedId
+                  ? 'bg-gold/60 w-2'
+                  : 'bg-parchment/30 hover:bg-parchment/50 w-2'
+              }`}
+            />
+          ))}
         </div>
       </div>
     </div>
