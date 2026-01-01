@@ -3668,7 +3668,7 @@ export const CLASS_RESOURCES: Record<CharacterClass, ClassResourceDefinition[]> 
     {
       id: 'rage',
       name: 'Rage',
-      description: 'Enter a battle fury that grants bonus damage and resistance',
+      description: 'Bonus action: Enter rage for 1 min. Gain advantage on STR checks/saves, +2 rage damage (melee STR attacks), resistance to bludgeoning/piercing/slashing. Ends if knocked unconscious, turn ends without attacking or taking damage, or you end it (no action).',
       restoreOn: 'long',
       maxAtLevel: (level) => {
         if (level >= 20) return 6;  // Unlimited at 20, but we track as 6
@@ -3684,7 +3684,7 @@ export const CLASS_RESOURCES: Record<CharacterClass, ClassResourceDefinition[]> 
     {
       id: 'bardic-inspiration',
       name: 'Bardic Inspiration',
-      description: 'Inspire allies with a die they can add to ability checks, attacks, or saves',
+      description: 'Bonus action: Give one creature within 60 ft an Inspiration die (d6, scales at levels 5/10/15). Within 10 min, they can add it to one ability check, attack roll, or saving throw. At level 5+, restores on short rest.',
       restoreOn: 'long',  // Short rest at level 5+
       maxAtLevel: (_level, chaMod = 0) => Math.max(1, chaMod),
       usesAbilityMod: 'charisma',
@@ -3694,7 +3694,7 @@ export const CLASS_RESOURCES: Record<CharacterClass, ClassResourceDefinition[]> 
     {
       id: 'channel-divinity',
       name: 'Channel Divinity',
-      description: 'Channel divine energy for powerful effects',
+      description: 'Action: Use Turn Undead (undead within 30 ft must make WIS save or be turned for 1 min) or your Divine Domain channel option. Turned creatures must spend turns moving away and can\'t take reactions.',
       restoreOn: 'short',
       minLevel: 2,
       maxAtLevel: (level) => {
@@ -3708,7 +3708,7 @@ export const CLASS_RESOURCES: Record<CharacterClass, ClassResourceDefinition[]> 
     {
       id: 'wild-shape',
       name: 'Wild Shape',
-      description: 'Transform into a beast you have seen',
+      description: 'Bonus action: Transform into a beast you\'ve seen (CR limit based on level). Lasts for hours = half druid level. Gain beast\'s HP as temp HP. Can\'t cast spells but concentration persists. Revert if temp HP drops to 0.',
       restoreOn: 'short',
       minLevel: 2,
       maxAtLevel: () => 2,
@@ -3718,14 +3718,14 @@ export const CLASS_RESOURCES: Record<CharacterClass, ClassResourceDefinition[]> 
     {
       id: 'second-wind',
       name: 'Second Wind',
-      description: 'Regain hit points equal to 1d10 + fighter level',
+      description: 'Bonus action: Regain 1d10 + fighter level HP. Can only use once per short or long rest.',
       restoreOn: 'short',
       maxAtLevel: () => 1,
     },
     {
       id: 'action-surge',
       name: 'Action Surge',
-      description: 'Take an additional action on your turn',
+      description: 'On your turn: Take one additional action. Can only use once per turn. At level 17+, you can use it twice per rest but only once per turn.',
       restoreOn: 'short',
       minLevel: 2,
       maxAtLevel: (level) => level >= 17 ? 2 : 1,
@@ -3733,7 +3733,7 @@ export const CLASS_RESOURCES: Record<CharacterClass, ClassResourceDefinition[]> 
     {
       id: 'indomitable',
       name: 'Indomitable',
-      description: 'Reroll a failed saving throw',
+      description: 'When you fail a saving throw: Reroll it with no penalty. You must use the new roll even if it\'s lower.',
       restoreOn: 'long',
       minLevel: 9,
       maxAtLevel: (level) => {
@@ -3747,7 +3747,7 @@ export const CLASS_RESOURCES: Record<CharacterClass, ClassResourceDefinition[]> 
     {
       id: 'ki-points',
       name: 'Ki Points',
-      description: 'Fuel special martial arts techniques',
+      description: 'Resource for martial arts techniques: Flurry of Blows (1 ki, 2 unarmed strikes as bonus action), Patient Defense (1 ki, Dodge as bonus action), Step of the Wind (1 ki, Disengage/Dash as bonus action, double jump). More options unlock at higher levels.',
       restoreOn: 'short',
       minLevel: 2,
       maxAtLevel: (level) => level,  // Ki points = monk level
@@ -3757,14 +3757,14 @@ export const CLASS_RESOURCES: Record<CharacterClass, ClassResourceDefinition[]> 
     {
       id: 'lay-on-hands',
       name: 'Lay on Hands',
-      description: 'HP pool to heal creatures or cure diseases',
+      description: 'Action: Touch a creature and draw from your healing pool (paladin level × 5 HP). Restore any number of HP from the pool, or spend 5 HP to cure one disease or neutralize one poison.',
       restoreOn: 'long',
       maxAtLevel: (level) => level * 5,  // 5 HP per level
     },
     {
       id: 'channel-divinity',
       name: 'Channel Divinity',
-      description: 'Channel divine energy for powerful effects',
+      description: 'Use your Sacred Oath channel option. Effects vary by oath (e.g., Oath of Devotion: Sacred Weapon adds CHA to attacks for 1 min, or Turn the Unholy).',
       restoreOn: 'short',
       minLevel: 3,
       maxAtLevel: () => 1,
@@ -3772,7 +3772,7 @@ export const CLASS_RESOURCES: Record<CharacterClass, ClassResourceDefinition[]> 
     {
       id: 'divine-sense',
       name: 'Divine Sense',
-      description: 'Detect celestials, fiends, and undead',
+      description: 'Action: Until end of next turn, sense celestials, fiends, and undead within 60 ft not behind total cover. Also detect consecrated/desecrated places or objects.',
       restoreOn: 'long',
       maxAtLevel: (_level, chaMod = 0) => 1 + Math.max(0, chaMod),
       usesAbilityMod: 'charisma',
@@ -3782,7 +3782,7 @@ export const CLASS_RESOURCES: Record<CharacterClass, ClassResourceDefinition[]> 
     {
       id: 'favored-foe',
       name: 'Favored Foe',
-      description: 'Mark a creature to deal extra damage',
+      description: 'When you hit a creature with an attack: Mark it as your favored enemy (no action, requires concentration). First hit each turn deals extra 1d4 damage (scales at levels 6/14). Lasts 1 min.',
       restoreOn: 'long',
       maxAtLevel: (level) => Math.ceil(level / 4) + 1,  // Proficiency bonus
     },
@@ -3791,7 +3791,7 @@ export const CLASS_RESOURCES: Record<CharacterClass, ClassResourceDefinition[]> 
     {
       id: 'stroke-of-luck',
       name: 'Stroke of Luck',
-      description: 'Turn a miss into a hit or failed check into success',
+      description: 'When you miss with an attack: Turn the miss into a hit. OR when you fail an ability check: Treat the d20 roll as a 20.',
       restoreOn: 'short',
       minLevel: 20,
       maxAtLevel: () => 1,
@@ -3801,7 +3801,7 @@ export const CLASS_RESOURCES: Record<CharacterClass, ClassResourceDefinition[]> 
     {
       id: 'sorcery-points',
       name: 'Sorcery Points',
-      description: 'Fuel metamagic and create spell slots',
+      description: 'Fuel Metamagic options (Careful, Distant, Empowered, Extended, Heightened, Quickened, Subtle, Twinned). Can also convert to spell slots (bonus action): 2 pts = 1st level, 3 pts = 2nd, 5 pts = 3rd, 6 pts = 4th, 7 pts = 5th. Max slot level = 5th.',
       restoreOn: 'long',
       minLevel: 2,
       maxAtLevel: (level) => level,  // Sorcery points = sorcerer level
@@ -3814,7 +3814,7 @@ export const CLASS_RESOURCES: Record<CharacterClass, ClassResourceDefinition[]> 
     {
       id: 'arcane-recovery',
       name: 'Arcane Recovery',
-      description: 'Recover spell slots during a short rest',
+      description: 'Once per day during a short rest: Recover spell slots with combined level ≤ half wizard level (rounded up). No slot can be 6th level or higher.',
       restoreOn: 'long',  // Can use once per long rest, during a short rest
       maxAtLevel: () => 1,
     },
@@ -3831,7 +3831,7 @@ export const SPECIES_RESOURCES: SpeciesResourceDefinition[] = [
     id: 'breath-weapon',
     name: 'Breath Weapon',
     species: ['dragonborn'],
-    description: 'Exhale destructive energy',
+    description: 'Action: Exhale destructive energy in a 15 ft cone or 30 ft line (based on ancestry). Each creature must DEX save (DC = 8 + CON mod + Prof). Deals 1d10 damage (scales at levels 5/11/17), half on save. Damage type based on draconic ancestry.',
     restoreOn: 'long',
     maxAtLevel: (level) => Math.ceil(level / 4) + 1,  // Proficiency bonus
   },
@@ -3839,7 +3839,7 @@ export const SPECIES_RESOURCES: SpeciesResourceDefinition[] = [
     id: 'stones-endurance',
     name: "Stone's Endurance",
     species: ['goliath'],
-    description: 'Reduce damage when hit',
+    description: 'Reaction when you take damage: Roll 1d12 + CON mod and reduce the damage by that amount. Scales with proficiency bonus uses per long rest.',
     restoreOn: 'short',
     maxAtLevel: (level) => Math.ceil(level / 4) + 1,  // Proficiency bonus
   },
@@ -3847,7 +3847,7 @@ export const SPECIES_RESOURCES: SpeciesResourceDefinition[] = [
     id: 'relentless-endurance',
     name: 'Relentless Endurance',
     species: ['orc'],
-    description: 'Drop to 1 HP instead of 0',
+    description: 'When reduced to 0 HP but not killed outright: Drop to 1 HP instead. Cannot use again until you finish a long rest.',
     restoreOn: 'long',
     maxAtLevel: () => 1,
   },
@@ -3855,7 +3855,7 @@ export const SPECIES_RESOURCES: SpeciesResourceDefinition[] = [
     id: 'celestial-revelation',
     name: 'Celestial Revelation',
     species: ['aasimar'],
-    description: 'Transform with celestial power',
+    description: 'Bonus action: Transform for 1 minute, gaining effects based on your form. Necrotic Shroud: creatures within 10 ft must CHA save or be frightened. Radiant Consumption: deal radiant damage to nearby creatures. Radiant Soul: gain flying speed 30 ft.',
     restoreOn: 'long',
     maxAtLevel: () => 1,
   },
@@ -3871,7 +3871,7 @@ export const FEAT_RESOURCES: FeatResourceDefinition[] = [
     id: 'lucky-points',
     name: 'Luck Points',
     featName: 'Lucky',
-    description: 'Reroll d20 or force enemy reroll',
+    description: 'After rolling a d20 for attack, ability check, or save: Spend 1 point to roll another d20 and choose which to use. OR when attacked: Spend 1 point to roll a d20, attacker must use that roll instead.',
     restoreOn: 'long',
     maxAtLevel: () => 3,
   },

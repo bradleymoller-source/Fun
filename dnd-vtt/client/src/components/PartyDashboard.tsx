@@ -11,6 +11,7 @@ import {
   SPELL_SLOTS_BY_LEVEL,
   HALF_CASTER_SPELL_SLOTS,
   WARLOCK_SPELL_SLOTS,
+  getCharacterResources,
 } from '../data/dndData';
 import type { CharacterClass } from '../types';
 
@@ -234,6 +235,36 @@ export function PartyDashboard({
                       }
                       return null;
                     })()}
+                    {/* Class Resources Summary */}
+                    {(() => {
+                      const featNames = character.features
+                        ?.filter(f => f.source === 'Origin Feat' || f.source === 'Human Versatile' || f.source?.includes('Feat'))
+                        .map(f => f.name) || [];
+                      const resources = getCharacterResources(
+                        character.characterClass,
+                        character.species,
+                        character.level,
+                        character.abilityScores,
+                        featNames
+                      );
+                      const resourceEntries = Object.entries(resources);
+                      if (resourceEntries.length === 0) return null;
+
+                      // Calculate total remaining resources
+                      let totalRemaining = 0;
+                      let totalMax = 0;
+                      for (const [resourceId, resource] of resourceEntries) {
+                        const used = character.featureUses?.[resourceId]?.used || 0;
+                        totalRemaining += resource.max - used;
+                        totalMax += resource.max;
+                      }
+
+                      return (
+                        <span className="text-amber-400 text-[10px]" title={`${totalRemaining}/${totalMax} class resources`}>
+                          ⚡ {totalRemaining}/{totalMax}
+                        </span>
+                      );
+                    })()}
                     <span className={character.currentHitPoints <= 0 ? 'text-red-400' : 'text-parchment'}>
                       {character.currentHitPoints}/{character.maxHitPoints}
                       {character.temporaryHitPoints > 0 && (
@@ -393,6 +424,77 @@ export function PartyDashboard({
                                     }`}
                                   />
                                 ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Class Resources (Ki, Rage, etc.) */}
+                {(() => {
+                  // Get feat names from features
+                  const featNames = character.features
+                    ?.filter(f => f.source === 'Origin Feat' || f.source === 'Human Versatile' || f.source?.includes('Feat'))
+                    .map(f => f.name) || [];
+
+                  const resources = getCharacterResources(
+                    character.characterClass,
+                    character.species,
+                    character.level,
+                    character.abilityScores,
+                    featNames
+                  );
+
+                  const resourceEntries = Object.entries(resources);
+                  if (resourceEntries.length === 0) return null;
+
+                  return (
+                    <div>
+                      <div className="text-parchment/70 text-xs mb-1">Class Resources</div>
+                      <div className="space-y-1">
+                        {resourceEntries.map(([resourceId, resource]) => {
+                          const featureUse = character.featureUses?.[resourceId];
+                          const used = featureUse?.used || 0;
+                          const max = resource.max;
+                          const remaining = max - used;
+                          const isSmallPool = max <= 6;
+
+                          return (
+                            <div
+                              key={resourceId}
+                              className="bg-leather/30 px-2 py-1 rounded"
+                              title={resource.description}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-1">
+                                  <span className="text-parchment text-xs font-medium">{resource.name}</span>
+                                  <span className={`text-[9px] px-1 rounded ${
+                                    resource.restoreOn === 'short'
+                                      ? 'bg-green-900/50 text-green-300'
+                                      : 'bg-blue-900/50 text-blue-300'
+                                  }`}>
+                                    {resource.restoreOn === 'short' ? 'SR' : 'LR'}
+                                  </span>
+                                </div>
+                                {isSmallPool ? (
+                                  <div className="flex gap-0.5">
+                                    {Array.from({ length: max }).map((_, i) => (
+                                      <div
+                                        key={i}
+                                        className={`w-2 h-2 rounded-full ${
+                                          i < remaining ? 'bg-amber-500' : 'bg-leather'
+                                        }`}
+                                      />
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <span className="text-amber-400 text-xs font-bold">
+                                    {remaining}/{max}
+                                  </span>
+                                )}
                               </div>
                             </div>
                           );
