@@ -944,11 +944,17 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
           }
         });
 
-        // Add fighting style if selected
+        // Add fighting style if selected (categorize by type)
         if (character.fightingStyle) {
           const style = FIGHTING_STYLES.find(s => s.id === character.fightingStyle);
           if (style) {
-            passives.push({ name: `Fighting Style: ${style.name}`, description: style.description, source: CLASS_NAMES[character.characterClass] });
+            const styleName = `Fighting Style: ${style.name}`;
+            // Reaction-based fighting styles
+            if (character.fightingStyle === 'interception' || character.fightingStyle === 'protection') {
+              reactions.push({ name: styleName, description: style.description, source: CLASS_NAMES[character.characterClass] });
+            } else {
+              passives.push({ name: styleName, description: style.description, source: CLASS_NAMES[character.characterClass] });
+            }
           }
         }
 

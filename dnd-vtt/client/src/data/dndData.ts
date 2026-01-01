@@ -1682,6 +1682,379 @@ export const BACKGROUND_INFO: Record<string, { description: string; skillProfici
   Object.entries(BACKGROUNDS_2024).map(([key, bg]) => [key, { description: bg.description, skillProficiencies: bg.skillProficiencies }])
 );
 
+// ============ CLASS ROLE DETAILS (for character creation help) ============
+export type ClassRole = 'Tank' | 'Damage' | 'Healer' | 'Support' | 'Controller' | 'Utility';
+export type Complexity = 'Beginner' | 'Intermediate' | 'Advanced';
+
+export interface ClassRoleInfo {
+  roles: ClassRole[];
+  playstyle: string;
+  keyStats: string;
+  complexity: Complexity;
+  goodFor: string;
+  color: string; // Tailwind color class
+}
+
+export const CLASS_ROLE_INFO: Record<CharacterClass, ClassRoleInfo> = {
+  barbarian: {
+    roles: ['Tank', 'Damage'],
+    playstyle: 'Charge into battle, absorb damage with Rage, and crush enemies with mighty attacks.',
+    keyStats: 'STR > CON > DEX',
+    complexity: 'Beginner',
+    goodFor: 'Players who want to hit hard and shrug off damage without complex mechanics.',
+    color: 'red',
+  },
+  bard: {
+    roles: ['Support', 'Healer', 'Utility'],
+    playstyle: 'Inspire allies with Bardic Inspiration, cast versatile spells, and excel at social encounters.',
+    keyStats: 'CHA > DEX > CON',
+    complexity: 'Intermediate',
+    goodFor: 'Players who enjoy supporting the party and being the face in roleplay.',
+    color: 'pink',
+  },
+  cleric: {
+    roles: ['Healer', 'Support', 'Tank'],
+    playstyle: 'Channel divine power to heal, buff allies, and smite undead. Subclass defines your combat role.',
+    keyStats: 'WIS > CON > STR/DEX',
+    complexity: 'Intermediate',
+    goodFor: 'Players who want healing power plus solid combat and spellcasting options.',
+    color: 'yellow',
+  },
+  druid: {
+    roles: ['Controller', 'Healer', 'Utility'],
+    playstyle: 'Shape-shift into beasts, control the battlefield with nature magic, and adapt to any situation.',
+    keyStats: 'WIS > CON > DEX',
+    complexity: 'Advanced',
+    goodFor: 'Players who enjoy versatility and want different options each encounter.',
+    color: 'green',
+  },
+  fighter: {
+    roles: ['Tank', 'Damage'],
+    playstyle: 'Master of weapons and armor. Extra attacks, Action Surge, and reliable damage every round.',
+    keyStats: 'STR or DEX > CON',
+    complexity: 'Beginner',
+    goodFor: 'New players or anyone who wants consistent martial combat without spell management.',
+    color: 'orange',
+  },
+  monk: {
+    roles: ['Damage', 'Controller'],
+    playstyle: 'Swift martial artist using Focus Points for Flurry of Blows, mobility, and stunning enemies.',
+    keyStats: 'DEX > WIS > CON',
+    complexity: 'Intermediate',
+    goodFor: 'Players who want high mobility and multiple attacks without weapons or armor.',
+    color: 'cyan',
+  },
+  paladin: {
+    roles: ['Tank', 'Damage', 'Support'],
+    playstyle: 'Holy warrior combining heavy armor, Divine Smite damage, healing, and aura buffs.',
+    keyStats: 'STR > CHA > CON',
+    complexity: 'Intermediate',
+    goodFor: 'Players who want to be a heroic frontliner with both combat and support abilities.',
+    color: 'amber',
+  },
+  ranger: {
+    roles: ['Damage', 'Utility'],
+    playstyle: 'Skilled hunter mixing weapon attacks with nature magic. Excels at range or dual-wielding.',
+    keyStats: 'DEX > WIS > CON',
+    complexity: 'Intermediate',
+    goodFor: 'Players who want a nature-themed fighter with utility spells and exploration skills.',
+    color: 'emerald',
+  },
+  rogue: {
+    roles: ['Damage', 'Utility'],
+    playstyle: 'Striker dealing massive Sneak Attack damage. Expert at skills, stealth, and avoiding danger.',
+    keyStats: 'DEX > CON/INT/CHA',
+    complexity: 'Beginner',
+    goodFor: 'Players who enjoy stealth, skills, and positioning for big damage moments.',
+    color: 'slate',
+  },
+  sorcerer: {
+    roles: ['Damage', 'Controller'],
+    playstyle: 'Raw magical power with Metamagic to twist spells. Fewer spells known but more flexibility.',
+    keyStats: 'CHA > CON > DEX',
+    complexity: 'Advanced',
+    goodFor: 'Players who want devastating magic with unique ways to modify their spells.',
+    color: 'purple',
+  },
+  warlock: {
+    roles: ['Damage', 'Utility'],
+    playstyle: 'Pact magic with slots that recharge on short rest. Eldritch Blast + Invocations for customization.',
+    keyStats: 'CHA > CON > DEX',
+    complexity: 'Intermediate',
+    goodFor: 'Players who want consistent damage with customizable magical abilities.',
+    color: 'violet',
+  },
+  wizard: {
+    roles: ['Controller', 'Damage', 'Utility'],
+    playstyle: 'Ultimate spell versatility with the largest spell list. Prepare different spells each day.',
+    keyStats: 'INT > CON > DEX',
+    complexity: 'Advanced',
+    goodFor: 'Players who want maximum spell options and enjoy studying their spellbook.',
+    color: 'blue',
+  },
+};
+
+// ============ SPECIES ROLE DETAILS ============
+export interface SpeciesRoleInfo {
+  traits: string;
+  bestFor: string[];
+  flavor: string;
+  color: string;
+}
+
+export const SPECIES_ROLE_INFO: Record<Species, SpeciesRoleInfo> = {
+  human: {
+    traits: 'Bonus Origin Feat, versatile in any role',
+    bestFor: ['Any class'],
+    flavor: 'Ambitious and adaptable, humans excel through determination.',
+    color: 'amber',
+  },
+  elf: {
+    traits: 'Darkvision, Fey Ancestry (charm resist), Trance',
+    bestFor: ['Ranger', 'Wizard', 'Rogue', 'Fighter (DEX)'],
+    flavor: 'Graceful and long-lived, with a deep connection to magic.',
+    color: 'emerald',
+  },
+  dwarf: {
+    traits: 'Darkvision, Poison Resistance, Stonecunning',
+    bestFor: ['Fighter', 'Cleric', 'Paladin', 'Barbarian'],
+    flavor: 'Sturdy and resilient, masters of stone and steel.',
+    color: 'orange',
+  },
+  halfling: {
+    traits: 'Lucky (reroll 1s), Brave, Halfling Nimbleness',
+    bestFor: ['Rogue', 'Bard', 'Ranger', 'Monk'],
+    flavor: 'Small but courageous, with uncanny luck.',
+    color: 'lime',
+  },
+  gnome: {
+    traits: 'Darkvision, Gnome Cunning (INT/WIS/CHA save advantage)',
+    bestFor: ['Wizard', 'Artificer', 'Bard', 'Warlock'],
+    flavor: 'Curious inventors with natural magic resistance.',
+    color: 'pink',
+  },
+  tiefling: {
+    traits: 'Darkvision, Fire Resistance, Infernal Legacy spells',
+    bestFor: ['Warlock', 'Sorcerer', 'Paladin', 'Bard'],
+    flavor: 'Touched by the infernal, with innate magic.',
+    color: 'rose',
+  },
+  dragonborn: {
+    traits: 'Breath Weapon, Damage Resistance (by ancestry)',
+    bestFor: ['Paladin', 'Fighter', 'Sorcerer', 'Barbarian'],
+    flavor: 'Proud dragon-blooded warriors with elemental power.',
+    color: 'cyan',
+  },
+  aasimar: {
+    traits: 'Darkvision, Healing Hands, Celestial Revelation',
+    bestFor: ['Paladin', 'Cleric', 'Warlock', 'Sorcerer'],
+    flavor: 'Celestial-touched with radiant power and healing.',
+    color: 'yellow',
+  },
+  goliath: {
+    traits: "Stone's Endurance, Powerful Build, Mountain Born",
+    bestFor: ['Barbarian', 'Fighter', 'Paladin'],
+    flavor: 'Giant-kin built for endurance and strength.',
+    color: 'stone',
+  },
+  orc: {
+    traits: 'Darkvision, Adrenaline Rush, Relentless Endurance',
+    bestFor: ['Barbarian', 'Fighter', 'Ranger'],
+    flavor: 'Fierce warriors with unstoppable determination.',
+    color: 'green',
+  },
+};
+
+// ============ BACKGROUND ROLE DETAILS (for character creation help) ============
+export interface BackgroundRoleInfo {
+  theme: string;
+  goodFor: string[];
+  flavor: string;
+  color: string;
+}
+
+export const BACKGROUND_ROLE_INFO: Record<string, BackgroundRoleInfo> = {
+  'Acolyte': {
+    theme: 'Religious devotee with divine connections',
+    goodFor: ['Cleric', 'Paladin', 'Warlock', 'Wizard'],
+    flavor: 'Temple service granted you insight into divine mysteries.',
+    color: 'yellow',
+  },
+  'Artisan': {
+    theme: 'Skilled craftsperson and tradesperson',
+    goodFor: ['Fighter', 'Rogue', 'Artificer', 'Any'],
+    flavor: 'Years of apprenticeship honed your practical skills.',
+    color: 'orange',
+  },
+  'Charlatan': {
+    theme: 'Con artist and smooth talker',
+    goodFor: ['Rogue', 'Bard', 'Warlock', 'Sorcerer'],
+    flavor: 'You learned to survive through wit and deception.',
+    color: 'purple',
+  },
+  'Criminal': {
+    theme: 'Thief, burglar, or underworld operative',
+    goodFor: ['Rogue', 'Ranger', 'Monk', 'Fighter'],
+    flavor: 'The shadows taught you skills others fear to learn.',
+    color: 'stone',
+  },
+  'Entertainer': {
+    theme: 'Performer and crowd pleaser',
+    goodFor: ['Bard', 'Rogue', 'Monk', 'Fighter'],
+    flavor: 'The stage was your first battlefield, applause your reward.',
+    color: 'pink',
+  },
+  'Farmer': {
+    theme: 'Hardy agricultural worker',
+    goodFor: ['Barbarian', 'Fighter', 'Druid', 'Ranger'],
+    flavor: 'Hard labor built both your body and your character.',
+    color: 'lime',
+  },
+  'Guard': {
+    theme: 'Law enforcer or security professional',
+    goodFor: ['Fighter', 'Paladin', 'Ranger', 'Monk'],
+    flavor: 'Protecting others became your purpose and pride.',
+    color: 'blue',
+  },
+  'Guide': {
+    theme: 'Wilderness expert and pathfinder',
+    goodFor: ['Ranger', 'Druid', 'Barbarian', 'Rogue'],
+    flavor: 'The wild places whispered secrets only you could hear.',
+    color: 'emerald',
+  },
+  'Hermit': {
+    theme: 'Reclusive seeker of knowledge',
+    goodFor: ['Cleric', 'Druid', 'Wizard', 'Monk'],
+    flavor: 'Solitude granted clarity others cannot comprehend.',
+    color: 'cyan',
+  },
+  'Merchant': {
+    theme: 'Trader and businessperson',
+    goodFor: ['Rogue', 'Bard', 'Wizard', 'Any'],
+    flavor: 'Every deal taught you to read people and situations.',
+    color: 'amber',
+  },
+  'Noble': {
+    theme: 'Aristocrat with privilege and responsibility',
+    goodFor: ['Paladin', 'Bard', 'Fighter', 'Warlock'],
+    flavor: 'Born to lead, you carry the weight of your lineage.',
+    color: 'rose',
+  },
+  'Sage': {
+    theme: 'Scholar and academic researcher',
+    goodFor: ['Wizard', 'Cleric', 'Bard', 'Warlock'],
+    flavor: 'Knowledge is your treasure, books your closest companions.',
+    color: 'indigo',
+  },
+  'Sailor': {
+    theme: 'Seafarer and maritime worker',
+    goodFor: ['Fighter', 'Rogue', 'Ranger', 'Barbarian'],
+    flavor: 'The sea tested you and found you worthy.',
+    color: 'sky',
+  },
+  'Scribe': {
+    theme: 'Clerk, copyist, or record keeper',
+    goodFor: ['Wizard', 'Bard', 'Cleric', 'Rogue'],
+    flavor: 'Every word matters; you learned to capture them perfectly.',
+    color: 'slate',
+  },
+  'Soldier': {
+    theme: 'Military veteran with combat experience',
+    goodFor: ['Fighter', 'Paladin', 'Barbarian', 'Ranger'],
+    flavor: 'War forged you in fire; you emerged battle-ready.',
+    color: 'red',
+  },
+  'Wayfarer': {
+    theme: 'Wanderer and traveler',
+    goodFor: ['Ranger', 'Rogue', 'Monk', 'Bard'],
+    flavor: 'The road is your home; every horizon calls to you.',
+    color: 'teal',
+  },
+};
+
+// ============ FEAT ROLE DETAILS (for character creation help) ============
+export interface FeatRoleInfo {
+  summary: string;
+  goodFor: string[];
+  power: 'Utility' | 'Combat' | 'Versatile';
+  color: string;
+}
+
+export const FEAT_ROLE_INFO: Record<string, FeatRoleInfo> = {
+  'Alert': {
+    summary: 'Go first in combat, help allies react faster',
+    goodFor: ['Rogue', 'Any spellcaster', 'Assassin builds'],
+    power: 'Combat',
+    color: 'yellow',
+  },
+  'Crafter': {
+    summary: 'Create items and get shop discounts',
+    goodFor: ['Artisan backgrounds', 'Item-focused campaigns'],
+    power: 'Utility',
+    color: 'orange',
+  },
+  'Healer': {
+    summary: 'Use Healer\'s Kit to heal allies in combat',
+    goodFor: ['Non-casters wanting healing', 'Support builds'],
+    power: 'Versatile',
+    color: 'green',
+  },
+  'Lucky': {
+    summary: 'Reroll bad results or force enemy rerolls',
+    goodFor: ['Everyone', 'Especially high-risk builds'],
+    power: 'Versatile',
+    color: 'gold',
+  },
+  'Magic Initiate (Cleric)': {
+    summary: 'Learn divine cantrips and one 1st-level spell',
+    goodFor: ['Want Guidance cantrip', 'Healing Word access'],
+    power: 'Versatile',
+    color: 'yellow',
+  },
+  'Magic Initiate (Druid)': {
+    summary: 'Learn primal cantrips and one 1st-level spell',
+    goodFor: ['Want Shillelagh', 'Nature-themed characters'],
+    power: 'Versatile',
+    color: 'emerald',
+  },
+  'Magic Initiate (Wizard)': {
+    summary: 'Learn arcane cantrips and one 1st-level spell',
+    goodFor: ['Want utility cantrips', 'Find Familiar access'],
+    power: 'Versatile',
+    color: 'blue',
+  },
+  'Musician': {
+    summary: 'Inspire allies with Heroic Inspiration after rests',
+    goodFor: ['Party support', 'Bard-lite playstyle'],
+    power: 'Utility',
+    color: 'pink',
+  },
+  'Savage Attacker': {
+    summary: 'Reroll weapon damage once per turn',
+    goodFor: ['Martial classes', 'High-damage builds'],
+    power: 'Combat',
+    color: 'red',
+  },
+  'Skilled': {
+    summary: 'Gain 3 additional skill or tool proficiencies',
+    goodFor: ['Skill monkeys', 'Versatile characters'],
+    power: 'Utility',
+    color: 'purple',
+  },
+  'Tavern Brawler': {
+    summary: 'Enhanced unarmed strikes and improvised weapons',
+    goodFor: ['Monk', 'Grappler builds', 'Unarmed fighters'],
+    power: 'Combat',
+    color: 'amber',
+  },
+  'Tough': {
+    summary: '+2 HP per level (retroactive)',
+    goodFor: ['Frontline fighters', 'Low CON builds', 'Everyone'],
+    power: 'Combat',
+    color: 'stone',
+  },
+};
+
 // ============ CLASS FEATURES (Level 1) ============
 
 export interface ClassFeature {

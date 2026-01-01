@@ -68,6 +68,11 @@ import {
   WEAPON_MASTERIES,
   WEAPON_MASTERY_DESCRIPTIONS,
   getProficientWeapons,
+  // Role information for dropdowns
+  CLASS_ROLE_INFO,
+  SPECIES_ROLE_INFO,
+  BACKGROUND_ROLE_INFO,
+  FEAT_ROLE_INFO,
 } from '../../data/dndData';
 import type { ShopItem, OriginFeatName } from '../../data/dndData';
 
@@ -769,6 +774,8 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     const hasArchery = fightingStyle === 'archery';
     const hasDueling = fightingStyle === 'dueling';
     const hasDefense = fightingStyle === 'defense';
+    const hasThrownWeapon = fightingStyle === 'thrown-weapon';
+    const hasGreatWeapon = fightingStyle === 'great-weapon';
 
     if (equipmentMethod === 'pack') {
       const pack = CLASS_STARTING_PACKS[characterClass];
@@ -777,8 +784,12 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       weapons = pack.weapons.map((w, idx) => {
         // Check if weapon is ranged (has ammunition property)
         const isRanged = w.properties?.some(p => p.toLowerCase().includes('ammunition'));
+        // Check if weapon is thrown
+        const isThrown = w.properties?.some(p => p.toLowerCase().includes('thrown'));
+        // Check if weapon is two-handed or versatile (for great weapon)
+        const isTwoHanded = w.properties?.some(p => p.toLowerCase().includes('two-handed') || p.toLowerCase().includes('versatile'));
         // Check if weapon is one-handed melee (for dueling - not two-handed and no ammunition)
-        const isOneHandedMelee = !isRanged && !w.properties?.some(p => p.toLowerCase().includes('two-handed'));
+        const isOneHandedMelee = !isRanged && !isTwoHanded;
 
         // Calculate attack bonus
         let attackBonus = getProficiencyBonus(level);
@@ -786,16 +797,33 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
           attackBonus += 2; // Archery fighting style
         }
 
-        // Calculate damage (add dueling bonus if applicable)
+        // Calculate damage (add fighting style bonuses if applicable)
         let damage = w.damage;
-        if (hasDueling && isOneHandedMelee) {
-          // Add +2 to damage for dueling
-          const damageMatch = damage.match(/^(\d+d\d+)(\+(\d+))?/);
-          if (damageMatch) {
-            const baseDice = damageMatch[1];
-            const existingBonus = parseInt(damageMatch[3] || '0');
-            damage = `${baseDice}+${existingBonus + 2}`;
+        const damageMatch = damage.match(/^(\d+d\d+)(\+(\d+))?/);
+
+        if (damageMatch) {
+          const baseDice = damageMatch[1];
+          const existingBonus = parseInt(damageMatch[3] || '0');
+          let bonusDamage = existingBonus;
+
+          // Dueling: +2 damage with one-handed melee
+          if (hasDueling && isOneHandedMelee && !isThrown) {
+            bonusDamage += 2;
           }
+          // Thrown Weapon Fighting: +2 damage with thrown weapons
+          if (hasThrownWeapon && isThrown) {
+            bonusDamage += 2;
+          }
+
+          if (bonusDamage > 0) {
+            damage = `${baseDice}+${bonusDamage}`;
+          }
+        }
+
+        // Great Weapon Fighting: note in properties (reroll 1s/2s)
+        let properties = w.properties || [];
+        if (hasGreatWeapon && isTwoHanded) {
+          properties = [...properties, 'GWF: reroll 1-2'];
         }
 
         return {
@@ -803,7 +831,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
           name: w.name,
           attackBonus,
           damage,
-          properties: w.properties,
+          properties,
           equipped: idx === 0,
         };
       });
@@ -882,8 +910,12 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       weapons = weaponItems.map((w, idx) => {
         // Check if weapon is ranged (has ammunition property)
         const isRanged = w.properties?.some(p => p.toLowerCase().includes('ammunition'));
+        // Check if weapon is thrown
+        const isThrown = w.properties?.some(p => p.toLowerCase().includes('thrown'));
+        // Check if weapon is two-handed or versatile (for great weapon)
+        const isTwoHanded = w.properties?.some(p => p.toLowerCase().includes('two-handed') || p.toLowerCase().includes('versatile'));
         // Check if weapon is one-handed melee (for dueling)
-        const isOneHandedMelee = !isRanged && !w.properties?.some(p => p.toLowerCase().includes('two-handed'));
+        const isOneHandedMelee = !isRanged && !isTwoHanded;
 
         // Calculate attack bonus
         let attackBonus = getProficiencyBonus(level);
@@ -893,13 +925,31 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
 
         // Calculate damage
         let damage = w.damage || '1d4';
-        if (hasDueling && isOneHandedMelee) {
-          const damageMatch = damage.match(/^(\d+d\d+)(\+(\d+))?/);
-          if (damageMatch) {
-            const baseDice = damageMatch[1];
-            const existingBonus = parseInt(damageMatch[3] || '0');
-            damage = `${baseDice}+${existingBonus + 2}`;
+        const damageMatch = damage.match(/^(\d+d\d+)(\+(\d+))?/);
+
+        if (damageMatch) {
+          const baseDice = damageMatch[1];
+          const existingBonus = parseInt(damageMatch[3] || '0');
+          let bonusDamage = existingBonus;
+
+          // Dueling: +2 damage with one-handed melee
+          if (hasDueling && isOneHandedMelee && !isThrown) {
+            bonusDamage += 2;
           }
+          // Thrown Weapon Fighting: +2 damage with thrown weapons
+          if (hasThrownWeapon && isThrown) {
+            bonusDamage += 2;
+          }
+
+          if (bonusDamage > 0) {
+            damage = `${baseDice}+${bonusDamage}`;
+          }
+        }
+
+        // Great Weapon Fighting: note in properties (reroll 1s/2s)
+        let properties = w.properties || [];
+        if (hasGreatWeapon && isTwoHanded) {
+          properties = [...properties, 'GWF: reroll 1-2'];
         }
 
         return {
@@ -907,7 +957,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
           name: w.name,
           attackBonus,
           damage,
-          properties: w.properties,
+          properties,
           equipped: idx === 0,
         };
       });
@@ -1358,7 +1408,39 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
             <option key={c} value={c}>{CLASS_NAMES[c]} (d{CLASS_HIT_DICE[c]})</option>
           ))}
         </select>
-        <p className="text-parchment/60 text-xs mt-1">{classInfo.description}</p>
+
+        {/* Class Role Info */}
+        {(() => {
+          const roleInfo = CLASS_ROLE_INFO[characterClass];
+          const roleColors: Record<string, string> = {
+            Tank: 'bg-blue-600', Damage: 'bg-red-600', Healer: 'bg-green-600',
+            Support: 'bg-yellow-600', Controller: 'bg-purple-600', Utility: 'bg-cyan-600'
+          };
+          const complexityColors: Record<string, string> = {
+            Beginner: 'text-green-400', Intermediate: 'text-yellow-400', Advanced: 'text-red-400'
+          };
+          return (
+            <div className={`mt-2 p-2 rounded border border-${roleInfo.color}-500/50 bg-${roleInfo.color}-900/20`}>
+              <div className="flex flex-wrap gap-1 mb-1">
+                {roleInfo.roles.map(role => (
+                  <span key={role} className={`${roleColors[role]} text-white text-xs px-1.5 py-0.5 rounded font-medium`}>
+                    {role}
+                  </span>
+                ))}
+                <span className={`${complexityColors[roleInfo.complexity]} text-xs px-1.5 py-0.5 rounded border border-current`}>
+                  {roleInfo.complexity}
+                </span>
+              </div>
+              <p className="text-parchment text-xs mb-1">{roleInfo.playstyle}</p>
+              <div className="flex gap-3 text-xs">
+                <span><span className="text-gold">Key Stats:</span> <span className="text-parchment/80">{roleInfo.keyStats}</span></span>
+                <span><span className="text-gold">Hit Die:</span> <span className="text-parchment/80">d{classInfo.hitDie}</span></span>
+              </div>
+              <p className="text-parchment/60 text-xs mt-1 italic">{roleInfo.goodFor}</p>
+            </div>
+          );
+        })()}
+
         <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
           <div className="bg-dark-wood p-2 rounded">
             <span className="text-parchment/70">Armor: </span>
@@ -1754,7 +1836,25 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
             <option key={b} value={b}>{b}</option>
           ))}
         </select>
-        <p className="text-parchment/60 text-xs mt-1">{background2024?.description}</p>
+
+        {/* Background Role Info */}
+        {(() => {
+          const bgRole = BACKGROUND_ROLE_INFO[background];
+          if (!bgRole) return null;
+          return (
+            <div className={`mt-2 p-2 rounded border border-${bgRole.color}-500/50 bg-${bgRole.color}-900/20`}>
+              <p className="text-parchment text-xs italic mb-1">{bgRole.flavor}</p>
+              <div className="text-xs mb-1">
+                <span className="text-gold">Theme: </span>
+                <span className="text-parchment/80">{bgRole.theme}</span>
+              </div>
+              <div className="text-xs">
+                <span className="text-gold">Great for: </span>
+                <span className="text-parchment/80">{bgRole.goodFor.join(', ')}</span>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Background Details */}
         {background2024 && (
@@ -1775,7 +1875,34 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
             </div>
             {/* Origin Feat */}
             <div className="bg-gold/10 border border-gold/30 p-2 rounded">
-              <div className="text-gold font-bold mb-1">Origin Feat: {originFeat?.name}</div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-gold font-bold">Origin Feat: {originFeat?.name}</span>
+                {(() => {
+                  const featRole = originFeat?.name ? FEAT_ROLE_INFO[originFeat.name] : null;
+                  if (!featRole) return null;
+                  const powerColors: Record<string, string> = {
+                    Combat: 'bg-red-600', Utility: 'bg-blue-600', Versatile: 'bg-purple-600'
+                  };
+                  return (
+                    <span className={`${powerColors[featRole.power]} text-white text-xs px-1.5 py-0.5 rounded font-medium`}>
+                      {featRole.power}
+                    </span>
+                  );
+                })()}
+              </div>
+              {(() => {
+                const featRole = originFeat?.name ? FEAT_ROLE_INFO[originFeat.name] : null;
+                if (!featRole) return null;
+                return (
+                  <div className="mb-1">
+                    <p className="text-parchment text-xs">{featRole.summary}</p>
+                    <div className="text-xs mt-0.5">
+                      <span className="text-gold/80">Good for: </span>
+                      <span className="text-parchment/70">{featRole.goodFor.join(', ')}</span>
+                    </div>
+                  </div>
+                );
+              })()}
               <p className="text-parchment/70">{originFeat?.description}</p>
               <ul className="mt-1 text-parchment/80">
                 {originFeat?.benefits.map((b, i) => (
@@ -1939,7 +2066,24 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
             <option key={s} value={s}>{SPECIES_NAMES[s]}</option>
           ))}
         </select>
-        <p className="text-parchment/60 text-xs mt-1">{speciesInfo.description}</p>
+
+        {/* Species Role Info */}
+        {(() => {
+          const speciesRole = SPECIES_ROLE_INFO[species];
+          return (
+            <div className={`mt-2 p-2 rounded border border-${speciesRole.color}-500/50 bg-${speciesRole.color}-900/20`}>
+              <p className="text-parchment text-xs italic mb-1">{speciesRole.flavor}</p>
+              <div className="text-xs mb-1">
+                <span className="text-gold">Key Traits: </span>
+                <span className="text-parchment/80">{speciesRole.traits}</span>
+              </div>
+              <div className="text-xs">
+                <span className="text-gold">Great for: </span>
+                <span className="text-parchment/80">{speciesRole.bestFor.join(', ')}</span>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Species Traits - Mechanical */}
         <div className="mt-2 bg-dark-wood p-2 rounded border border-leather">
