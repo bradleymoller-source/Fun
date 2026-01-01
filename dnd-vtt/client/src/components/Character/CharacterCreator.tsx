@@ -770,6 +770,16 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       finalSkills[skill] = 'proficient';
     });
 
+    // Add Skilled feat skill proficiencies
+    if (originFeat?.proficiencyChoices?.type === 'skill' || originFeat?.proficiencyChoices?.type === 'any') {
+      originFeatProficiencies.forEach(prof => {
+        // Only add if it's a valid skill name
+        if (prof in finalSkills) {
+          finalSkills[prof as SkillName] = 'proficient';
+        }
+      });
+    }
+
     // Build weapons and equipment based on method
     let weapons: Character['weapons'] = [];
     let equipment: Character['equipment'] = [];
@@ -1269,6 +1279,9 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
         ...(background2024?.toolProficiency ? [background2024.toolProficiency] : []),
         // Rock Gnome gets Tinker's Tools
         ...(species === 'gnome' && speciesChoice === 'rock-gnome' ? ["Tinker's Tools"] : []),
+        // Origin feat tool proficiencies (Crafter, Musician)
+        ...(originFeat?.proficiencyChoices?.type === 'artisan' || originFeat?.proficiencyChoices?.type === 'musical'
+            ? originFeatProficiencies : []),
       ],
       languages,
       armorClass: baseAC,
@@ -2770,20 +2783,22 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     const isNonSpellcaster = !classInfo.isSpellcaster && cantripsNeeded === 0;
 
     return (
-      <div className="space-y-4">
-        <h3 className="font-medieval text-lg text-gold">
-          {isNonSpellcaster ? 'Acquired Magic' : 'Spellcasting'}
-        </h3>
-        {classInfo.spellcastingAbility && (
-          <p className="text-parchment/70 text-xs">
-            Spellcasting Ability: {ABILITY_NAMES[classInfo.spellcastingAbility]}
-          </p>
-        )}
-        {isNonSpellcaster && (
-          <p className="text-parchment/70 text-xs">
-            Your species or background grants you the following magical abilities.
-          </p>
-        )}
+      <div className="space-y-3 flex flex-col h-full">
+        <div>
+          <h3 className="font-medieval text-lg text-gold">
+            {isNonSpellcaster ? 'Acquired Magic' : 'Spellcasting'}
+          </h3>
+          {classInfo.spellcastingAbility && (
+            <p className="text-parchment/70 text-xs">
+              Spellcasting Ability: {ABILITY_NAMES[classInfo.spellcastingAbility]}
+            </p>
+          )}
+          {isNonSpellcaster && (
+            <p className="text-parchment/70 text-xs">
+              Your species or background grants you the following magical abilities.
+            </p>
+          )}
+        </div>
 
         {/* Acquired Cantrips/Spells from Race/Background/Subclass */}
         {(acquiredCantrips.length > 0 || acquiredSpells.length > 0) && (
@@ -2809,11 +2824,11 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
         )}
 
         {cantrips.length > 0 && (
-          <div>
+          <div className="flex-1 flex flex-col min-h-0">
             <h4 className="text-purple-400 text-sm mb-2">
               Class Cantrips ({selectedCantrips.length}/{cantripsNeeded})
             </h4>
-            <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+            <div className="space-y-2 flex-1 overflow-y-auto pr-1">
               {cantrips.map(cantrip => {
                 const isSelected = selectedCantrips.includes(cantrip.name);
                 const isAlreadyAcquired = acquiredCantrips.some(ac => ac.name === cantrip.name);
@@ -2840,11 +2855,11 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
         )}
 
         {spells.length > 0 && (
-          <div>
+          <div className="flex-1 flex flex-col min-h-0">
             <h4 className="text-blue-400 text-sm mb-2">
               Class 1st Level Spells ({selectedSpells.length}/{Math.min(spellsNeeded, spells.length)})
             </h4>
-            <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+            <div className="space-y-2 flex-1 overflow-y-auto pr-1">
               {spells.map(spell => {
                 const isSelected = selectedSpells.includes(spell.name);
                 const isAlreadyAcquired = acquiredSpells.some(as => as.name === spell.name);

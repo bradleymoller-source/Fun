@@ -150,6 +150,11 @@ export function PlayerView() {
 
   // Phase 4: Character Delete Handler
   const handleCharacterDelete = async () => {
+    if (!roomCode) {
+      setInitiativeMessage('❌ Join a session first to delete character');
+      setTimeout(() => setInitiativeMessage(null), 3000);
+      return;
+    }
     try {
       await deleteCharacter();
       setInitiativeMessage('✅ Character deleted');
@@ -165,6 +170,11 @@ export function PlayerView() {
   const handleCharacterInitiativeRoll = async (roll: number) => {
     if (!character) {
       setInitiativeMessage('❌ No character available');
+      setTimeout(() => setInitiativeMessage(null), 3000);
+      return;
+    }
+    if (!roomCode) {
+      setInitiativeMessage('❌ Join a session first to roll initiative');
       setTimeout(() => setInitiativeMessage(null), 3000);
       return;
     }
@@ -204,10 +214,17 @@ export function PlayerView() {
 
   // Player initiative roll handler (from InitiativeTracker buttons)
   const handlePlayerInitiativeRoll = async (entry: InitiativeEntry) => {
+    if (!roomCode) {
+      setInitiativeMessage('❌ Join a session first to roll initiative');
+      setTimeout(() => setInitiativeMessage(null), 3000);
+      return;
+    }
     try {
       await playerRollInitiative(entry);
     } catch (error) {
       console.error('Failed to add initiative entry:', error);
+      setInitiativeMessage('❌ Failed: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      setTimeout(() => setInitiativeMessage(null), 3000);
     }
   };
 
