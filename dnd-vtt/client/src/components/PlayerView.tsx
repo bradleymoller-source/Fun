@@ -383,8 +383,8 @@ export function PlayerView() {
     <div className="min-h-screen p-4">
       {/* Initiative Toast Notification */}
       {initiativeMessage && (
-        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-dark-wood border-2 border-gold rounded-lg px-4 py-3 shadow-lg animate-pulse">
-          <span className="text-gold font-medieval">{initiativeMessage}</span>
+        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-[9999] bg-dark-wood border-2 border-gold rounded-lg px-6 py-4 shadow-2xl">
+          <span className="text-gold font-medieval text-lg">{initiativeMessage}</span>
         </div>
       )}
       <div className="max-w-7xl mx-auto">
