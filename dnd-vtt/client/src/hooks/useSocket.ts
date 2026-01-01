@@ -549,15 +549,19 @@ export function useSocket() {
   const playerRollInitiative = useCallback((entry: InitiativeEntry) => {
     return new Promise<void>((resolve, reject) => {
       if (!socketRef.current) {
+        console.error('playerRollInitiative: Not connected to socket');
         reject(new Error('Not connected'));
         return;
       }
 
+      console.log('playerRollInitiative: Sending entry', entry);
       socketRef.current.emit('player-roll-initiative', { entry }, (response: any) => {
+        console.log('playerRollInitiative: Received response', response);
         if (response.success) {
           store.setInitiative(response.initiative);
           resolve();
         } else {
+          console.error('playerRollInitiative: Error', response.error);
           store.setError(response.error);
           reject(new Error(response.error));
         }

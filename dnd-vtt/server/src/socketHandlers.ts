@@ -494,9 +494,12 @@ export function setupSocketHandlers(io: Server): void {
 
     // Player rolls initiative (adds themselves to tracker)
     socket.on('player-roll-initiative', (data: { entry: InitiativeEntry }, callback: (response: any) => void) => {
+      console.log('player-roll-initiative received from', socket.id, 'entry:', data.entry);
+
       const sessionInfo = socketSessions.get(socket.id);
 
       if (!sessionInfo) {
+        console.log('player-roll-initiative: Not in a session', socket.id);
         callback({ success: false, error: 'Not in a session' });
         return;
       }
@@ -509,13 +512,16 @@ export function setupSocketHandlers(io: Server): void {
       };
 
       const { roomCode } = sessionInfo;
+      console.log('player-roll-initiative: Adding to room', roomCode, 'entry:', entry);
       const initiative = addInitiativeEntry(roomCode, entry);
 
       if (!initiative) {
+        console.log('player-roll-initiative: Failed to add entry');
         callback({ success: false, error: 'Failed to add initiative entry' });
         return;
       }
 
+      console.log('player-roll-initiative: Success, broadcasting to', roomCode, 'initiative count:', initiative.length);
       // Broadcast to all
       io.to(roomCode).emit('initiative-updated', { initiative });
 
