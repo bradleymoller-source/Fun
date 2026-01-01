@@ -250,19 +250,27 @@ export function PartyDashboard({
                       const resourceEntries = Object.entries(resources);
                       if (resourceEntries.length === 0) return null;
 
-                      // Calculate total remaining resources
-                      let totalRemaining = 0;
-                      let totalMax = 0;
-                      for (const [resourceId, resource] of resourceEntries) {
-                        const used = character.featureUses?.[resourceId]?.used || 0;
-                        totalRemaining += resource.max - used;
-                        totalMax += resource.max;
-                      }
-
+                      // Show each resource separately with abbreviation
                       return (
-                        <span className="text-amber-400 text-[10px]" title={`${totalRemaining}/${totalMax} class resources`}>
-                          ⚡ {totalRemaining}/{totalMax}
-                        </span>
+                        <>
+                          {resourceEntries.map(([resourceId, resource]) => {
+                            const used = character.featureUses?.[resourceId]?.used || 0;
+                            const remaining = resource.max - used;
+                            // Create short name (first 3 chars or abbreviation)
+                            const shortName = resource.name.length <= 4
+                              ? resource.name
+                              : resource.name.split(' ').map(w => w[0]).join('').toUpperCase();
+                            return (
+                              <span
+                                key={resourceId}
+                                className={`text-[10px] ${resource.restoreOn === 'short' ? 'text-green-400' : 'text-amber-400'}`}
+                                title={`${resource.name}: ${remaining}/${resource.max}`}
+                              >
+                                {shortName} {remaining}/{resource.max}
+                              </span>
+                            );
+                          })}
+                        </>
                       );
                     })()}
                     <span className={character.currentHitPoints <= 0 ? 'text-red-400' : 'text-parchment'}>

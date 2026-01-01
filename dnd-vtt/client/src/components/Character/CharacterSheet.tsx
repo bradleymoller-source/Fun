@@ -47,6 +47,7 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
   const [showConditionPicker, setShowConditionPicker] = useState(false);
   const [expandedFeature, setExpandedFeature] = useState<string | null>(null);
   const [expandedSpell, setExpandedSpell] = useState<string | null>(null);
+  const [expandedResource, setExpandedResource] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1129,16 +1130,27 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
             // For large pools like Ki or Sorcery Points, show as number
             const isLargePool = max > 6;
 
+            const isExpanded = expandedResource === id;
+
             return (
               <div key={id} className="bg-dark-wood p-2 rounded border border-leather">
                 <div className="flex items-center justify-between mb-1">
-                  <Tooltip content={resource.description}>
-                    <span className="text-parchment text-sm cursor-help">{resource.name}</span>
-                  </Tooltip>
+                  <button
+                    onClick={() => setExpandedResource(isExpanded ? null : id)}
+                    className="text-parchment text-sm hover:text-gold transition-colors flex items-center gap-1"
+                  >
+                    <span className="text-parchment/50 text-xs">{isExpanded ? '▼' : '▶'}</span>
+                    {resource.name}
+                  </button>
                   <span className="text-parchment/50 text-xs">
                     {resource.restoreOn === 'short' ? '⚡ Short Rest' : '🌙 Long Rest'}
                   </span>
                 </div>
+                {isExpanded && (
+                  <p className="text-parchment/70 text-xs mb-2 bg-leather/20 p-2 rounded">
+                    {resource.description}
+                  </p>
+                )}
                 {isLargePool ? (
                   // Large pool: show as number with +/- buttons
                   <div className="flex items-center justify-center gap-2">
