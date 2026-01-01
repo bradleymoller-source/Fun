@@ -329,6 +329,20 @@ export function setInitiative(roomCode: string, initiative: InitiativeEntry[]): 
 export function addInitiativeEntry(roomCode: string, entry: InitiativeEntry): InitiativeEntry[] | null {
   const session = getSession(roomCode);
   if (!session) return null;
+
+  // For player entries, check if they already have an entry (prevent duplicates)
+  // Players can only have one entry at a time
+  if (entry.playerId && !entry.isNpc) {
+    const existingIndex = session.initiative.findIndex(e => e.playerId === entry.playerId && !e.isNpc);
+    if (existingIndex !== -1) {
+      // Replace existing entry instead of adding duplicate
+      session.initiative[existingIndex] = entry;
+      session.initiative.sort((a, b) => b.initiative - a.initiative);
+      updateActivity(roomCode);
+      return session.initiative;
+    }
+  }
+
   session.initiative.push(entry);
   session.initiative.sort((a, b) => b.initiative - a.initiative);
   updateActivity(roomCode);

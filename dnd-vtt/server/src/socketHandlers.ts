@@ -71,13 +71,21 @@ export function setupSocketHandlers(io: Server): void {
       socket.join(roomCode);
       socketSessions.set(socket.id, { roomCode, isDm: true });
 
-      // Send current player list and map state
+      // Send current player list, map state, and initiative state
       const players = getPlayers(roomCode);
       const map = getMapState(roomCode);
+      const initiativeState = getInitiative(roomCode);
 
       console.log(`Session reclaimed: ${roomCode} by ${socket.id}`);
 
-      callback({ success: true, roomCode, players, map });
+      callback({
+        success: true,
+        roomCode,
+        players,
+        map,
+        initiative: initiativeState?.initiative || [],
+        isInCombat: initiativeState?.isInCombat || false,
+      });
     });
 
     // Player joins a session
@@ -154,7 +162,16 @@ export function setupSocketHandlers(io: Server): void {
 
       console.log(`Player ${playerName} ${isReconnect ? 'reconnected to' : 'joined'} ${upperRoomCode}${isReconnect ? '' : ' with auto-generated token'}`);
 
-      callback({ success: true, roomCode: upperRoomCode, map: playerMap });
+      // Get initiative state for the player
+      const initiativeState = getInitiative(upperRoomCode);
+
+      callback({
+        success: true,
+        roomCode: upperRoomCode,
+        map: playerMap,
+        initiative: initiativeState?.initiative || [],
+        isInCombat: initiativeState?.isInCombat || false,
+      });
     });
 
     // DM kicks a player
@@ -352,8 +369,29 @@ export function setupSocketHandlers(io: Server): void {
 
       const { roomCode } = sessionInfo;
 
-      // Filter hidden tokens for players
-      const visibleTokens = (data.mapState.tokens || []).filter(t => !t.isHidden);
+      // Get current live tokens from the session (including player tokens)
+      const currentMap = getMapState(roomCode);
+      const livePlayerTokens = (currentMap?.tokens || []).filter(t => t.ownerId); // Player tokens have ownerId
+
+      // Get saved map tokens (NPCs/monsters)
+      const savedMapTokens = (data.mapState.tokens || []).filter(t => !t.isHidden);
+
+      // Merge: use saved map tokens + keep existing player tokens
+      const mergedTokens = [
+        ...savedMapTokens,
+        ...livePlayerTokens.filter(pt => !pt.isHidden), // Only visible player tokens
+      ];
+
+      // Also update the session's map state with the new image/grid settings
+      // but preserve player tokens
+      const updatedMap = updateMapState(roomCode, {
+        imageUrl: data.mapState.imageUrl,
+        gridSize: data.mapState.gridSize,
+        gridOffsetX: data.mapState.gridOffsetX,
+        gridOffsetY: data.mapState.gridOffsetY,
+        showGrid: true,
+        tokens: mergedTokens,
+      });
 
       // Broadcast the map to all players
       socket.to(roomCode).emit('map-shown', {
@@ -364,14 +402,15 @@ export function setupSocketHandlers(io: Server): void {
           gridOffsetX: data.mapState.gridOffsetX,
           gridOffsetY: data.mapState.gridOffsetY,
           showGrid: true,
-          tokens: visibleTokens,
+          tokens: mergedTokens.filter(t => !t.isHidden),
           fogOfWar: [],
         },
       });
 
-      console.log(`DM showing map ${data.mapId} to players in ${roomCode} with ${visibleTokens.length} tokens`);
+      console.log(`DM showing map ${data.mapId} to players in ${roomCode} with ${mergedTokens.length} tokens (${livePlayerTokens.length} player, ${savedMapTokens.length} saved)`);
 
-      callback({ success: true });
+      // Return the updated map state to the DM as well
+      callback({ success: true, map: updatedMap });
     });
 
     // Hide map from players (DM action)

@@ -95,6 +95,9 @@ export function useSocket() {
               if (response.initiative) {
                 useSessionStore.getState().setInitiative(response.initiative);
               }
+              if (response.isInCombat) {
+                useSessionStore.getState().startCombat();
+              }
             }
           });
         } else if (state.playerName) {
@@ -104,6 +107,9 @@ export function useSocket() {
               console.log('Auto-rejoined session:', state.roomCode);
               if (response.initiative) {
                 useSessionStore.getState().setInitiative(response.initiative);
+              }
+              if (response.isInCombat) {
+                useSessionStore.getState().startCombat();
               }
             }
           });
@@ -278,6 +284,13 @@ export function useSocket() {
           if (response.map) {
             store.setMapState(response.map);
           }
+          // Sync initiative state when reclaiming
+          if (response.initiative) {
+            store.setInitiative(response.initiative);
+          }
+          if (response.isInCombat) {
+            store.startCombat();
+          }
           store.setView('dm');
           // Save to localStorage for persistence
           saveSession({
@@ -308,6 +321,13 @@ export function useSocket() {
           store.setPlayerName(playerName);
           if (response.map) {
             store.setMapState(response.map);
+          }
+          // Sync initiative state when joining
+          if (response.initiative) {
+            store.setInitiative(response.initiative);
+          }
+          if (response.isInCombat) {
+            store.startCombat();
           }
           store.setView('player');
           // Save to localStorage for persistence
@@ -463,6 +483,10 @@ export function useSocket() {
       socketRef.current.emit('show-map-to-players', { mapId, mapState }, (response: any) => {
         if (response.success) {
           store.setActiveMapId(mapId);
+          // Update DM's map state with merged tokens (player + saved)
+          if (response.map) {
+            store.setMapState(response.map);
+          }
           resolve();
         } else {
           store.setError(response.error);

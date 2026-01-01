@@ -568,7 +568,33 @@ Return ONLY valid JSON with this structure:
   "overview": {
     "readAloud": "Opening narration (2 paragraphs with vivid sensory details)",
     "backstory": "True history - what caused this threat, who is the villain, what do they want",
-    "themes": ["Primary theme", "Secondary theme"]
+    "themes": ["Primary theme", "Secondary theme"],
+    "throughlines": [
+      {
+        "name": "The Hidden Secret",
+        "type": "secret",
+        "description": "A mystery or revelation that connects all acts (e.g., the villain's true identity)",
+        "act1Hint": "Clue or foreshadowing in Act 1",
+        "act2Discovery": "Evidence or partial reveal in Act 2",
+        "act3Payoff": "Full revelation or confrontation in Act 3"
+      },
+      {
+        "name": "The Lost Treasure",
+        "type": "treasure",
+        "description": "A valuable item or knowledge that appears throughout (e.g., pieces of a map, a legendary weapon)",
+        "act1Hint": "First mention or sighting",
+        "act2Discovery": "Find a piece or learn its location",
+        "act3Payoff": "Obtain or use it against the villain"
+      },
+      {
+        "name": "The Villain's Weakness",
+        "type": "weakness",
+        "description": "Something that can be exploited in the final battle",
+        "act1Hint": "Rumor or legend about the weakness",
+        "act2Discovery": "Proof or item needed to exploit it",
+        "act3Payoff": "Use the weakness in the boss fight"
+      }
+    ]
   },
   "act1": {
     "title": "Act 1 Title",
@@ -672,15 +698,44 @@ REQUIREMENTS:
 function buildAct2Prompt(request: CampaignRequest, overviewData: any): string {
   const adventureType = request.adventureType || 'dungeon_crawl';
 
+  // Extract throughlines from Act 1
+  const throughlines = overviewData.overview?.throughlines || [];
+  const throughlineContext = throughlines.map((t: any) =>
+    `- ${t.name} (${t.type}): ${t.description}. Act 1 established: "${t.act1Hint}". In Act 2 you must include: "${t.act2Discovery}"`
+  ).join('\n');
+
+  // Extract key NPCs and quest info from Act 1
+  const questGiver = overviewData.act1?.questGiver;
+  const questGiverContext = questGiver
+    ? `Quest Giver: ${questGiver.name} (${questGiver.role}) - Key info shared: ${questGiver.keyInformation?.join(', ') || 'none'}`
+    : '';
+
+  const keyNpcs = overviewData.act1?.keyNpcs || [];
+  const npcContext = keyNpcs.slice(0, 3).map((npc: any) =>
+    `- ${npc.name} (${npc.role}): mentioned ${npc.keyInformation?.[0] || 'local rumors'}`
+  ).join('\n');
+
   return `You are a master D&D 5e Dungeon Master. Create ACT 2 (the dungeon/adventure site) for this adventure:
 
 ADVENTURE CONTEXT:
 - Title: ${overviewData.title}
 - Synopsis: ${overviewData.synopsis}
+- Hook: ${overviewData.hook}
 - Theme: ${request.theme}
 - Setting: ${request.setting}
 - Party Level: ${request.partyLevel}
 - Party Size: ${request.partySize}
+
+ACT 1 ESTABLISHED (must be referenced/continued in Act 2):
+${questGiverContext}
+NPCs the party met:
+${npcContext}
+Transition from Act 1: ${overviewData.act1?.transitionToAct2 || 'Party arrives at the dungeon'}
+
+NARRATIVE THROUGHLINES (these MUST appear in Act 2):
+${throughlineContext || 'No throughlines defined'}
+
+CRITICAL: Each throughline must have its "act2Discovery" element somewhere in the dungeon - as a hidden item, NPC dialogue, room description, or treasure.
 
 Return ONLY valid JSON with this structure:
 
@@ -943,15 +998,46 @@ REQUIREMENTS:
 }
 
 // Build prompt for Act 3 + Epilogue
-function buildAct3AndEpiloguePrompt(request: CampaignRequest, overviewData: any): string {
+function buildAct3AndEpiloguePrompt(request: CampaignRequest, overviewData: any, act2Data: any): string {
+  // Extract throughlines from overview for final payoff
+  const throughlines = overviewData.overview?.throughlines || [];
+  const throughlineContext = throughlines.map((t: any) =>
+    `- ${t.name} (${t.type}): ${t.description}.
+      Act 1 established: "${t.act1Hint}"
+      Act 2 revealed: "${t.act2Discovery}"
+      Act 3 MUST include payoff: "${t.act3Payoff}"`
+  ).join('\n');
+
+  // Extract Act 1 context
+  const questGiver = overviewData.act1?.questGiver;
+  const act1Summary = `Quest Giver: ${questGiver?.name || 'Unknown'} sent party to ${overviewData.act1?.title || 'investigate'}`;
+
+  // Extract Act 2 context - the dungeon and what was discovered
+  const act2 = act2Data?.act2;
+  const dungeonName = act2?.dungeonOverview?.name || 'the dungeon';
+  const roomsSummary = act2?.rooms?.slice(0, 3).map((r: any) => r.name).join(', ') || 'various chambers';
+  const encountersSummary = act2?.encounters?.map((e: any) => `${e.name} (${e.location})`).join(', ') || 'several encounters';
+  const act2Transition = act2?.transitionToAct3 || 'Party approaches the final chamber';
+
   return `You are a master D&D 5e Dungeon Master. Create ACT 3 (boss fight) and EPILOGUE for this adventure:
 
 ADVENTURE CONTEXT:
 - Title: ${overviewData.title}
 - Synopsis: ${overviewData.synopsis}
+- Hook: ${overviewData.hook}
 - Theme: ${request.theme}
 - Party Level: ${request.partyLevel}
 - Party Size: ${request.partySize}
+
+STORY SO FAR (must be referenced):
+ACT 1: ${act1Summary}
+ACT 2: Party explored ${dungeonName}, passing through ${roomsSummary}. They faced ${encountersSummary}.
+Transition: ${act2Transition}
+
+NARRATIVE THROUGHLINES - FINAL PAYOFF (these MUST culminate in Act 3):
+${throughlineContext || 'No throughlines defined'}
+
+CRITICAL: The villain's dialogue and the boss fight MUST reference and pay off the throughlines established earlier. The weakness discovered should be usable in the fight.
 
 Return ONLY valid JSON with this structure:
 
@@ -1130,10 +1216,10 @@ export async function generateCampaign(req: Request, res: Response) {
       act2Data = { act2: null };
     }
 
-    // Part 3: Generate Act 3 + Epilogue
+    // Part 3: Generate Act 3 + Epilogue (with Act 2 context for continuity)
     let act3Data;
     try {
-      const prompt3 = buildAct3AndEpiloguePrompt(request, overviewAndAct1);
+      const prompt3 = buildAct3AndEpiloguePrompt(request, overviewAndAct1, act2Data);
       act3Data = await callGeminiAndParse(prompt3, 'Act 3 + Epilogue');
     } catch (error) {
       console.error('Failed to generate Act 3:', error);
