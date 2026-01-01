@@ -120,6 +120,8 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
 
   // Human bonus feat (Versatile trait)
   const [humanBonusFeat, setHumanBonusFeat] = useState<OriginFeatName | null>(null);
+  const [humanFeatCantrips, setHumanFeatCantrips] = useState<string[]>([]); // Magic Initiate cantrips from Human feat
+  const [humanFeatSpells, setHumanFeatSpells] = useState<string[]>([]); // Magic Initiate spells from Human feat
 
   // Ability scores - initialize with fighter's standard array
   const [abilityScores, setAbilityScores] = useState<AbilityScores>(CLASS_STANDARD_ARRAYS['fighter']);
@@ -254,6 +256,12 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     }
   }, [eldritchInvocations]);
 
+  // Clear human feat cantrips/spells when feat changes
+  useEffect(() => {
+    setHumanFeatCantrips([]);
+    setHumanFeatSpells([]);
+  }, [humanBonusFeat]);
+
   // Reset equipment when class changes
   useEffect(() => {
     setEquipmentMethod('pack');
@@ -295,6 +303,8 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     if (pactOfTomeCantrips.length > 0) return true;
     // Lessons of the First Ones
     if (lessonsCantrip) return true;
+    // Human bonus feat (Magic Initiate)
+    if (humanFeatCantrips.length > 0) return true;
     return false;
   };
 
@@ -984,11 +994,16 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
         ...pactOfTomeCantrips,
         // Lessons of the First Ones cantrip (Warlock invocation)
         ...(lessonsCantrip ? [lessonsCantrip] : []),
+        // Human bonus feat (Magic Initiate) cantrips
+        ...humanFeatCantrips,
       ],
       spells: [
         ...selectedSpells,
+        // Human bonus feat (Magic Initiate) spells
+        ...humanFeatSpells,
         ...originFeatSpells,
-        ...(CLASS_SUBCLASSES[characterClass]?.find(sc => sc.name === subclass)?.bonusSpells || []),
+        // Subclass bonus spells only at level 3+
+        ...(level >= 3 ? (CLASS_SUBCLASSES[characterClass]?.find(sc => sc.name === subclass)?.bonusSpells || []) : []),
       ],
       personalityTraits,
       ideals,
@@ -1665,6 +1680,71 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
               </ul>
             </div>
           )}
+
+          {/* Magic Initiate cantrip/spell selection for Human bonus feat */}
+          {humanBonusFeat && ORIGIN_FEATS[humanBonusFeat]?.cantripsFrom && (
+            <div className="mt-3 pt-3 border-t border-gold/30">
+              <h4 className="text-gold text-sm font-semibold mb-2">
+                {humanBonusFeat} Cantrips ({humanFeatCantrips.length}/{ORIGIN_FEATS[humanBonusFeat].cantripCount || 2})
+              </h4>
+              <div className="grid grid-cols-2 gap-1 max-h-24 overflow-y-auto mb-3">
+                {(CLASS_CANTRIPS[ORIGIN_FEATS[humanBonusFeat].cantripsFrom!] || []).map(cantrip => {
+                  const isSelected = humanFeatCantrips.includes(cantrip.name);
+                  const maxCantrips = ORIGIN_FEATS[humanBonusFeat!].cantripCount || 2;
+                  return (
+                    <button
+                      key={cantrip.name}
+                      onClick={() => {
+                        if (isSelected) {
+                          setHumanFeatCantrips(humanFeatCantrips.filter(c => c !== cantrip.name));
+                        } else if (humanFeatCantrips.length < maxCantrips) {
+                          setHumanFeatCantrips([...humanFeatCantrips, cantrip.name]);
+                        }
+                      }}
+                      disabled={!isSelected && humanFeatCantrips.length >= maxCantrips}
+                      className={`text-left px-2 py-1 rounded text-xs ${
+                        isSelected
+                          ? 'bg-purple-600/40 text-purple-200'
+                          : 'text-parchment/70 hover:bg-leather/30 disabled:opacity-50'
+                      }`}
+                    >
+                      {isSelected ? '✓ ' : ''}{cantrip.name}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <h4 className="text-gold text-sm font-semibold mb-2">
+                {humanBonusFeat} Spell ({humanFeatSpells.length}/{ORIGIN_FEATS[humanBonusFeat].spellCount || 1})
+              </h4>
+              <div className="grid grid-cols-2 gap-1 max-h-24 overflow-y-auto">
+                {(CLASS_SPELLS_LEVEL_1[ORIGIN_FEATS[humanBonusFeat].spellsFrom!] || []).map(spell => {
+                  const isSelected = humanFeatSpells.includes(spell.name);
+                  const maxSpells = ORIGIN_FEATS[humanBonusFeat!].spellCount || 1;
+                  return (
+                    <button
+                      key={spell.name}
+                      onClick={() => {
+                        if (isSelected) {
+                          setHumanFeatSpells(humanFeatSpells.filter(s => s !== spell.name));
+                        } else if (humanFeatSpells.length < maxSpells) {
+                          setHumanFeatSpells([...humanFeatSpells, spell.name]);
+                        }
+                      }}
+                      disabled={!isSelected && humanFeatSpells.length >= maxSpells}
+                      className={`text-left px-2 py-1 rounded text-xs ${
+                        isSelected
+                          ? 'bg-blue-600/40 text-blue-200'
+                          : 'text-parchment/70 hover:bg-leather/30 disabled:opacity-50'
+                      }`}
+                    >
+                      {isSelected ? '✓ ' : ''}{spell.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -2140,11 +2220,13 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       acquiredSpells.push({ name: s, source: 'Origin Feat' });
     });
 
-    // Subclass bonus spells
-    const subclassBonusSpells = CLASS_SUBCLASSES[characterClass]?.find(sc => sc.name === subclass)?.bonusSpells || [];
-    subclassBonusSpells.forEach(s => {
-      acquiredSpells.push({ name: s, source: subclass || 'Subclass' });
-    });
+    // Subclass bonus spells (only at level 3+ when subclass is gained)
+    if (level >= 3) {
+      const subclassBonusSpells = CLASS_SUBCLASSES[characterClass]?.find(sc => sc.name === subclass)?.bonusSpells || [];
+      subclassBonusSpells.forEach(s => {
+        acquiredSpells.push({ name: s, source: subclass || 'Subclass' });
+      });
+    }
 
     // Monk Warrior of the Elements - Elementalism cantrip
     if (characterClass === 'monk' && subclass === 'Warrior of the Elements') {
@@ -2160,6 +2242,14 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     if (lessonsCantrip) {
       acquiredCantrips.push({ name: lessonsCantrip, source: 'Lessons of the First Ones' });
     }
+
+    // Human bonus feat (Magic Initiate) cantrips and spells
+    humanFeatCantrips.forEach(c => {
+      acquiredCantrips.push({ name: c, source: humanBonusFeat || 'Human Feat' });
+    });
+    humanFeatSpells.forEach(s => {
+      acquiredSpells.push({ name: s, source: humanBonusFeat || 'Human Feat' });
+    });
 
     // Check if this is a non-spellcaster just viewing acquired cantrips
     const isNonSpellcaster = !classInfo.isSpellcaster && cantripsNeeded === 0;
@@ -2211,19 +2301,22 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
             <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
               {cantrips.map(cantrip => {
                 const isSelected = selectedCantrips.includes(cantrip.name);
+                const isAlreadyAcquired = acquiredCantrips.some(ac => ac.name === cantrip.name);
                 return (
                   <button
                     key={cantrip.name}
-                    onClick={() => toggleCantrip(cantrip.name)}
-                    disabled={!isSelected && selectedCantrips.length >= cantripsNeeded}
+                    onClick={() => !isAlreadyAcquired && toggleCantrip(cantrip.name)}
+                    disabled={isAlreadyAcquired || (!isSelected && selectedCantrips.length >= cantripsNeeded)}
                     className={`p-2 rounded text-left text-xs transition-colors ${
-                      isSelected
+                      isAlreadyAcquired
+                        ? 'bg-green-900/30 border border-green-500/50 text-green-400/70 cursor-not-allowed'
+                        : isSelected
                         ? 'bg-purple-500/20 border border-purple-500 text-purple-300'
                         : 'bg-dark-wood border border-leather text-parchment hover:border-purple-500/50 disabled:opacity-50'
                     }`}
                   >
-                    <div className="font-semibold">{cantrip.name}</div>
-                    <div className="opacity-70 truncate">{cantrip.description}</div>
+                    <div className="font-semibold">{isAlreadyAcquired ? '✓ ' : ''}{cantrip.name}</div>
+                    <div className="opacity-70 truncate">{isAlreadyAcquired ? 'Already acquired' : cantrip.description}</div>
                   </button>
                 );
               })}
@@ -2239,19 +2332,22 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
             <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
               {spells.map(spell => {
                 const isSelected = selectedSpells.includes(spell.name);
+                const isAlreadyAcquired = acquiredSpells.some(as => as.name === spell.name);
                 return (
                   <button
                     key={spell.name}
-                    onClick={() => toggleSpell(spell.name)}
-                    disabled={!isSelected && selectedSpells.length >= spellsNeeded}
+                    onClick={() => !isAlreadyAcquired && toggleSpell(spell.name)}
+                    disabled={isAlreadyAcquired || (!isSelected && selectedSpells.length >= spellsNeeded)}
                     className={`p-2 rounded text-left text-xs transition-colors ${
-                      isSelected
+                      isAlreadyAcquired
+                        ? 'bg-green-900/30 border border-green-500/50 text-green-400/70 cursor-not-allowed'
+                        : isSelected
                         ? 'bg-blue-500/20 border border-blue-500 text-blue-300'
                         : 'bg-dark-wood border border-leather text-parchment hover:border-blue-500/50 disabled:opacity-50'
                     }`}
                   >
-                    <div className="font-semibold">{spell.name}</div>
-                    <div className="opacity-70 truncate">{spell.description}</div>
+                    <div className="font-semibold">{isAlreadyAcquired ? '✓ ' : ''}{spell.name}</div>
+                    <div className="opacity-70 truncate">{isAlreadyAcquired ? 'Already acquired' : spell.description}</div>
                   </button>
                 );
               })}
