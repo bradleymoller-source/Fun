@@ -121,7 +121,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
   const [level, setLevel] = useState(1);
 
   // Modal state for selection pickers
-  const [openModal, setOpenModal] = useState<'class' | 'species' | 'subspecies' | 'background' | null>(null);
+  const [openModal, setOpenModal] = useState<'class' | 'species' | 'subspecies' | 'background' | 'feat' | null>(null);
 
   // Languages (Common + 2 more, with suggestions from species)
   const [languages, setLanguages] = useState<string[]>(['Common']);
@@ -2159,18 +2159,11 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
         <div className="bg-gold/10 border border-gold/50 p-3 rounded">
           <label className="block text-gold text-sm mb-1">Versatile: Bonus Origin Feat</label>
           <p className="text-parchment/70 text-xs mb-2">Humans gain an additional Origin Feat of their choice.</p>
-          <select
+          <SelectionButton
             value={humanBonusFeat || ''}
-            onChange={(e) => setHumanBonusFeat(e.target.value as OriginFeatName)}
-            className="w-full bg-parchment text-dark-wood px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-gold"
-          >
-            <option value="">Select a feat...</option>
-            {Object.keys(ORIGIN_FEATS)
-              .filter(feat => feat !== originFeat?.name) // Filter out the background's origin feat
-              .map(feat => (
-                <option key={feat} value={feat}>{feat}</option>
-              ))}
-          </select>
+            displayValue={humanBonusFeat || 'Select a feat...'}
+            onClick={() => setOpenModal('feat')}
+          />
           {originFeat && (
             <p className="text-parchment/50 text-xs mt-1 italic">
               Note: {originFeat.name} is already selected from your background.
@@ -2178,8 +2171,23 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
           )}
           {humanBonusFeat && (
             <div className="mt-2 text-xs">
-              <p className="text-parchment/70">{ORIGIN_FEATS[humanBonusFeat].description}</p>
-              <ul className="mt-1 text-gold/80">
+              {(() => {
+                const featRole = FEAT_ROLE_INFO[humanBonusFeat];
+                const powerColors: Record<string, string> = {
+                  Combat: 'bg-red-600', Utility: 'bg-blue-600', Versatile: 'bg-purple-600'
+                };
+                return featRole ? (
+                  <div className={`p-2 rounded border border-${featRole.color}-500/50 bg-${featRole.color}-900/20 mb-2`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`${powerColors[featRole.power]} text-white text-xs px-1.5 py-0.5 rounded font-medium`}>
+                        {featRole.power}
+                      </span>
+                    </div>
+                    <p className="text-parchment/80">{featRole.summary}</p>
+                  </div>
+                ) : null;
+              })()}
+              <ul className="text-gold/80">
                 {ORIGIN_FEATS[humanBonusFeat].benefits.map((b, i) => (
                   <li key={i}>• {b}</li>
                 ))}
@@ -3441,6 +3449,25 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     };
   });
 
+  // Feat options for human bonus feat selection (exclude the background's origin feat)
+  const featOptions: SelectionOption[] = Object.entries(ORIGIN_FEATS)
+    .filter(([featName]) => featName !== originFeat?.name)
+    .map(([featName, feat]) => {
+      const roleInfo = FEAT_ROLE_INFO[featName];
+      return {
+        id: featName,
+        name: featName,
+        description: feat.description,
+        summary: roleInfo?.summary,
+        power: roleInfo?.power,
+        goodFor: roleInfo?.goodFor,
+        color: roleInfo?.color || 'amber',
+        extra: {
+          'Benefits': feat.benefits.slice(0, 2).join('; ') + (feat.benefits.length > 2 ? '...' : ''),
+        },
+      };
+    });
+
   return (
     <>
       <Panel className="fixed inset-2 z-50 flex flex-col overflow-hidden">
@@ -3515,6 +3542,16 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
         title="Choose Your Background"
         options={backgroundOptions}
         selectedId={background}
+        columns={2}
+      />
+
+      <SelectionModal
+        isOpen={openModal === 'feat'}
+        onClose={() => setOpenModal(null)}
+        onSelect={(id) => setHumanBonusFeat(id as OriginFeatName)}
+        title="Choose Your Bonus Feat"
+        options={featOptions}
+        selectedId={humanBonusFeat || undefined}
         columns={2}
       />
     </>
