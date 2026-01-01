@@ -292,17 +292,20 @@ export function SelectionModal({
                 </div>
               )}
 
-              {/* Skills with descriptions for backgrounds */}
-              {option.skills && option.skills.length > 0 && (
-                <div className="space-y-1">
-                  <span className="text-gold font-semibold">Skill Proficiencies:</span>
-                  {option.skills.map((skill, idx) => (
-                    <div key={idx} className="pl-2 border-l border-gold/30">
-                      <span className="text-parchment font-medium">{skill.name}</span>
-                      <span className="text-parchment/70"> — {skill.description}</span>
-                    </div>
-                  ))}
-                </div>
+              {option.traits && !option.traitsList && (
+                <p className="text-parchment/80">
+                  <span className="text-gold/80">Traits: </span>{option.traits}
+                </p>
+              )}
+
+              {/* Great for - moved up for backgrounds */}
+              {(option.bestFor || option.goodFor) && (
+                <p className="text-parchment/80">
+                  <span className="text-gold/80">Great for: </span>
+                  {Array.isArray(option.bestFor) ? option.bestFor.join(', ') :
+                   Array.isArray(option.goodFor) ? option.goodFor.join(', ') :
+                   option.goodFor}
+                </p>
               )}
 
               {/* Full feat info for backgrounds */}
@@ -321,19 +324,17 @@ export function SelectionModal({
                 </div>
               )}
 
-              {option.traits && !option.traitsList && (
-                <p className="text-parchment/80">
-                  <span className="text-gold/80">Traits: </span>{option.traits}
-                </p>
-              )}
-
-              {(option.bestFor || option.goodFor) && (
-                <p className="text-parchment/80">
-                  <span className="text-gold/80">Great for: </span>
-                  {Array.isArray(option.bestFor) ? option.bestFor.join(', ') :
-                   Array.isArray(option.goodFor) ? option.goodFor.join(', ') :
-                   option.goodFor}
-                </p>
+              {/* Skills with descriptions for backgrounds - now after feat */}
+              {option.skills && option.skills.length > 0 && (
+                <div className="space-y-1">
+                  <span className="text-gold font-semibold">Skill Proficiencies:</span>
+                  {option.skills.map((skill, idx) => (
+                    <div key={idx} className="pl-2 border-l border-gold/30">
+                      <span className="text-parchment font-medium">{skill.name}</span>
+                      <span className="text-parchment/70"> — {skill.description}</span>
+                    </div>
+                  ))}
+                </div>
               )}
 
               {option.extra && Object.entries(option.extra).map(([key, value]) => (
