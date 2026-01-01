@@ -95,6 +95,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
   const [fightingStyle, setFightingStyle] = useState<string>('');
   const [eldritchInvocations, setEldritchInvocations] = useState<string[]>([]);
   const [pactOfTomeCantrips, setPactOfTomeCantrips] = useState<string[]>([]); // Cantrips from Pact of the Tome
+  const [lessonsCantrip, setLessonsCantrip] = useState<string>(''); // Cantrip from Lessons of the First Ones
   const [expertiseSkills, setExpertiseSkills] = useState<SkillName[]>([]);
   // Origin feat choices
   const [originFeatCantrips, setOriginFeatCantrips] = useState<string[]>([]);
@@ -246,6 +247,13 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     }
   }, [eldritchInvocations]);
 
+  // Clear Lessons of the First Ones cantrip if invocation is deselected
+  useEffect(() => {
+    if (!eldritchInvocations.includes('lessons-of-the-first-ones')) {
+      setLessonsCantrip('');
+    }
+  }, [eldritchInvocations]);
+
   // Reset equipment when class changes
   useEffect(() => {
     setEquipmentMethod('pack');
@@ -285,6 +293,8 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     if (characterClass === 'monk' && subclass === 'Warrior of the Elements') return true;
     // Pact of the Tome
     if (pactOfTomeCantrips.length > 0) return true;
+    // Lessons of the First Ones
+    if (lessonsCantrip) return true;
     return false;
   };
 
@@ -972,6 +982,8 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
         ...(characterClass === 'monk' && subclass === 'Warrior of the Elements' ? ['Elementalism'] : []),
         // Pact of the Tome cantrips (Warlock invocation)
         ...pactOfTomeCantrips,
+        // Lessons of the First Ones cantrip (Warlock invocation)
+        ...(lessonsCantrip ? [lessonsCantrip] : []),
       ],
       spells: [
         ...selectedSpells,
@@ -1284,6 +1296,53 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
                             ? 'bg-purple-600/40 text-purple-200'
                             : atMax
                             ? 'text-parchment/30 cursor-not-allowed'
+                            : 'text-parchment/70 hover:bg-leather/30'
+                        }`}
+                      >
+                        {isSelected ? '✓ ' : ''}{cantrip}
+                      </button>
+                    );
+                  });
+                })()}
+              </div>
+            </div>
+          )}
+
+          {/* Lessons of the First Ones Cantrip Selection */}
+          {eldritchInvocations.includes('lessons-of-the-first-ones') && (
+            <div className="mt-3 pt-3 border-t border-purple-500/30">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-purple-300 text-xs font-semibold">Lessons of the First Ones Cantrip</span>
+                <span className={`text-xs px-2 py-0.5 rounded ${
+                  lessonsCantrip
+                    ? 'bg-green-600/80 text-white'
+                    : 'bg-leather text-parchment/70'
+                }`}>
+                  {lessonsCantrip ? '1/1' : '0/1'}
+                </span>
+              </div>
+              <p className="text-parchment/70 text-xs mb-2">Choose 1 cantrip from any class spell list.</p>
+              <div className="grid grid-cols-2 gap-1 max-h-32 overflow-y-auto">
+                {(() => {
+                  const allCantrips = new Set<string>();
+                  Object.values(CLASS_CANTRIPS).forEach(list => {
+                    list?.forEach(c => allCantrips.add(c.name));
+                  });
+                  return Array.from(allCantrips).sort().map(cantrip => {
+                    const isSelected = lessonsCantrip === cantrip;
+                    return (
+                      <button
+                        key={cantrip}
+                        onClick={() => {
+                          if (isSelected) {
+                            setLessonsCantrip('');
+                          } else {
+                            setLessonsCantrip(cantrip);
+                          }
+                        }}
+                        className={`text-left px-2 py-1 rounded text-xs ${
+                          isSelected
+                            ? 'bg-purple-600/40 text-purple-200'
                             : 'text-parchment/70 hover:bg-leather/30'
                         }`}
                       >
@@ -2096,6 +2155,11 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     pactOfTomeCantrips.forEach(c => {
       acquiredCantrips.push({ name: c, source: 'Pact of the Tome' });
     });
+
+    // Lessons of the First Ones cantrip (Warlock invocation)
+    if (lessonsCantrip) {
+      acquiredCantrips.push({ name: lessonsCantrip, source: 'Lessons of the First Ones' });
+    }
 
     // Check if this is a non-spellcaster just viewing acquired cantrips
     const isNonSpellcaster = !classInfo.isSpellcaster && cantripsNeeded === 0;

@@ -1217,6 +1217,65 @@ export function CharacterSheet({ character, onUpdate, onRoll, onImport, isEditab
           </div>
         )}
 
+        {/* Invocation Abilities (at-will spells from Eldritch Invocations) */}
+        {character.eldritchInvocations && character.eldritchInvocations.length > 0 && (() => {
+          const invocationAbilities: { name: string; spell: string; description: string }[] = [];
+
+          if (character.eldritchInvocations.includes('armor-of-shadows')) {
+            invocationAbilities.push({ name: 'Armor of Shadows', spell: 'Mage Armor', description: 'Cast on yourself at will, no spell slot' });
+          }
+          if (character.eldritchInvocations.includes('beast-speech')) {
+            invocationAbilities.push({ name: 'Beast Speech', spell: 'Speak with Animals', description: 'Cast at will, no spell slot' });
+          }
+          if (character.eldritchInvocations.includes('fiendish-vigor')) {
+            invocationAbilities.push({ name: 'Fiendish Vigor', spell: 'False Life', description: 'Cast on yourself at will (1st level), no spell slot' });
+          }
+          if (character.eldritchInvocations.includes('mask-of-many-faces')) {
+            invocationAbilities.push({ name: 'Mask of Many Faces', spell: 'Disguise Self', description: 'Cast at will, no spell slot' });
+          }
+          if (character.eldritchInvocations.includes('misty-visions')) {
+            invocationAbilities.push({ name: 'Misty Visions', spell: 'Silent Image', description: 'Cast at will, no spell slot' });
+          }
+          if (character.eldritchInvocations.includes('otherworldly-leap')) {
+            invocationAbilities.push({ name: 'Otherworldly Leap', spell: 'Jump', description: 'Cast on yourself at will, no spell slot' });
+          }
+          if (character.eldritchInvocations.includes('pact-of-the-chain')) {
+            invocationAbilities.push({ name: 'Pact of the Chain', spell: 'Find Familiar', description: 'Cast as a ritual (imp, pseudodragon, quasit, or sprite)' });
+          }
+          if (character.eldritchInvocations.includes('thief-of-five-fates')) {
+            invocationAbilities.push({ name: 'Thief of Five Fates', spell: 'Bane', description: 'Cast once using a warlock spell slot (recharges on long rest)' });
+          }
+          if (character.eldritchInvocations.includes('whispers-of-the-grave')) {
+            invocationAbilities.push({ name: 'Whispers of the Grave', spell: 'Speak with Dead', description: 'Cast at will, no spell slot' });
+          }
+          if (character.eldritchInvocations.includes('ascendant-step')) {
+            invocationAbilities.push({ name: 'Ascendant Step', spell: 'Levitate', description: 'Cast on yourself at will, no spell slot' });
+          }
+          if (character.eldritchInvocations.includes('master-of-myriad-forms')) {
+            invocationAbilities.push({ name: 'Master of Myriad Forms', spell: 'Alter Self', description: 'Cast at will, no spell slot' });
+          }
+
+          if (invocationAbilities.length === 0) return null;
+
+          return (
+            <div>
+              <h4 className="text-purple-400 font-semibold mb-2">Invocation Abilities</h4>
+              <div className="space-y-1">
+                {invocationAbilities.map(ability => (
+                  <div key={ability.name} className="bg-dark-wood rounded border border-purple-500/30 p-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-purple-300 font-semibold text-sm">{ability.name}</span>
+                      <span className="text-parchment/50 text-xs">→</span>
+                      <span className="text-gold text-sm">{ability.spell}</span>
+                    </div>
+                    <p className="text-parchment/70 text-xs mt-1">{ability.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Full Spell List (if spellcasting object exists) */}
         {hasSpellcasting && character.spellcasting!.spells.length > 0 && (
           <div>
