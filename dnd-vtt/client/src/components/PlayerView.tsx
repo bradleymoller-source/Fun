@@ -28,6 +28,7 @@ export function PlayerView() {
   const [showCharacterCreator, setShowCharacterCreator] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
+  const [initiativeMessage, setInitiativeMessage] = useState<string | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
 
   // Quick roll function for keyboard shortcuts
@@ -159,16 +160,14 @@ export function PlayerView() {
 
   // Phase 4: Character Initiative Roll Handler
   const handleCharacterInitiativeRoll = async (roll: number) => {
-    console.log('PlayerView handleCharacterInitiativeRoll called with roll:', roll);
-    console.log('PlayerView: socket connected?', !!socket, 'socket.id:', socket?.id);
     if (!character) {
-      console.error('PlayerView: No character available');
-      alert('No character available to roll initiative');
+      setInitiativeMessage('❌ No character available');
+      setTimeout(() => setInitiativeMessage(null), 3000);
       return;
     }
     if (!socket?.id) {
-      console.error('PlayerView: Socket not connected');
-      alert('Not connected to server');
+      setInitiativeMessage('❌ Not connected to server');
+      setTimeout(() => setInitiativeMessage(null), 3000);
       return;
     }
     const entry: InitiativeEntry = {
@@ -181,14 +180,13 @@ export function PlayerView() {
       currentHp: character.currentHitPoints,
       maxHp: character.maxHitPoints,
     };
-    console.log('PlayerView: Creating initiative entry', entry);
     try {
       await playerRollInitiative(entry);
-      console.log(`${character.name} rolled initiative: ${roll}`);
-      alert(`Initiative rolled: ${roll}! Check the Map tab to see the tracker.`);
+      setInitiativeMessage(`🎲 Initiative: ${roll}! View in Map tab.`);
+      setTimeout(() => setInitiativeMessage(null), 4000);
     } catch (error) {
-      console.error('Failed to add initiative entry:', error);
-      alert('Failed to add initiative: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      setInitiativeMessage('❌ Failed: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      setTimeout(() => setInitiativeMessage(null), 4000);
     }
   };
 
@@ -383,6 +381,12 @@ export function PlayerView() {
 
   return (
     <div className="min-h-screen p-4">
+      {/* Initiative Toast Notification */}
+      {initiativeMessage && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-dark-wood border-2 border-gold rounded-lg px-4 py-3 shadow-lg animate-pulse">
+          <span className="text-gold font-medieval">{initiativeMessage}</span>
+        </div>
+      )}
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <Panel className="mb-4">
