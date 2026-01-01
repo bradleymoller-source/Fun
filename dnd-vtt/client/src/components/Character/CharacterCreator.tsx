@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Panel } from '../ui/Panel';
+import { SelectionModal, SelectionButton, type SelectionOption } from '../ui/SelectionModal';
 import { PortraitSelector } from './PortraitSelector';
 import type { Character, Species, CharacterClass, AbilityScores, SkillName } from '../../types';
 import {
@@ -118,6 +119,9 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
   const [background, setBackground] = useState('Soldier');
   const [alignment, setAlignment] = useState('True Neutral');
   const [level, setLevel] = useState(1);
+
+  // Modal state for selection pickers
+  const [openModal, setOpenModal] = useState<'class' | 'species' | 'subspecies' | 'background' | null>(null);
 
   // Languages (Common + 2 more, with suggestions from species)
   const [languages, setLanguages] = useState<string[]>(['Common']);
@@ -1400,25 +1404,18 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
 
       <div>
         <label className="block text-parchment text-sm mb-1">Class</label>
-        <select
+        <SelectionButton
           value={characterClass}
-          onChange={(e) => setCharacterClass(e.target.value as CharacterClass)}
-          className="w-full bg-parchment text-dark-wood px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-gold"
-        >
-          {CLASS_LIST.map(c => (
-            <option key={c} value={c}>{CLASS_NAMES[c]} (d{CLASS_HIT_DICE[c]})</option>
-          ))}
-        </select>
+          displayValue={`${CLASS_NAMES[characterClass]} (d${CLASS_HIT_DICE[characterClass]})`}
+          onClick={() => setOpenModal('class')}
+        />
 
-        {/* Class Role Info */}
+        {/* Class Role Info Summary */}
         {(() => {
           const roleInfo = CLASS_ROLE_INFO[characterClass];
           const roleColors: Record<string, string> = {
             Tank: 'bg-blue-600', Damage: 'bg-red-600', Healer: 'bg-green-600',
             Support: 'bg-yellow-600', Controller: 'bg-purple-600', Utility: 'bg-cyan-600'
-          };
-          const complexityColors: Record<string, string> = {
-            Beginner: 'text-green-400', Intermediate: 'text-yellow-400', Advanced: 'text-red-400'
           };
           return (
             <div className={`mt-2 p-2 rounded border border-${roleInfo.color}-500/50 bg-${roleInfo.color}-900/20`}>
@@ -1428,16 +1425,8 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
                     {role}
                   </span>
                 ))}
-                <span className={`${complexityColors[roleInfo.complexity]} text-xs px-1.5 py-0.5 rounded border border-current`}>
-                  {roleInfo.complexity}
-                </span>
               </div>
-              <p className="text-parchment text-xs mb-1">{roleInfo.playstyle}</p>
-              <div className="flex gap-3 text-xs">
-                <span><span className="text-gold">Key Stats:</span> <span className="text-parchment/80">{roleInfo.keyStats}</span></span>
-                <span><span className="text-gold">Hit Die:</span> <span className="text-parchment/80">d{classInfo.hitDie}</span></span>
-              </div>
-              <p className="text-parchment/60 text-xs mt-1 italic">{roleInfo.goodFor}</p>
+              <p className="text-parchment text-xs">{roleInfo.playstyle}</p>
             </div>
           );
         })()}
@@ -1828,30 +1817,22 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
 
       <div>
         <label className="block text-parchment text-sm mb-1">Background</label>
-        <select
+        <SelectionButton
           value={background}
-          onChange={(e) => setBackground(e.target.value)}
-          className="w-full bg-parchment text-dark-wood px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-gold"
-        >
-          {BACKGROUNDS.map(b => (
-            <option key={b} value={b}>{b}</option>
-          ))}
-        </select>
+          displayValue={background}
+          onClick={() => setOpenModal('background')}
+        />
 
-        {/* Background Role Info */}
+        {/* Background Role Info Summary */}
         {(() => {
           const bgRole = BACKGROUND_ROLE_INFO[background];
           if (!bgRole) return null;
           return (
             <div className={`mt-2 p-2 rounded border border-${bgRole.color}-500/50 bg-${bgRole.color}-900/20`}>
               <p className="text-parchment text-xs italic mb-1">{bgRole.flavor}</p>
-              <div className="text-xs mb-1">
+              <div className="text-xs">
                 <span className="text-gold">Theme: </span>
                 <span className="text-parchment/80">{bgRole.theme}</span>
-              </div>
-              <div className="text-xs">
-                <span className="text-gold">Great for: </span>
-                <span className="text-parchment/80">{bgRole.goodFor.join(', ')}</span>
               </div>
             </div>
           );
@@ -2058,29 +2039,21 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       {/* Species - 2024 PHB order: Class → Background → Species */}
       <div>
         <label className="block text-parchment text-sm mb-1">Species</label>
-        <select
+        <SelectionButton
           value={species}
-          onChange={(e) => setSpecies(e.target.value as Species)}
-          className="w-full bg-parchment text-dark-wood px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-gold"
-        >
-          {SPECIES_LIST.map(s => (
-            <option key={s} value={s}>{SPECIES_NAMES[s]}</option>
-          ))}
-        </select>
+          displayValue={SPECIES_NAMES[species]}
+          onClick={() => setOpenModal('species')}
+        />
 
-        {/* Species Role Info */}
+        {/* Species Role Info Summary */}
         {(() => {
           const speciesRole = SPECIES_ROLE_INFO[species];
           return (
             <div className={`mt-2 p-2 rounded border border-${speciesRole.color}-500/50 bg-${speciesRole.color}-900/20`}>
               <p className="text-parchment text-xs italic mb-1">{speciesRole.flavor}</p>
-              <div className="text-xs mb-1">
-                <span className="text-gold">Key Traits: </span>
-                <span className="text-parchment/80">{speciesRole.traits}</span>
-              </div>
               <div className="text-xs">
-                <span className="text-gold">Great for: </span>
-                <span className="text-parchment/80">{speciesRole.bestFor.join(', ')}</span>
+                <span className="text-gold">Traits: </span>
+                <span className="text-parchment/80">{speciesRole.traits}</span>
               </div>
             </div>
           );
@@ -2117,21 +2090,16 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       {speciesInfo.subspecies && speciesInfo.subspecies.length > 0 && !SPECIES_CHOICES[species] && (
         <div>
           <label className="block text-parchment text-sm mb-1">Subspecies</label>
-          <select
+          <SelectionButton
             value={subspecies}
-            onChange={(e) => setSubspecies(e.target.value)}
-            className="w-full bg-parchment text-dark-wood px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-gold"
-          >
-            {speciesInfo.subspecies.map(sub => (
-              <option key={sub.name} value={sub.name}>{sub.name}</option>
-            ))}
-          </select>
+            displayValue={subspecies}
+            onClick={() => setOpenModal('subspecies')}
+          />
 
-          {/* Subspecies Role Info */}
+          {/* Subspecies Role Info Summary */}
           {(() => {
             const subRole = SUBSPECIES_ROLE_INFO[subspecies];
             if (!subRole) {
-              // Fallback to basic description if no role info
               const subDesc = speciesInfo.subspecies?.find(s => s.name === subspecies)?.description;
               return subDesc ? (
                 <p className="text-parchment/60 text-xs mt-1">{subDesc}</p>
@@ -2139,15 +2107,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
             }
             return (
               <div className={`mt-2 p-2 rounded border border-${subRole.color}-500/50 bg-${subRole.color}-900/20`}>
-                <p className="text-parchment text-xs italic mb-1">{subRole.playstyle}</p>
-                <div className="text-xs mb-1">
-                  <span className="text-gold">Ability: </span>
-                  <span className="text-parchment/80">{subRole.summary}</span>
-                </div>
-                <div className="text-xs">
-                  <span className="text-gold">Great for: </span>
-                  <span className="text-parchment/80">{subRole.goodFor.join(', ')}</span>
-                </div>
+                <p className="text-parchment text-xs italic">{subRole.playstyle}</p>
               </div>
             );
           })()}
@@ -3423,39 +3383,140 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     }
   };
 
+  // Build selection options for modals
+  const classOptions: SelectionOption[] = CLASS_LIST.map(c => {
+    const roleInfo = CLASS_ROLE_INFO[c];
+    return {
+      id: c,
+      name: CLASS_NAMES[c],
+      hitDie: CLASS_HIT_DICE[c],
+      roles: roleInfo.roles,
+      playstyle: roleInfo.playstyle,
+      keyStats: roleInfo.keyStats,
+      complexity: roleInfo.complexity,
+      goodFor: roleInfo.goodFor,
+      color: roleInfo.color,
+    };
+  });
+
+  const speciesOptions: SelectionOption[] = SPECIES_LIST.map(s => {
+    const roleInfo = SPECIES_ROLE_INFO[s];
+    return {
+      id: s,
+      name: SPECIES_NAMES[s],
+      traits: roleInfo.traits,
+      bestFor: roleInfo.bestFor,
+      flavor: roleInfo.flavor,
+      color: roleInfo.color,
+    };
+  });
+
+  const subspeciesOptions: SelectionOption[] = (speciesInfo.subspecies || []).map(sub => {
+    const roleInfo = SUBSPECIES_ROLE_INFO[sub.name];
+    return {
+      id: sub.name,
+      name: sub.name,
+      description: sub.description,
+      summary: roleInfo?.summary,
+      playstyle: roleInfo?.playstyle,
+      goodFor: roleInfo?.goodFor,
+      color: roleInfo?.color || 'amber',
+    };
+  });
+
+  const backgroundOptions: SelectionOption[] = BACKGROUNDS.map(b => {
+    const roleInfo = BACKGROUND_ROLE_INFO[b];
+    const bg2024 = BACKGROUNDS_2024[b];
+    return {
+      id: b,
+      name: b,
+      theme: roleInfo?.theme,
+      flavor: roleInfo?.flavor,
+      goodFor: roleInfo?.goodFor,
+      color: roleInfo?.color || 'amber',
+      extra: bg2024 ? {
+        'Skills': bg2024.skillProficiencies.map(s => SKILL_NAMES[s]).join(', '),
+        'Feat': bg2024.originFeat,
+      } : undefined,
+    };
+  });
+
   return (
-    <Panel className="fixed inset-2 z-50 flex flex-col overflow-hidden">
-      {/* Condensed Header */}
-      <div className="flex items-center gap-3 mb-3 flex-shrink-0">
-        <h2 className="font-medieval text-lg text-gold whitespace-nowrap">Create Character</h2>
-        <div className="flex-1 flex gap-0.5">
-          {steps.map((s, idx) => (
-            <div
-              key={s}
-              className={`flex-1 h-1.5 rounded ${idx <= currentStepIndex ? 'bg-gold' : 'bg-leather'}`}
-            />
-          ))}
+    <>
+      <Panel className="fixed inset-2 z-50 flex flex-col overflow-hidden">
+        {/* Condensed Header */}
+        <div className="flex items-center gap-3 mb-3 flex-shrink-0">
+          <h2 className="font-medieval text-lg text-gold whitespace-nowrap">Create Character</h2>
+          <div className="flex-1 flex gap-0.5">
+            {steps.map((s, idx) => (
+              <div
+                key={s}
+                className={`flex-1 h-1.5 rounded ${idx <= currentStepIndex ? 'bg-gold' : 'bg-leather'}`}
+              />
+            ))}
+          </div>
+          <button onClick={onCancel} className="text-parchment/50 hover:text-parchment text-xl leading-none">✕</button>
         </div>
-        <button onClick={onCancel} className="text-parchment/50 hover:text-parchment text-xl leading-none">✕</button>
-      </div>
 
-      {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto mb-3 pr-1">
-        {renderCurrentStep()}
-      </div>
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto mb-3 pr-1">
+          {renderCurrentStep()}
+        </div>
 
-      {/* Footer Navigation */}
-      <div className="flex justify-between flex-shrink-0 pt-2 border-t border-leather">
-        <Button variant="secondary" onClick={prevStep} disabled={currentStepIndex === 0}>
-          Back
-        </Button>
+        {/* Footer Navigation */}
+        <div className="flex justify-between flex-shrink-0 pt-2 border-t border-leather">
+          <Button variant="secondary" onClick={prevStep} disabled={currentStepIndex === 0}>
+            Back
+          </Button>
 
-        {step === 'review' ? (
-          <Button onClick={handleComplete}>Create Character</Button>
-        ) : (
-          <Button onClick={nextStep} disabled={!canProceed()}>Next</Button>
-        )}
-      </div>
-    </Panel>
+          {step === 'review' ? (
+            <Button onClick={handleComplete}>Create Character</Button>
+          ) : (
+            <Button onClick={nextStep} disabled={!canProceed()}>Next</Button>
+          )}
+        </div>
+      </Panel>
+
+      {/* Selection Modals */}
+      <SelectionModal
+        isOpen={openModal === 'class'}
+        onClose={() => setOpenModal(null)}
+        onSelect={(id) => setCharacterClass(id as CharacterClass)}
+        title="Choose Your Class"
+        options={classOptions}
+        selectedId={characterClass}
+        columns={2}
+      />
+
+      <SelectionModal
+        isOpen={openModal === 'species'}
+        onClose={() => setOpenModal(null)}
+        onSelect={(id) => setSpecies(id as Species)}
+        title="Choose Your Species"
+        options={speciesOptions}
+        selectedId={species}
+        columns={2}
+      />
+
+      <SelectionModal
+        isOpen={openModal === 'subspecies'}
+        onClose={() => setOpenModal(null)}
+        onSelect={(id) => setSubspecies(id)}
+        title="Choose Your Subspecies"
+        options={subspeciesOptions}
+        selectedId={subspecies}
+        columns={1}
+      />
+
+      <SelectionModal
+        isOpen={openModal === 'background'}
+        onClose={() => setOpenModal(null)}
+        onSelect={(id) => setBackground(id)}
+        title="Choose Your Background"
+        options={backgroundOptions}
+        selectedId={background}
+        columns={2}
+      />
+    </>
   );
 }
