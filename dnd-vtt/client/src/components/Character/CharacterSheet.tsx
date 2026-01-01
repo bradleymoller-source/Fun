@@ -1592,7 +1592,7 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
       </div>
 
       {/* Tab Content */}
-      <div className="min-h-[300px]">
+      <div className="min-h-[300px] max-h-[60vh] overflow-y-auto pr-1">
         {renderCurrentTab()}
       </div>
     </div>
