@@ -1239,12 +1239,22 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
   };
 
   const renderBasicsStep = () => (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h3 className="font-medieval text-lg text-gold">Basic Information</h3>
-        <div className="flex gap-2">
-          <Button size="sm" variant="secondary" onClick={handleQuickBuild}>Quick Build</Button>
-          <Button size="sm" variant="secondary" onClick={handleRandomize}>Randomize</Button>
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <h3 className="font-medieval text-base text-gold">Basics</h3>
+        <div className="flex gap-1 ml-auto">
+          <button
+            onClick={handleQuickBuild}
+            className="px-2 py-1 text-xs bg-leather/50 text-parchment rounded hover:bg-leather"
+          >
+            Quick Build
+          </button>
+          <button
+            onClick={handleRandomize}
+            className="px-2 py-1 text-xs bg-leather/50 text-parchment rounded hover:bg-leather"
+          >
+            Randomize
+          </button>
         </div>
       </div>
 
@@ -3101,26 +3111,28 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
   };
 
   return (
-    <Panel className="max-w-lg mx-auto">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="font-medieval text-xl text-gold">Create Character</h2>
-        <button onClick={onCancel} className="text-parchment/50 hover:text-parchment">✕</button>
+    <Panel className="fixed inset-2 z-50 flex flex-col overflow-hidden">
+      {/* Condensed Header */}
+      <div className="flex items-center gap-3 mb-3 flex-shrink-0">
+        <h2 className="font-medieval text-lg text-gold whitespace-nowrap">Create Character</h2>
+        <div className="flex-1 flex gap-0.5">
+          {steps.map((s, idx) => (
+            <div
+              key={s}
+              className={`flex-1 h-1.5 rounded ${idx <= currentStepIndex ? 'bg-gold' : 'bg-leather'}`}
+            />
+          ))}
+        </div>
+        <button onClick={onCancel} className="text-parchment/50 hover:text-parchment text-xl leading-none">✕</button>
       </div>
 
-      <div className="flex justify-between mb-6">
-        {steps.map((s, idx) => (
-          <div
-            key={s}
-            className={`flex-1 h-1 rounded mx-0.5 ${idx <= currentStepIndex ? 'bg-gold' : 'bg-leather'}`}
-          />
-        ))}
-      </div>
-
-      <div className="mb-6 max-h-[60vh] overflow-y-auto">
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-y-auto mb-3 pr-1">
         {renderCurrentStep()}
       </div>
 
-      <div className="flex justify-between">
+      {/* Footer Navigation */}
+      <div className="flex justify-between flex-shrink-0 pt-2 border-t border-leather">
         <Button variant="secondary" onClick={prevStep} disabled={currentStepIndex === 0}>
           Back
         </Button>
