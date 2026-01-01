@@ -1616,7 +1616,8 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
         </div>
       </div>
 
-      {speciesInfo.subspecies && speciesInfo.subspecies.length > 0 && (
+      {/* Only show old-style subspecies dropdown if species doesn't have SPECIES_CHOICES (which provides better flavor) */}
+      {speciesInfo.subspecies && speciesInfo.subspecies.length > 0 && !SPECIES_CHOICES[species] && (
         <div>
           <label className="block text-parchment text-sm mb-1">Subspecies</label>
           <select
