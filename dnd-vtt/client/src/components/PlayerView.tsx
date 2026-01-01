@@ -21,7 +21,7 @@ const ORIENTATION_SIZES = {
 
 export function PlayerView() {
   const { roomCode, playerName, players, isConnected, playerTab, character, setPlayerTab, setCharacter, updateCharacter } = useSessionStore();
-  const { rollDice, sendChatMessage, moveToken, saveCharacter, deleteCharacter, addInitiativeEntry, socket } = useSocket();
+  const { rollDice, sendChatMessage, moveToken, saveCharacter, deleteCharacter, playerRollInitiative, socket } = useSocket();
   const [showParty, setShowParty] = useState(false);
   const [mapOrientation, setMapOrientation] = useState<MapOrientation>('landscape');
   const [mapDimensions, setMapDimensions] = useState(ORIENTATION_SIZES.landscape);
@@ -171,7 +171,7 @@ export function PlayerView() {
       maxHp: character.maxHitPoints,
     };
     try {
-      await addInitiativeEntry(entry);
+      await playerRollInitiative(entry);
       console.log(`${character.name} rolled initiative: ${roll}`);
     } catch (error) {
       console.error('Failed to add initiative entry:', error);
@@ -187,10 +187,10 @@ export function PlayerView() {
     }
   };
 
-  // Player initiative roll handler
+  // Player initiative roll handler (from InitiativeTracker buttons)
   const handlePlayerInitiativeRoll = async (entry: InitiativeEntry) => {
     try {
-      await addInitiativeEntry(entry);
+      await playerRollInitiative(entry);
     } catch (error) {
       console.error('Failed to add initiative entry:', error);
     }

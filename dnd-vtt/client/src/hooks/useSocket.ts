@@ -545,6 +545,26 @@ export function useSocket() {
     });
   }, []);
 
+  // Player rolls initiative (adds themselves to tracker)
+  const playerRollInitiative = useCallback((entry: InitiativeEntry) => {
+    return new Promise<void>((resolve, reject) => {
+      if (!socketRef.current) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      socketRef.current.emit('player-roll-initiative', { entry }, (response: any) => {
+        if (response.success) {
+          store.setInitiative(response.initiative);
+          resolve();
+        } else {
+          store.setError(response.error);
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }, []);
+
   // Remove initiative entry (DM only)
   const removeInitiativeEntry = useCallback((entryId: string) => {
     return new Promise<void>((resolve, reject) => {
@@ -756,6 +776,7 @@ export function useSocket() {
     rollDice,
     sendChatMessage,
     addInitiativeEntry,
+    playerRollInitiative,
     removeInitiativeEntry,
     nextTurn,
     startCombat,

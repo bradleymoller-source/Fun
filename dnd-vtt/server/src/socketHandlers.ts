@@ -492,6 +492,36 @@ export function setupSocketHandlers(io: Server): void {
       callback({ success: true, initiative });
     });
 
+    // Player rolls initiative (adds themselves to tracker)
+    socket.on('player-roll-initiative', (data: { entry: InitiativeEntry }, callback: (response: any) => void) => {
+      const sessionInfo = socketSessions.get(socket.id);
+
+      if (!sessionInfo) {
+        callback({ success: false, error: 'Not in a session' });
+        return;
+      }
+
+      // Ensure the entry is for this player (prevent adding others)
+      const entry = {
+        ...data.entry,
+        playerId: socket.id,  // Force the playerId to be the socket's ID
+        isNpc: false,         // Players can only add player entries
+      };
+
+      const { roomCode } = sessionInfo;
+      const initiative = addInitiativeEntry(roomCode, entry);
+
+      if (!initiative) {
+        callback({ success: false, error: 'Failed to add initiative entry' });
+        return;
+      }
+
+      // Broadcast to all
+      io.to(roomCode).emit('initiative-updated', { initiative });
+
+      callback({ success: true, initiative });
+    });
+
     // Remove initiative entry (DM only)
     socket.on('remove-initiative', (data: { entryId: string }, callback: (response: any) => void) => {
       const sessionInfo = socketSessions.get(socket.id);
