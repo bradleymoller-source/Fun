@@ -34,13 +34,14 @@ interface CharacterSheetProps {
   character: Character;
   onUpdate?: (updates: Partial<Character>) => void;
   onRoll?: (notation: string, label: string) => void;
+  onRollInitiative?: (roll: number) => void;
   onImport?: (character: Character) => void;
   onDelete?: () => void;
   isEditable?: boolean;
   showExportImport?: boolean;
 }
 
-export function CharacterSheet({ character, onUpdate, onRoll, onImport, onDelete, isEditable = true, showExportImport = true }: CharacterSheetProps) {
+export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, onImport, onDelete, isEditable = true, showExportImport = true }: CharacterSheetProps) {
   const [activeTab, setActiveTab] = useState<SheetTab>('stats');
   const [showConditionPicker, setShowConditionPicker] = useState(false);
   const [expandedFeature, setExpandedFeature] = useState<string | null>(null);
@@ -176,11 +177,23 @@ export function CharacterSheet({ character, onUpdate, onRoll, onImport, onDelete
   };
 
   const handleRollInitiative = () => {
-    if (!onRoll) return;
     const dexMod = getAbilityModifier(character.abilityScores.dexterity);
     const exhaustionPenalty = exhaustionLevel * -2;
     const totalMod = dexMod + exhaustionPenalty;
-    onRoll(`1d20${totalMod >= 0 ? '+' : ''}${totalMod}`, 'Initiative');
+
+    // Roll the d20
+    const d20Roll = Math.floor(Math.random() * 20) + 1;
+    const totalRoll = d20Roll + totalMod;
+
+    // If we have an initiative callback, add to tracker
+    if (onRollInitiative) {
+      onRollInitiative(totalRoll);
+    }
+
+    // Also do a visual dice roll if available
+    if (onRoll) {
+      onRoll(`1d20${totalMod >= 0 ? '+' : ''}${totalMod}`, 'Initiative');
+    }
   };
 
   const handleRollAttack = (weaponName: string, attackBonus: number) => {
@@ -513,7 +526,7 @@ export function CharacterSheet({ character, onUpdate, onRoll, onImport, onDelete
       <Tooltip content={RULE_TOOLTIPS.initiative}>
         <button
           onClick={handleRollInitiative}
-          disabled={!onRoll}
+          disabled={!onRoll && !onRollInitiative}
           className="bg-dark-wood p-2 rounded border border-leather text-center hover:border-gold transition-colors disabled:hover:border-leather w-full"
         >
           <div className="text-gold font-bold text-xl">

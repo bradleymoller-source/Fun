@@ -157,6 +157,27 @@ export function PlayerView() {
     }
   };
 
+  // Phase 4: Character Initiative Roll Handler
+  const handleCharacterInitiativeRoll = async (roll: number) => {
+    if (!character) return;
+    const entry: InitiativeEntry = {
+      id: `init-${socket?.id || 'player'}-${Date.now()}`,
+      name: character.name,
+      initiative: roll,
+      isNpc: false,
+      isActive: false,
+      playerId: socket?.id,
+      currentHp: character.currentHitPoints,
+      maxHp: character.maxHitPoints,
+    };
+    try {
+      await addInitiativeEntry(entry);
+      console.log(`${character.name} rolled initiative: ${roll}`);
+    } catch (error) {
+      console.error('Failed to add initiative entry:', error);
+    }
+  };
+
   // Token movement handler (player can move their own token)
   const handleTokenMove = async (tokenId: string, x: number, y: number) => {
     try {
@@ -291,6 +312,7 @@ export function PlayerView() {
               onUpdate={handleCharacterUpdate}
               onImport={handleCharacterImport}
               onDelete={handleCharacterDelete}
+              onRollInitiative={handleCharacterInitiativeRoll}
               isEditable={true}
             />
           </Panel>
