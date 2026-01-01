@@ -97,22 +97,24 @@ export function SelectionModal({
   options,
   selectedId,
 }: SelectionModalProps) {
-  const initialIndex = selectedId ? options.findIndex(o => o.id === selectedId) : 0;
-  const [currentIndex, setCurrentIndex] = useState(Math.max(0, initialIndex));
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [dragOffset, setDragOffset] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const wasOpen = useRef(false);
 
   const CARD_WIDTH = 85; // percentage of viewport
   const CARD_GAP = 3; // percentage gap between cards
 
+  // Only reset index when modal opens (transition from closed to open)
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !wasOpen.current) {
       const idx = selectedId ? options.findIndex(o => o.id === selectedId) : 0;
       setCurrentIndex(Math.max(0, idx));
       setDragOffset(0);
     }
+    wasOpen.current = isOpen;
   }, [isOpen, selectedId, options]);
 
   useEffect(() => {
