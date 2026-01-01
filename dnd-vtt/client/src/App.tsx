@@ -5,8 +5,9 @@ import { CreateGame } from './components/CreateGame';
 import { JoinGame } from './components/JoinGame';
 import { DMView } from './components/DMView';
 import { PlayerView } from './components/PlayerView';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
-function App() {
+function AppContent() {
   // Initialize socket connection
   useSocket();
 
@@ -25,6 +26,14 @@ function App() {
     default:
       return <Landing />;
   }
+}
+
+function App() {
+  return (
+    <ErrorBoundary>
+      <AppContent />
+    </ErrorBoundary>
+  );
 }
 
 export default App;
