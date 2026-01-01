@@ -63,6 +63,11 @@ import {
   HIGH_ELF_CANTRIPS,
   // Class resources
   getCharacterResources,
+  // Weapon Mastery
+  WEAPON_MASTERY_CLASSES,
+  WEAPON_MASTERIES,
+  WEAPON_MASTERY_DESCRIPTIONS,
+  getProficientWeapons,
 } from '../../data/dndData';
 import type { ShopItem, OriginFeatName } from '../../data/dndData';
 
@@ -99,6 +104,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
   const [pactOfTomeCantrips, setPactOfTomeCantrips] = useState<string[]>([]); // Cantrips from Pact of the Tome
   const [lessonsCantrip, setLessonsCantrip] = useState<string>(''); // Cantrip from Lessons of the First Ones
   const [expertiseSkills, setExpertiseSkills] = useState<SkillName[]>([]);
+  const [weaponMasteries, setWeaponMasteries] = useState<string[]>([]); // Weapons with mastery selected
   // Origin feat choices
   const [originFeatCantrips, setOriginFeatCantrips] = useState<string[]>([]);
   const [originFeatSpells, setOriginFeatSpells] = useState<string[]>([]);
@@ -236,6 +242,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     setEldritchInvocations([]);
     setPactOfTomeCantrips([]);
     setExpertiseSkills([]);
+    setWeaponMasteries([]);
   }, [characterClass]);
 
   // Reset rolled HP when class changes
@@ -1130,6 +1137,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       fightingStyle: fightingStyle || undefined,
       eldritchInvocations: eldritchInvocations.length > 0 ? eldritchInvocations : undefined,
       expertiseSkills: expertiseSkills.length > 0 ? expertiseSkills : undefined,
+      weaponMasteries: weaponMasteries.length > 0 ? weaponMasteries : undefined,
       level: charLevel,
       background,
       alignment,
@@ -1310,6 +1318,68 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
           ))}
         </div>
       </div>
+
+      {/* Weapon Mastery (Fighter/Barbarian/Monk/Paladin/Ranger) */}
+      {WEAPON_MASTERY_CLASSES[characterClass] > 0 && (
+        <div className="bg-orange-900/20 border border-orange-500/50 p-3 rounded">
+          <div className="flex items-center gap-2 mb-1">
+            <label className="text-orange-400 text-sm font-semibold">Weapon Mastery</label>
+            <span className={`text-xs px-2 py-0.5 rounded ${
+              weaponMasteries.length === WEAPON_MASTERY_CLASSES[characterClass]
+                ? 'bg-green-600/80 text-white'
+                : 'bg-leather text-parchment/70'
+            }`}>
+              {weaponMasteries.length}/{WEAPON_MASTERY_CLASSES[characterClass]}
+            </span>
+          </div>
+          <p className="text-parchment/70 text-xs mb-2">
+            Choose {WEAPON_MASTERY_CLASSES[characterClass]} weapon{WEAPON_MASTERY_CLASSES[characterClass] > 1 ? 's' : ''} to gain mastery with.
+            You can use their mastery property when attacking.
+          </p>
+          <div className="grid grid-cols-2 gap-1 max-h-40 overflow-y-auto">
+            {getProficientWeapons(classProficiencies.weapons).map(weapon => {
+              const isSelected = weaponMasteries.includes(weapon);
+              const mastery = WEAPON_MASTERIES[weapon];
+              const atMax = weaponMasteries.length >= WEAPON_MASTERY_CLASSES[characterClass];
+
+              return (
+                <button
+                  key={weapon}
+                  onClick={() => {
+                    if (isSelected) {
+                      setWeaponMasteries(weaponMasteries.filter(w => w !== weapon));
+                    } else if (!atMax) {
+                      setWeaponMasteries([...weaponMasteries, weapon]);
+                    }
+                  }}
+                  disabled={!isSelected && atMax}
+                  className={`text-left p-1.5 rounded text-xs transition-colors ${
+                    isSelected
+                      ? 'bg-orange-600/40 text-orange-200 border border-orange-500'
+                      : atMax
+                      ? 'bg-leather/20 text-parchment/40 cursor-not-allowed'
+                      : 'bg-leather/30 hover:bg-leather/50 text-parchment/80'
+                  }`}
+                  title={WEAPON_MASTERY_DESCRIPTIONS[mastery]}
+                >
+                  <span className="font-medium">{isSelected ? '✓ ' : ''}{weapon}</span>
+                  <span className="text-parchment/50 ml-1">({mastery})</span>
+                </button>
+              );
+            })}
+          </div>
+          {weaponMasteries.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-orange-500/30 text-xs">
+              <div className="text-orange-300 font-semibold mb-1">Selected Masteries:</div>
+              {weaponMasteries.map(weapon => (
+                <div key={weapon} className="text-parchment/80 mb-1">
+                  <span className="text-orange-400">{weapon}</span> - <span className="text-gold">{WEAPON_MASTERIES[weapon]}</span>: {WEAPON_MASTERY_DESCRIPTIONS[WEAPON_MASTERIES[weapon]]}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Fighting Style (Fighter/Paladin/Ranger) */}
       {FIGHTING_STYLE_CLASSES[characterClass] && level >= FIGHTING_STYLE_CLASSES[characterClass]!.level && (
@@ -3063,6 +3133,20 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
               <div className="flex flex-wrap gap-1">
                 {classFeatures.map(f => (
                   <span key={f.name} className="bg-red-900/30 text-red-300 px-2 py-0.5 rounded text-xs">{f.name}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Weapon Masteries */}
+          {weaponMasteries.length > 0 && (
+            <div>
+              <div className="text-parchment/70 text-xs mb-1">Weapon Masteries:</div>
+              <div className="flex flex-wrap gap-1">
+                {weaponMasteries.map(weapon => (
+                  <span key={weapon} className="bg-orange-900/30 text-orange-300 px-2 py-0.5 rounded text-xs">
+                    {weapon} ({WEAPON_MASTERIES[weapon]})
+                  </span>
                 ))}
               </div>
             </div>

@@ -322,6 +322,7 @@ export interface Character {
   fightingStyle?: string;  // Selected fighting style ID (fighter, paladin, ranger)
   eldritchInvocations?: string[];  // Selected invocation IDs (warlock)
   expertiseSkills?: SkillName[];  // Skills with expertise (rogue, bard)
+  weaponMasteries?: string[];  // Weapons with mastery selected (fighter, barbarian, monk, paladin, ranger)
 
   // Ability Scores
   abilityScores: AbilityScores;

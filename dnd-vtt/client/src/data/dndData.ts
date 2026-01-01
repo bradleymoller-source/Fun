@@ -3259,6 +3259,109 @@ export interface ShopItem {
   weaponType?: 'simple' | 'martial'; // for weapon proficiency filtering
 }
 
+// Weapon Mastery Properties (D&D 2024)
+export type WeaponMasteryType = 'Cleave' | 'Graze' | 'Nick' | 'Push' | 'Sap' | 'Slow' | 'Topple' | 'Vex';
+
+export const WEAPON_MASTERY_DESCRIPTIONS: Record<WeaponMasteryType, string> = {
+  Cleave: 'If you hit a creature, you can make an attack against a second creature within 5 ft of the first.',
+  Graze: 'If your attack misses, you still deal damage equal to your STR or DEX modifier.',
+  Nick: 'When you make the extra attack of Two-Weapon Fighting, you can make it as part of the Attack action.',
+  Push: 'If you hit a creature, you can push it 10 feet straight away from you.',
+  Sap: 'If you hit a creature, it has disadvantage on its next attack roll before the start of your next turn.',
+  Slow: 'If you hit a creature, its speed is reduced by 10 feet until the start of your next turn.',
+  Topple: 'If you hit a creature, it must succeed on a CON save or be knocked prone.',
+  Vex: 'If you hit a creature, you have advantage on your next attack roll against that creature before the end of your next turn.',
+};
+
+// Weapon mastery by weapon name
+export const WEAPON_MASTERIES: Record<string, WeaponMasteryType> = {
+  // Simple Melee
+  'Club': 'Slow',
+  'Dagger': 'Nick',
+  'Greatclub': 'Push',
+  'Handaxe': 'Vex',
+  'Javelin': 'Slow',
+  'Light Hammer': 'Nick',
+  'Mace': 'Sap',
+  'Quarterstaff': 'Topple',
+  'Sickle': 'Nick',
+  'Spear': 'Sap',
+  // Simple Ranged
+  'Light Crossbow': 'Slow',
+  'Shortbow': 'Vex',
+  'Sling': 'Slow',
+  // Martial Melee
+  'Battleaxe': 'Topple',
+  'Flail': 'Sap',
+  'Glaive': 'Graze',
+  'Greataxe': 'Cleave',
+  'Greatsword': 'Graze',
+  'Halberd': 'Cleave',
+  'Lance': 'Topple',
+  'Longsword': 'Sap',
+  'Maul': 'Topple',
+  'Morningstar': 'Sap',
+  'Pike': 'Push',
+  'Rapier': 'Vex',
+  'Scimitar': 'Nick',
+  'Shortsword': 'Vex',
+  'Trident': 'Topple',
+  'Warhammer': 'Push',
+  'War Pick': 'Sap',
+  'Whip': 'Slow',
+  // Martial Ranged
+  'Blowgun': 'Vex',
+  'Hand Crossbow': 'Vex',
+  'Heavy Crossbow': 'Push',
+  'Longbow': 'Slow',
+  'Musket': 'Slow',
+  'Pistol': 'Vex',
+};
+
+// Classes that get Weapon Mastery and how many
+export const WEAPON_MASTERY_CLASSES: Record<CharacterClass, number> = {
+  barbarian: 2,
+  bard: 0,
+  cleric: 0,
+  druid: 0,
+  fighter: 3,
+  monk: 2,
+  paladin: 2,
+  ranger: 2,
+  rogue: 0,
+  sorcerer: 0,
+  warlock: 0,
+  wizard: 0,
+};
+
+// Get weapons a character is proficient with based on class proficiencies
+export function getProficientWeapons(weaponProficiencies: { type: WeaponType; specific?: string[] }[]): string[] {
+  const proficientWeapons: string[] = [];
+
+  // Check which types of weapons the class is proficient with
+  const hasSimple = weaponProficiencies.some(p => p.type === 'simple');
+  const hasMartial = weaponProficiencies.some(p => p.type === 'martial');
+  const specificWeapons = weaponProficiencies
+    .filter(p => p.type === 'specific' && p.specific)
+    .flatMap(p => p.specific || []);
+
+  for (const weapon of Object.keys(WEAPON_MASTERIES)) {
+    const shopWeapon = SHOP_WEAPONS.find(w => w.name === weapon);
+    if (!shopWeapon) continue;
+
+    // Check if proficient with this specific weapon or its category
+    if (specificWeapons.includes(weapon)) {
+      proficientWeapons.push(weapon);
+    } else if (shopWeapon.weaponType === 'simple' && hasSimple) {
+      proficientWeapons.push(weapon);
+    } else if (shopWeapon.weaponType === 'martial' && hasMartial) {
+      proficientWeapons.push(weapon);
+    }
+  }
+
+  return proficientWeapons;
+}
+
 // Weapons available for purchase
 export const SHOP_WEAPONS: ShopItem[] = [
   // Simple Melee Weapons
