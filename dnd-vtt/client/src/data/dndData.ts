@@ -1865,6 +1865,100 @@ export const SPECIES_ROLE_INFO: Record<Species, SpeciesRoleInfo> = {
   },
 };
 
+// ============ SUBSPECIES ROLE DETAILS (for character creation help) ============
+export interface SubspeciesRoleInfo {
+  summary: string;
+  goodFor: string[];
+  playstyle: string;
+  color: string;
+}
+
+export const SUBSPECIES_ROLE_INFO: Record<string, SubspeciesRoleInfo> = {
+  // Aasimar
+  'Protector': {
+    summary: 'Fly and deal bonus radiant damage',
+    goodFor: ['Paladin', 'Cleric', 'Celestial Warlock'],
+    playstyle: 'Guardian angel who swoops in to protect allies with divine fury.',
+    color: 'yellow',
+  },
+  'Scourge': {
+    summary: 'Radiant aura damages all nearby enemies',
+    goodFor: ['Barbarian', 'Paladin', 'Melee fighters'],
+    playstyle: 'Burning beacon of light that punishes enemies for standing close.',
+    color: 'orange',
+  },
+  'Fallen': {
+    summary: 'Frighten enemies with necrotic presence',
+    goodFor: ['Warlock', 'Paladin (Oathbreaker)', 'Intimidation builds'],
+    playstyle: 'Dark angel who terrifies foes with a glimpse of damnation.',
+    color: 'stone',
+  },
+  // Elf
+  'High Elf': {
+    summary: 'Free wizard cantrip + extra language',
+    goodFor: ['Wizard', 'Any caster', 'Utility-focused'],
+    playstyle: 'Scholarly and magical, with arcane knowledge beyond your class.',
+    color: 'blue',
+  },
+  'Wood Elf': {
+    summary: '35ft speed + hide in nature',
+    goodFor: ['Ranger', 'Rogue', 'Druid', 'Monk'],
+    playstyle: 'Swift and stealthy, one with the forest and its secrets.',
+    color: 'emerald',
+  },
+  'Dark Elf (Drow)': {
+    summary: 'Superior darkvision + innate spells',
+    goodFor: ['Rogue', 'Warlock', 'Sorcerer', 'Bard'],
+    playstyle: 'Mysterious and magical, wielding powers from the Underdark.',
+    color: 'purple',
+  },
+  // Gnome
+  'Forest Gnome': {
+    summary: 'Minor Illusion cantrip + speak with small beasts',
+    goodFor: ['Wizard', 'Druid', 'Bard', 'Illusionist builds'],
+    playstyle: 'Whimsical trickster with a connection to woodland creatures.',
+    color: 'green',
+  },
+  'Rock Gnome': {
+    summary: 'Tinker ability to create clockwork devices',
+    goodFor: ['Artificer', 'Wizard', 'Creative problem-solvers'],
+    playstyle: 'Ingenious inventor who creates helpful gadgets.',
+    color: 'amber',
+  },
+  // Halfling
+  'Lightfoot': {
+    summary: 'Hide behind any medium+ creature',
+    goodFor: ['Rogue', 'Ranger', 'Any stealthy build'],
+    playstyle: 'Master of staying unseen, using allies as mobile cover.',
+    color: 'sky',
+  },
+  'Stout': {
+    summary: 'Poison resistance + advantage vs poison',
+    goodFor: ['Fighter', 'Any frontline', 'Dungeon delvers'],
+    playstyle: 'Hardy and resilient, shrugging off toxins with ease.',
+    color: 'orange',
+  },
+  // Tiefling
+  'Abyssal': {
+    summary: 'Poison Spray, Ray of Sickness, Hold Person',
+    goodFor: ['Warlock', 'Sorcerer', 'Control casters'],
+    playstyle: 'Demonic heritage bringing debilitating curses.',
+    color: 'green',
+  },
+  'Chthonic': {
+    summary: 'Chill Touch, False Life, Ray of Enfeeblement',
+    goodFor: ['Necromancer', 'Warlock', 'Death-themed builds'],
+    playstyle: 'Deathly powers from the realms of the dead.',
+    color: 'stone',
+  },
+  'Infernal': {
+    summary: 'Thaumaturgy, Hellish Rebuke, Darkness',
+    goodFor: ['Warlock', 'Sorcerer', 'Paladin', 'Intimidation builds'],
+    playstyle: 'Classic hellfire and brimstone with flashy devil magic.',
+    color: 'red',
+  },
+};
+
 // ============ BACKGROUND ROLE DETAILS (for character creation help) ============
 export interface BackgroundRoleInfo {
   theme: string;

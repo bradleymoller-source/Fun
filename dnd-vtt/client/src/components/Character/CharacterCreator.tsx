@@ -71,6 +71,7 @@ import {
   // Role information for dropdowns
   CLASS_ROLE_INFO,
   SPECIES_ROLE_INFO,
+  SUBSPECIES_ROLE_INFO,
   BACKGROUND_ROLE_INFO,
   FEAT_ROLE_INFO,
 } from '../../data/dndData';
@@ -2125,9 +2126,31 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
               <option key={sub.name} value={sub.name}>{sub.name}</option>
             ))}
           </select>
-          <p className="text-parchment/60 text-xs mt-1">
-            {speciesInfo.subspecies.find(s => s.name === subspecies)?.description}
-          </p>
+
+          {/* Subspecies Role Info */}
+          {(() => {
+            const subRole = SUBSPECIES_ROLE_INFO[subspecies];
+            if (!subRole) {
+              // Fallback to basic description if no role info
+              const subDesc = speciesInfo.subspecies?.find(s => s.name === subspecies)?.description;
+              return subDesc ? (
+                <p className="text-parchment/60 text-xs mt-1">{subDesc}</p>
+              ) : null;
+            }
+            return (
+              <div className={`mt-2 p-2 rounded border border-${subRole.color}-500/50 bg-${subRole.color}-900/20`}>
+                <p className="text-parchment text-xs italic mb-1">{subRole.playstyle}</p>
+                <div className="text-xs mb-1">
+                  <span className="text-gold">Ability: </span>
+                  <span className="text-parchment/80">{subRole.summary}</span>
+                </div>
+                <div className="text-xs">
+                  <span className="text-gold">Great for: </span>
+                  <span className="text-parchment/80">{subRole.goodFor.join(', ')}</span>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
 
