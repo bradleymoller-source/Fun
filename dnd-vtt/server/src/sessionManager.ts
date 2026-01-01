@@ -1,6 +1,7 @@
 import type { Session, Player, CreateSessionResponse, MapState, Token, FogArea, InitiativeEntry, CharacterData } from './types';
 import { generateRoomCode, generateDmKey } from './roomCode';
 import db, { cleanupExpiredSessions } from './database';
+import { logger } from './utils/logger';
 
 // In-memory store for active sessions (for real-time state)
 const activeSessions = new Map<string, Session>();
@@ -308,7 +309,7 @@ export function loadSessionsFromDb(): void {
     activeSessions.set(row.room_code, session);
   }
 
-  console.log(`Loaded ${sessions.length} sessions from database`);
+  logger.info(`Loaded ${sessions.length} sessions from database`);
 }
 
 // Phase 3: Initiative functions
@@ -444,7 +445,7 @@ export function saveCharacter(roomCode: string, playerId: string, characterData:
   session.characters.set(playerId, charData);
   updateActivity(roomCode);
 
-  console.log(`Character saved for player ${playerId} in ${roomCode}: ${charData.name}`);
+  logger.debug(`Character saved for player ${playerId} in ${roomCode}: ${charData.name}`);
   return charData;
 }
 
@@ -513,7 +514,7 @@ export function updateCharacterById(roomCode: string, characterId: string, updat
         session.characters.set(playerId, newCharData);
         updateActivity(roomCode);
 
-        console.log(`Character ${characterId} updated by DM in ${roomCode}`);
+        logger.debug(`Character ${characterId} updated by DM in ${roomCode}`);
         return { character: updatedCharacter, playerId };
       }
     } catch {

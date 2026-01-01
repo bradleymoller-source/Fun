@@ -28,34 +28,74 @@ import {
   deleteCharacter,
   updateCharacterById,
 } from './sessionManager';
-import { JoinSessionRequest, ReclaimSessionRequest, Token, MapState, DiceRoll, ChatMessage, InitiativeEntry } from './types';
+import { Token, MapState, DiceRoll, ChatMessage, InitiativeEntry } from './types';
+import { logger, createSocketLogger } from './utils/logger';
+import { validateData } from './middleware/validate';
+import { socketRateLimitMiddleware } from './middleware/rateLimiter';
+import {
+  JoinSessionDataSchema,
+  ReclaimSessionDataSchema,
+  KickPlayerDataSchema,
+  GetPlayersDataSchema,
+  UpdateMapDataSchema,
+  AddTokenDataSchema,
+  MoveTokenDataSchema,
+  UpdateTokenDataSchema,
+  RemoveTokenDataSchema,
+  ShowMapToPlayersDataSchema,
+  AddInitiativeDataSchema,
+  RemoveInitiativeDataSchema,
+  RollDiceDataSchema,
+  SendChatDataSchema,
+  SaveCharacterDataSchema,
+  DmUpdateCharacterDataSchema,
+} from './schemas';
 
 // Track which session each socket belongs to
 const socketSessions = new Map<string, { roomCode: string; isDm: boolean }>();
 
 export function setupSocketHandlers(io: Server): void {
   io.on('connection', (socket: Socket) => {
-    console.log(`Client connected: ${socket.id}`);
+    const socketLog = createSocketLogger(socket.id);
+    socketLog.info('Client connected');
+
+    // Helper to check rate limits
+    const checkLimit = async (eventName: string): Promise<boolean> => {
+      return socketRateLimitMiddleware(socket.id, eventName);
+    };
 
     // DM creates a new game session
-    socket.on('create-session', (callback: (response: any) => void) => {
+    socket.on('create-session', async (callback: (response: any) => void) => {
+      if (!await checkLimit('create-session')) {
+        callback({ success: false, error: 'Rate limit exceeded. Please wait before creating another session.' });
+        return;
+      }
+
       const { roomCode, dmKey } = createSession();
       setDmSocket(roomCode, socket.id);
 
-      // Join the socket to a room for this session
       socket.join(roomCode);
-
-      // Track this socket
       socketSessions.set(socket.id, { roomCode, isDm: true });
 
-      console.log(`Session created: ${roomCode} by ${socket.id}`);
+      logger.info('Session created', { roomCode, socketId: socket.id });
 
       callback({ success: true, roomCode, dmKey });
     });
 
     // DM reclaims an existing session
-    socket.on('reclaim-session', (data: ReclaimSessionRequest, callback: (response: any) => void) => {
-      const { roomCode, dmKey } = data;
+    socket.on('reclaim-session', async (data: unknown, callback: (response: any) => void) => {
+      if (!await checkLimit('reclaim-session')) {
+        callback({ success: false, error: 'Rate limit exceeded.' });
+        return;
+      }
+
+      const validation = validateData(ReclaimSessionDataSchema, data, 'reclaim-session');
+      if (!validation.success) {
+        callback({ success: false, error: validation.error });
+        return;
+      }
+
+      const { roomCode, dmKey } = validation.data;
 
       if (!sessionExists(roomCode)) {
         callback({ success: false, error: 'Session not found' });
@@ -71,12 +111,11 @@ export function setupSocketHandlers(io: Server): void {
       socket.join(roomCode);
       socketSessions.set(socket.id, { roomCode, isDm: true });
 
-      // Send current player list, map state, and initiative state
       const players = getPlayers(roomCode);
       const map = getMapState(roomCode);
       const initiativeState = getInitiative(roomCode);
 
-      console.log(`Session reclaimed: ${roomCode} by ${socket.id}`);
+      logger.info('Session reclaimed', { roomCode, socketId: socket.id });
 
       callback({
         success: true,
@@ -89,8 +128,19 @@ export function setupSocketHandlers(io: Server): void {
     });
 
     // Player joins a session
-    socket.on('join-session', (data: JoinSessionRequest, callback: (response: any) => void) => {
-      const { roomCode, playerName } = data;
+    socket.on('join-session', async (data: unknown, callback: (response: any) => void) => {
+      if (!await checkLimit('join-session')) {
+        callback({ success: false, error: 'Too many join attempts. Please wait.' });
+        return;
+      }
+
+      const validation = validateData(JoinSessionDataSchema, data, 'join-session');
+      if (!validation.success) {
+        callback({ success: false, error: validation.error });
+        return;
+      }
+
+      const { roomCode, playerName } = validation.data;
       const upperRoomCode = roomCode.toUpperCase();
 
       if (!sessionExists(upperRoomCode)) {
@@ -112,9 +162,7 @@ export function setupSocketHandlers(io: Server): void {
 
       let tokens = null;
 
-      // Only create a token if this is a new player, not a reconnect
       if (!isReconnect) {
-        // Auto-generate a token for the new player
         const playerColors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9'];
         const colorIndex = getPlayers(upperRoomCode).length % playerColors.length;
         const playerToken: Token = {
@@ -128,19 +176,15 @@ export function setupSocketHandlers(io: Server): void {
           ownerId: socket.id,
         };
 
-        // Add the token to the session
         tokens = addTokenToSession(upperRoomCode, playerToken);
       }
 
-      // Get map state for the player (filter hidden tokens)
       const map = getMapState(upperRoomCode);
       const playerMap = map ? {
         ...map,
         tokens: map.tokens.filter(t => !t.isHidden),
       } : null;
 
-      // Notify everyone EXCEPT the joining player about the new/reconnecting player
-      // (the joining player gets their info via callback)
       socket.to(upperRoomCode).emit('player-joined', {
         player: {
           id: player.id,
@@ -154,15 +198,13 @@ export function setupSocketHandlers(io: Server): void {
         })),
       });
 
-      // Broadcast token update to others (not to joining player)
       if (tokens) {
         const visibleTokens = tokens.filter(t => !t.isHidden);
         socket.to(upperRoomCode).emit('tokens-updated', { tokens: visibleTokens });
       }
 
-      console.log(`Player ${playerName} ${isReconnect ? 'reconnected to' : 'joined'} ${upperRoomCode}${isReconnect ? '' : ' with auto-generated token'}`);
+      logger.info('Player joined', { roomCode: upperRoomCode, playerName, isReconnect });
 
-      // Get initiative state for the player
       const initiativeState = getInitiative(upperRoomCode);
 
       callback({
@@ -175,30 +217,37 @@ export function setupSocketHandlers(io: Server): void {
     });
 
     // DM kicks a player
-    socket.on('kick-player', (data: { playerId: string }, callback: (response: any) => void) => {
-      const sessionInfo = socketSessions.get(socket.id);
+    socket.on('kick-player', async (data: unknown, callback: (response: any) => void) => {
+      if (!await checkLimit('kick-player')) {
+        callback({ success: false, error: 'Rate limit exceeded.' });
+        return;
+      }
 
+      const sessionInfo = socketSessions.get(socket.id);
       if (!sessionInfo || !sessionInfo.isDm) {
         callback({ success: false, error: 'Only the DM can kick players' });
         return;
       }
 
+      const validation = validateData(KickPlayerDataSchema, data, 'kick-player');
+      if (!validation.success) {
+        callback({ success: false, error: validation.error });
+        return;
+      }
+
       const { roomCode } = sessionInfo;
-      const { playerId } = data;
+      const { playerId } = validation.data;
 
       removePlayer(roomCode, playerId);
 
-      // Notify the kicked player
       io.to(playerId).emit('kicked', { message: 'You have been removed from the session by the DM.' });
 
-      // Make the kicked player leave the room
       const kickedSocket = io.sockets.sockets.get(playerId);
       if (kickedSocket) {
         kickedSocket.leave(roomCode);
         socketSessions.delete(playerId);
       }
 
-      // Notify everyone else
       io.to(roomCode).emit('player-left', {
         playerId,
         players: getPlayers(roomCode).map(p => ({
@@ -208,31 +257,39 @@ export function setupSocketHandlers(io: Server): void {
         })),
       });
 
-      console.log(`Player ${playerId} kicked from ${roomCode}`);
+      logger.info('Player kicked', { roomCode, playerId });
 
       callback({ success: true });
     });
 
     // ============ MAP EVENTS ============
 
-    // DM updates map settings (image, grid, etc.)
-    socket.on('update-map', (data: { mapState: Partial<MapState> }, callback: (response: any) => void) => {
-      const sessionInfo = socketSessions.get(socket.id);
+    socket.on('update-map', async (data: unknown, callback: (response: any) => void) => {
+      if (!await checkLimit('update-map')) {
+        callback({ success: false, error: 'Rate limit exceeded.' });
+        return;
+      }
 
+      const sessionInfo = socketSessions.get(socket.id);
       if (!sessionInfo || !sessionInfo.isDm) {
         callback({ success: false, error: 'Only the DM can update the map' });
         return;
       }
 
+      const validation = validateData(UpdateMapDataSchema, data, 'update-map');
+      if (!validation.success) {
+        callback({ success: false, error: validation.error });
+        return;
+      }
+
       const { roomCode } = sessionInfo;
-      const updatedMap = updateMapState(roomCode, data.mapState);
+      const updatedMap = updateMapState(roomCode, validation.data.mapState);
 
       if (!updatedMap) {
         callback({ success: false, error: 'Failed to update map' });
         return;
       }
 
-      // Broadcast to all players (filter hidden tokens for non-DMs)
       const playerMap = {
         ...updatedMap,
         tokens: updatedMap.tokens.filter(t => !t.isHidden),
@@ -242,36 +299,53 @@ export function setupSocketHandlers(io: Server): void {
       callback({ success: true, map: updatedMap });
     });
 
-    // DM adds a token
-    socket.on('add-token', (data: { token: Token }, callback: (response: any) => void) => {
-      const sessionInfo = socketSessions.get(socket.id);
+    socket.on('add-token', async (data: unknown, callback: (response: any) => void) => {
+      if (!await checkLimit('add-token')) {
+        callback({ success: false, error: 'Rate limit exceeded.' });
+        return;
+      }
 
+      const sessionInfo = socketSessions.get(socket.id);
       if (!sessionInfo || !sessionInfo.isDm) {
         callback({ success: false, error: 'Only the DM can add tokens' });
         return;
       }
 
+      const validation = validateData(AddTokenDataSchema, data, 'add-token');
+      if (!validation.success) {
+        callback({ success: false, error: validation.error });
+        return;
+      }
+
       const { roomCode } = sessionInfo;
-      const tokens = addTokenToSession(roomCode, data.token);
+      const tokens = addTokenToSession(roomCode, validation.data.token);
 
       if (!tokens) {
         callback({ success: false, error: 'Failed to add token' });
         return;
       }
 
-      // Broadcast to players (filter hidden tokens)
       const visibleTokens = tokens.filter(t => !t.isHidden);
       socket.to(roomCode).emit('tokens-updated', { tokens: visibleTokens });
 
       callback({ success: true, tokens });
     });
 
-    // Move a token (DM or player if they own it)
-    socket.on('move-token', (data: { tokenId: string; x: number; y: number }, callback: (response: any) => void) => {
-      const sessionInfo = socketSessions.get(socket.id);
+    socket.on('move-token', async (data: unknown, callback: (response: any) => void) => {
+      if (!await checkLimit('move-token')) {
+        callback({ success: false, error: 'Rate limit exceeded.' });
+        return;
+      }
 
+      const sessionInfo = socketSessions.get(socket.id);
       if (!sessionInfo) {
         callback({ success: false, error: 'Not in a session' });
+        return;
+      }
+
+      const validation = validateData(MoveTokenDataSchema, data, 'move-token');
+      if (!validation.success) {
+        callback({ success: false, error: validation.error });
         return;
       }
 
@@ -283,159 +357,178 @@ export function setupSocketHandlers(io: Server): void {
         return;
       }
 
-      // Check if user can move this token
-      const token = map.tokens.find(t => t.id === data.tokenId);
+      const token = map.tokens.find(t => t.id === validation.data.tokenId);
       if (!token) {
         callback({ success: false, error: 'Token not found' });
         return;
       }
 
-      // DM can move any token, players can only move tokens they own
       if (!isDm && token.ownerId !== socket.id) {
         callback({ success: false, error: 'You can only move your own token' });
         return;
       }
 
-      const tokens = moveTokenInSession(roomCode, data.tokenId, data.x, data.y);
+      const tokens = moveTokenInSession(roomCode, validation.data.tokenId, validation.data.x, validation.data.y);
 
       if (!tokens) {
         callback({ success: false, error: 'Failed to move token' });
         return;
       }
 
-      // Broadcast to all (filter hidden for non-DMs)
       const visibleTokens = tokens.filter(t => !t.isHidden);
       socket.to(roomCode).emit('tokens-updated', { tokens: visibleTokens });
 
       callback({ success: true, tokens });
     });
 
-    // DM updates a token
-    socket.on('update-token', (data: { tokenId: string; updates: Partial<Token> }, callback: (response: any) => void) => {
-      const sessionInfo = socketSessions.get(socket.id);
+    socket.on('update-token', async (data: unknown, callback: (response: any) => void) => {
+      if (!await checkLimit('update-token')) {
+        callback({ success: false, error: 'Rate limit exceeded.' });
+        return;
+      }
 
+      const sessionInfo = socketSessions.get(socket.id);
       if (!sessionInfo || !sessionInfo.isDm) {
         callback({ success: false, error: 'Only the DM can update tokens' });
         return;
       }
 
+      const validation = validateData(UpdateTokenDataSchema, data, 'update-token');
+      if (!validation.success) {
+        callback({ success: false, error: validation.error });
+        return;
+      }
+
       const { roomCode } = sessionInfo;
-      const tokens = updateTokenInSession(roomCode, data.tokenId, data.updates);
+      const tokens = updateTokenInSession(roomCode, validation.data.tokenId, validation.data.updates);
 
       if (!tokens) {
         callback({ success: false, error: 'Failed to update token' });
         return;
       }
 
-      // Broadcast to players (filter hidden tokens)
       const visibleTokens = tokens.filter(t => !t.isHidden);
       socket.to(roomCode).emit('tokens-updated', { tokens: visibleTokens });
 
       callback({ success: true, tokens });
     });
 
-    // DM removes a token
-    socket.on('remove-token', (data: { tokenId: string }, callback: (response: any) => void) => {
-      const sessionInfo = socketSessions.get(socket.id);
+    socket.on('remove-token', async (data: unknown, callback: (response: any) => void) => {
+      if (!await checkLimit('remove-token')) {
+        callback({ success: false, error: 'Rate limit exceeded.' });
+        return;
+      }
 
+      const sessionInfo = socketSessions.get(socket.id);
       if (!sessionInfo || !sessionInfo.isDm) {
         callback({ success: false, error: 'Only the DM can remove tokens' });
         return;
       }
 
+      const validation = validateData(RemoveTokenDataSchema, data, 'remove-token');
+      if (!validation.success) {
+        callback({ success: false, error: validation.error });
+        return;
+      }
+
       const { roomCode } = sessionInfo;
-      const tokens = removeTokenFromSession(roomCode, data.tokenId);
+      const tokens = removeTokenFromSession(roomCode, validation.data.tokenId);
 
       if (!tokens) {
         callback({ success: false, error: 'Failed to remove token' });
         return;
       }
 
-      // Broadcast to players
       const visibleTokens = tokens.filter(t => !t.isHidden);
       socket.to(roomCode).emit('tokens-updated', { tokens: visibleTokens });
 
       callback({ success: true, tokens });
     });
 
-    // Show map to players (DM action) - broadcasts a specific map to all players
-    socket.on('show-map-to-players', (data: { mapId: string; mapState: { imageUrl: string; gridSize: number; gridOffsetX: number; gridOffsetY: number; tokens?: Token[] } }, callback: (response: any) => void) => {
-      const sessionInfo = socketSessions.get(socket.id);
+    socket.on('show-map-to-players', async (data: unknown, callback: (response: any) => void) => {
+      if (!await checkLimit('show-map-to-players')) {
+        callback({ success: false, error: 'Rate limit exceeded.' });
+        return;
+      }
 
+      const sessionInfo = socketSessions.get(socket.id);
       if (!sessionInfo || !sessionInfo.isDm) {
         callback({ success: false, error: 'Only the DM can show maps to players' });
         return;
       }
 
+      const validation = validateData(ShowMapToPlayersDataSchema, data, 'show-map-to-players');
+      if (!validation.success) {
+        callback({ success: false, error: validation.error });
+        return;
+      }
+
       const { roomCode } = sessionInfo;
+      const { mapId, mapState } = validation.data;
 
-      // Get current live tokens from the session (including player tokens)
       const currentMap = getMapState(roomCode);
-      const livePlayerTokens = (currentMap?.tokens || []).filter(t => t.ownerId); // Player tokens have ownerId
+      const livePlayerTokens = (currentMap?.tokens || []).filter(t => t.ownerId);
+      const savedMapTokens = (mapState.tokens || []).filter(t => !t.isHidden);
 
-      // Get saved map tokens (NPCs/monsters)
-      const savedMapTokens = (data.mapState.tokens || []).filter(t => !t.isHidden);
-
-      // Merge: use saved map tokens + keep existing player tokens
       const mergedTokens = [
         ...savedMapTokens,
-        ...livePlayerTokens.filter(pt => !pt.isHidden), // Only visible player tokens
+        ...livePlayerTokens.filter(pt => !pt.isHidden),
       ];
 
-      // Also update the session's map state with the new image/grid settings
-      // but preserve player tokens
       const updatedMap = updateMapState(roomCode, {
-        imageUrl: data.mapState.imageUrl,
-        gridSize: data.mapState.gridSize,
-        gridOffsetX: data.mapState.gridOffsetX,
-        gridOffsetY: data.mapState.gridOffsetY,
+        imageUrl: mapState.imageUrl,
+        gridSize: mapState.gridSize,
+        gridOffsetX: mapState.gridOffsetX,
+        gridOffsetY: mapState.gridOffsetY,
         showGrid: true,
         tokens: mergedTokens,
       });
 
-      // Broadcast the map to all players
       socket.to(roomCode).emit('map-shown', {
-        mapId: data.mapId,
+        mapId,
         map: {
-          imageUrl: data.mapState.imageUrl,
-          gridSize: data.mapState.gridSize,
-          gridOffsetX: data.mapState.gridOffsetX,
-          gridOffsetY: data.mapState.gridOffsetY,
+          imageUrl: mapState.imageUrl,
+          gridSize: mapState.gridSize,
+          gridOffsetX: mapState.gridOffsetX,
+          gridOffsetY: mapState.gridOffsetY,
           showGrid: true,
           tokens: mergedTokens.filter(t => !t.isHidden),
           fogOfWar: [],
         },
       });
 
-      console.log(`DM showing map ${data.mapId} to players in ${roomCode} with ${mergedTokens.length} tokens (${livePlayerTokens.length} player, ${savedMapTokens.length} saved)`);
+      logger.info('Map shown to players', { roomCode, mapId, tokenCount: mergedTokens.length });
 
-      // Return the updated map state to the DM as well
       callback({ success: true, map: updatedMap });
     });
 
-    // Hide map from players (DM action)
-    socket.on('hide-map-from-players', (_data: Record<string, never>, callback: (response: any) => void) => {
-      const sessionInfo = socketSessions.get(socket.id);
+    socket.on('hide-map-from-players', async (_data: Record<string, never>, callback: (response: any) => void) => {
+      if (!await checkLimit('hide-map-from-players')) {
+        callback({ success: false, error: 'Rate limit exceeded.' });
+        return;
+      }
 
+      const sessionInfo = socketSessions.get(socket.id);
       if (!sessionInfo || !sessionInfo.isDm) {
         callback({ success: false, error: 'Only the DM can hide maps from players' });
         return;
       }
 
       const { roomCode } = sessionInfo;
-
-      // Broadcast hide command to all players
       socket.to(roomCode).emit('map-hidden', {});
 
-      console.log(`DM hiding map from players in ${roomCode}`);
+      logger.info('Map hidden from players', { roomCode });
 
       callback({ success: true });
     });
 
-    // Get current map state
-    socket.on('get-map', (callback: (response: any) => void) => {
-      const sessionInfo = socketSessions.get(socket.id);
+    socket.on('get-map', async (callback: (response: any) => void) => {
+      if (!await checkLimit('get-map')) {
+        callback({ success: false, error: 'Rate limit exceeded.' });
+        return;
+      }
 
+      const sessionInfo = socketSessions.get(socket.id);
       if (!sessionInfo) {
         callback({ success: false, error: 'Not in a session' });
         return;
@@ -449,7 +542,6 @@ export function setupSocketHandlers(io: Server): void {
         return;
       }
 
-      // Filter hidden tokens for players
       const responseMap = isDm ? map : {
         ...map,
         tokens: map.tokens.filter(t => !t.isHidden),
@@ -458,143 +550,175 @@ export function setupSocketHandlers(io: Server): void {
       callback({ success: true, map: responseMap });
     });
 
-    // ============ END MAP EVENTS ============
+    // ============ DICE, CHAT, INITIATIVE ============
 
-    // ============ PHASE 3: DICE, CHAT, INITIATIVE ============
+    socket.on('roll-dice', async (data: unknown, callback: (response: any) => void) => {
+      if (!await checkLimit('roll-dice')) {
+        callback({ success: false, error: 'Rate limit exceeded.' });
+        return;
+      }
 
-    // Roll dice (any player or DM)
-    socket.on('roll-dice', (data: { roll: DiceRoll }, callback: (response: any) => void) => {
       const sessionInfo = socketSessions.get(socket.id);
-
       if (!sessionInfo) {
         callback({ success: false, error: 'Not in a session' });
         return;
       }
 
-      const { roomCode, isDm } = sessionInfo;
-
-      // Private rolls only go to DM
-      if (data.roll.isPrivate) {
-        // Find DM socket and send only to them
-        const session = getSession(roomCode);
-        if (session?.dmSocketId) {
-          io.to(session.dmSocketId).emit('dice-rolled', { roll: data.roll });
-        }
-      } else {
-        // Broadcast to all in room
-        io.to(roomCode).emit('dice-rolled', { roll: data.roll });
-      }
-
-      console.log(`Dice rolled in ${roomCode}: ${data.roll.notation} = ${data.roll.total}`);
-
-      callback({ success: true });
-    });
-
-    // Send chat message (any player or DM)
-    socket.on('send-chat', (data: { message: ChatMessage }, callback: (response: any) => void) => {
-      const sessionInfo = socketSessions.get(socket.id);
-
-      if (!sessionInfo) {
-        callback({ success: false, error: 'Not in a session' });
+      const validation = validateData(RollDiceDataSchema, data, 'roll-dice');
+      if (!validation.success) {
+        callback({ success: false, error: validation.error });
         return;
       }
 
       const { roomCode } = sessionInfo;
+      const { roll } = validation.data;
 
-      // Broadcast to all in room
-      io.to(roomCode).emit('chat-received', { message: data.message });
+      if (roll.isPrivate) {
+        const session = getSession(roomCode);
+        if (session?.dmSocketId) {
+          io.to(session.dmSocketId).emit('dice-rolled', { roll });
+        }
+      } else {
+        io.to(roomCode).emit('dice-rolled', { roll });
+      }
 
-      console.log(`Chat in ${roomCode}: ${data.message.senderName}: ${data.message.content}`);
+      logger.debug('Dice rolled', { roomCode, notation: roll.notation, total: roll.total });
 
       callback({ success: true });
     });
 
-    // Add initiative entry (DM only)
-    socket.on('add-initiative', (data: { entry: InitiativeEntry }, callback: (response: any) => void) => {
-      const sessionInfo = socketSessions.get(socket.id);
+    socket.on('send-chat', async (data: unknown, callback: (response: any) => void) => {
+      if (!await checkLimit('send-chat')) {
+        callback({ success: false, error: 'Slow down! Too many messages.' });
+        return;
+      }
 
+      const sessionInfo = socketSessions.get(socket.id);
+      if (!sessionInfo) {
+        callback({ success: false, error: 'Not in a session' });
+        return;
+      }
+
+      const validation = validateData(SendChatDataSchema, data, 'send-chat');
+      if (!validation.success) {
+        callback({ success: false, error: validation.error });
+        return;
+      }
+
+      const { roomCode } = sessionInfo;
+      io.to(roomCode).emit('chat-received', { message: validation.data.message });
+
+      logger.debug('Chat message', { roomCode, sender: validation.data.message.senderName });
+
+      callback({ success: true });
+    });
+
+    socket.on('add-initiative', async (data: unknown, callback: (response: any) => void) => {
+      if (!await checkLimit('add-initiative')) {
+        callback({ success: false, error: 'Rate limit exceeded.' });
+        return;
+      }
+
+      const sessionInfo = socketSessions.get(socket.id);
       if (!sessionInfo || !sessionInfo.isDm) {
         callback({ success: false, error: 'Only the DM can manage initiative' });
         return;
       }
 
+      const validation = validateData(AddInitiativeDataSchema, data, 'add-initiative');
+      if (!validation.success) {
+        callback({ success: false, error: validation.error });
+        return;
+      }
+
       const { roomCode } = sessionInfo;
-      const initiative = addInitiativeEntry(roomCode, data.entry);
+      const initiative = addInitiativeEntry(roomCode, validation.data.entry);
 
       if (!initiative) {
         callback({ success: false, error: 'Failed to add initiative entry' });
         return;
       }
 
-      // Broadcast to all
       io.to(roomCode).emit('initiative-updated', { initiative });
 
       callback({ success: true, initiative });
     });
 
-    // Player rolls initiative (adds themselves to tracker)
-    socket.on('player-roll-initiative', (data: { entry: InitiativeEntry }, callback: (response: any) => void) => {
-      console.log('player-roll-initiative received from', socket.id, 'entry:', data.entry);
+    socket.on('player-roll-initiative', async (data: unknown, callback: (response: any) => void) => {
+      if (!await checkLimit('player-roll-initiative')) {
+        callback({ success: false, error: 'Rate limit exceeded.' });
+        return;
+      }
 
       const sessionInfo = socketSessions.get(socket.id);
-
       if (!sessionInfo) {
-        console.log('player-roll-initiative: Not in a session', socket.id);
         callback({ success: false, error: 'Not in a session' });
         return;
       }
 
-      // Ensure the entry is for this player (prevent adding others)
+      const validation = validateData(AddInitiativeDataSchema, data, 'player-roll-initiative');
+      if (!validation.success) {
+        callback({ success: false, error: validation.error });
+        return;
+      }
+
       const entry = {
-        ...data.entry,
-        playerId: socket.id,  // Force the playerId to be the socket's ID
-        isNpc: false,         // Players can only add player entries
+        ...validation.data.entry,
+        playerId: socket.id,
+        isNpc: false,
       };
 
       const { roomCode } = sessionInfo;
-      console.log('player-roll-initiative: Adding to room', roomCode, 'entry:', entry);
       const initiative = addInitiativeEntry(roomCode, entry);
 
       if (!initiative) {
-        console.log('player-roll-initiative: Failed to add entry');
         callback({ success: false, error: 'Failed to add initiative entry' });
         return;
       }
 
-      console.log('player-roll-initiative: Success, broadcasting to', roomCode, 'initiative count:', initiative.length);
-      // Broadcast to all
       io.to(roomCode).emit('initiative-updated', { initiative });
 
       callback({ success: true, initiative });
     });
 
-    // Remove initiative entry (DM only)
-    socket.on('remove-initiative', (data: { entryId: string }, callback: (response: any) => void) => {
-      const sessionInfo = socketSessions.get(socket.id);
+    socket.on('remove-initiative', async (data: unknown, callback: (response: any) => void) => {
+      if (!await checkLimit('remove-initiative')) {
+        callback({ success: false, error: 'Rate limit exceeded.' });
+        return;
+      }
 
+      const sessionInfo = socketSessions.get(socket.id);
       if (!sessionInfo || !sessionInfo.isDm) {
         callback({ success: false, error: 'Only the DM can manage initiative' });
         return;
       }
 
+      const validation = validateData(RemoveInitiativeDataSchema, data, 'remove-initiative');
+      if (!validation.success) {
+        callback({ success: false, error: validation.error });
+        return;
+      }
+
       const { roomCode } = sessionInfo;
-      const initiative = removeInitiativeEntry(roomCode, data.entryId);
+      const initiative = removeInitiativeEntry(roomCode, validation.data.entryId);
 
       if (!initiative) {
         callback({ success: false, error: 'Failed to remove initiative entry' });
         return;
       }
 
-      // Broadcast to all
       io.to(roomCode).emit('initiative-updated', { initiative });
 
       callback({ success: true, initiative });
     });
 
-    // Next turn in initiative (DM only)
-    socket.on('next-turn', (callback: (response: any) => void) => {
-      const sessionInfo = socketSessions.get(socket.id);
+    socket.on('next-turn', async (callback: (response: any) => void) => {
+      if (!await checkLimit('next-turn')) {
+        callback({ success: false, error: 'Rate limit exceeded.' });
+        return;
+      }
 
+      const sessionInfo = socketSessions.get(socket.id);
       if (!sessionInfo || !sessionInfo.isDm) {
         callback({ success: false, error: 'Only the DM can advance turns' });
         return;
@@ -608,44 +732,48 @@ export function setupSocketHandlers(io: Server): void {
         return;
       }
 
-      // Broadcast to all
       io.to(roomCode).emit('initiative-updated', { initiative });
 
       const activeEntry = initiative.find(e => e.isActive);
-      console.log(`Next turn in ${roomCode}: ${activeEntry?.name || 'None'}`);
+      logger.debug('Next turn', { roomCode, active: activeEntry?.name });
 
       callback({ success: true, initiative });
     });
 
-    // Start combat (DM only)
-    socket.on('start-combat', (callback: (response: any) => void) => {
-      const sessionInfo = socketSessions.get(socket.id);
+    socket.on('start-combat', async (callback: (response: any) => void) => {
+      if (!await checkLimit('start-combat')) {
+        callback({ success: false, error: 'Rate limit exceeded.' });
+        return;
+      }
 
+      const sessionInfo = socketSessions.get(socket.id);
       if (!sessionInfo || !sessionInfo.isDm) {
         callback({ success: false, error: 'Only the DM can start combat' });
         return;
       }
 
       const { roomCode } = sessionInfo;
-      const initiative = startCombat(roomCode);
+      const result = startCombat(roomCode);
 
-      if (!initiative) {
+      if (!result) {
         callback({ success: false, error: 'Failed to start combat' });
         return;
       }
 
-      // Broadcast to all
-      io.to(roomCode).emit('combat-started', { initiative });
+      io.to(roomCode).emit('combat-started', { initiative: result.initiative });
 
-      console.log(`Combat started in ${roomCode}`);
+      logger.info('Combat started', { roomCode });
 
-      callback({ success: true, initiative });
+      callback({ success: true, initiative: result.initiative });
     });
 
-    // End combat (DM only)
-    socket.on('end-combat', (callback: (response: any) => void) => {
-      const sessionInfo = socketSessions.get(socket.id);
+    socket.on('end-combat', async (callback: (response: any) => void) => {
+      if (!await checkLimit('end-combat')) {
+        callback({ success: false, error: 'Rate limit exceeded.' });
+        return;
+      }
 
+      const sessionInfo = socketSessions.get(socket.id);
       if (!sessionInfo || !sessionInfo.isDm) {
         callback({ success: false, error: 'Only the DM can end combat' });
         return;
@@ -654,18 +782,20 @@ export function setupSocketHandlers(io: Server): void {
       const { roomCode } = sessionInfo;
       endCombat(roomCode);
 
-      // Broadcast to all
       io.to(roomCode).emit('combat-ended', {});
 
-      console.log(`Combat ended in ${roomCode}`);
+      logger.info('Combat ended', { roomCode });
 
       callback({ success: true });
     });
 
-    // Get initiative state
-    socket.on('get-initiative', (callback: (response: any) => void) => {
-      const sessionInfo = socketSessions.get(socket.id);
+    socket.on('get-initiative', async (callback: (response: any) => void) => {
+      if (!await checkLimit('get-initiative')) {
+        callback({ success: false, error: 'Rate limit exceeded.' });
+        return;
+      }
 
+      const sessionInfo = socketSessions.get(socket.id);
       if (!sessionInfo) {
         callback({ success: false, error: 'Not in a session' });
         return;
@@ -686,45 +816,54 @@ export function setupSocketHandlers(io: Server): void {
       });
     });
 
-    // ============ END PHASE 3 ============
+    // ============ CHARACTER PERSISTENCE ============
 
-    // ============ PHASE 4: CHARACTER PERSISTENCE ============
+    socket.on('save-character', async (data: unknown, callback: (response: any) => void) => {
+      if (!await checkLimit('save-character')) {
+        callback({ success: false, error: 'Rate limit exceeded.' });
+        return;
+      }
 
-    // Save character (player saves their character)
-    socket.on('save-character', (data: { character: any }, callback: (response: any) => void) => {
       const sessionInfo = socketSessions.get(socket.id);
-
       if (!sessionInfo) {
         callback({ success: false, error: 'Not in a session' });
         return;
       }
 
+      // Use a more permissive validation for characters since they can have many fields
+      if (!data || typeof data !== 'object' || !('character' in data)) {
+        callback({ success: false, error: 'Invalid character data' });
+        return;
+      }
+
       const { roomCode } = sessionInfo;
-      const result = saveCharacter(roomCode, socket.id, data.character);
+      const result = saveCharacter(roomCode, socket.id, (data as any).character);
 
       if (!result) {
         callback({ success: false, error: 'Failed to save character' });
         return;
       }
 
-      // Notify DM about the character update
       const session = getSession(roomCode);
       if (session?.dmSocketId) {
         io.to(session.dmSocketId).emit('character-updated', {
           playerId: socket.id,
-          character: data.character,
+          character: (data as any).character,
         });
       }
 
-      console.log(`Character saved: ${data.character.name} by ${socket.id}`);
+      logger.info('Character saved', { roomCode, characterName: (data as any).character?.name });
 
       callback({ success: true });
     });
 
-    // Get own character (player loads their character)
-    socket.on('get-character', (callback: (response: any) => void) => {
-      const sessionInfo = socketSessions.get(socket.id);
+    socket.on('get-character', async (callback: (response: any) => void) => {
+      if (!await checkLimit('get-character')) {
+        callback({ success: false, error: 'Rate limit exceeded.' });
+        return;
+      }
 
+      const sessionInfo = socketSessions.get(socket.id);
       if (!sessionInfo) {
         callback({ success: false, error: 'Not in a session' });
         return;
@@ -736,10 +875,13 @@ export function setupSocketHandlers(io: Server): void {
       callback({ success: true, character });
     });
 
-    // Get all characters (DM only)
-    socket.on('get-all-characters', (callback: (response: any) => void) => {
-      const sessionInfo = socketSessions.get(socket.id);
+    socket.on('get-all-characters', async (callback: (response: any) => void) => {
+      if (!await checkLimit('get-all-characters')) {
+        callback({ success: false, error: 'Rate limit exceeded.' });
+        return;
+      }
 
+      const sessionInfo = socketSessions.get(socket.id);
       if (!sessionInfo || !sessionInfo.isDm) {
         callback({ success: false, error: 'Only the DM can view all characters' });
         return;
@@ -751,10 +893,13 @@ export function setupSocketHandlers(io: Server): void {
       callback({ success: true, characters });
     });
 
-    // Delete character (player deletes their character)
-    socket.on('delete-character', (callback: (response: any) => void) => {
-      const sessionInfo = socketSessions.get(socket.id);
+    socket.on('delete-character', async (callback: (response: any) => void) => {
+      if (!await checkLimit('delete-character')) {
+        callback({ success: false, error: 'Rate limit exceeded.' });
+        return;
+      }
 
+      const sessionInfo = socketSessions.get(socket.id);
       if (!sessionInfo) {
         callback({ success: false, error: 'Not in a session' });
         return;
@@ -768,7 +913,6 @@ export function setupSocketHandlers(io: Server): void {
         return;
       }
 
-      // Notify DM about the character deletion
       const session = getSession(roomCode);
       if (session?.dmSocketId) {
         io.to(session.dmSocketId).emit('character-deleted', {
@@ -776,41 +920,48 @@ export function setupSocketHandlers(io: Server): void {
         });
       }
 
-      console.log(`Character deleted by ${socket.id} in room ${roomCode}`);
+      logger.info('Character deleted', { roomCode, playerId: socket.id });
 
       callback({ success: true });
     });
 
-    // DM updates a player's character (HP, conditions, etc.)
-    socket.on('dm-update-character', (data: { characterId: string; updates: any }, callback: (response: any) => void) => {
-      const sessionInfo = socketSessions.get(socket.id);
+    socket.on('dm-update-character', async (data: unknown, callback: (response: any) => void) => {
+      if (!await checkLimit('dm-update-character')) {
+        callback({ success: false, error: 'Rate limit exceeded.' });
+        return;
+      }
 
+      const sessionInfo = socketSessions.get(socket.id);
       if (!sessionInfo || !sessionInfo.isDm) {
         callback({ success: false, error: 'Only the DM can update player characters' });
         return;
       }
 
+      const validation = validateData(DmUpdateCharacterDataSchema, data, 'dm-update-character');
+      if (!validation.success) {
+        callback({ success: false, error: validation.error });
+        return;
+      }
+
       const { roomCode } = sessionInfo;
-      const result = updateCharacterById(roomCode, data.characterId, data.updates);
+      const result = updateCharacterById(roomCode, validation.data.characterId, validation.data.updates);
 
       if (!result) {
         callback({ success: false, error: 'Character not found' });
         return;
       }
 
-      // Notify the player about their character being updated
       io.to(result.playerId).emit('character-updated-by-dm', {
         character: result.character,
       });
 
-      console.log(`DM updated character ${data.characterId} in room ${roomCode}`);
+      logger.info('DM updated character', { roomCode, characterId: validation.data.characterId });
 
       callback({ success: true, character: result.character });
     });
 
-    // ============ END PHASE 4 ============
+    // ============ DISCONNECTION ============
 
-    // Handle disconnection
     socket.on('disconnect', () => {
       const sessionInfo = socketSessions.get(socket.id);
 
@@ -818,14 +969,12 @@ export function setupSocketHandlers(io: Server): void {
         const { roomCode, isDm } = sessionInfo;
 
         if (isDm) {
-          // DM disconnected - session persists, they can reclaim with dmKey
           const session = getSession(roomCode);
           if (session) {
             session.dmSocketId = null;
           }
-          console.log(`DM disconnected from ${roomCode}`);
+          logger.info('DM disconnected', { roomCode });
         } else {
-          // Player disconnected
           markPlayerDisconnected(roomCode, socket.id);
 
           io.to(roomCode).emit('player-disconnected', {
@@ -837,18 +986,28 @@ export function setupSocketHandlers(io: Server): void {
             })),
           });
 
-          console.log(`Player ${socket.id} disconnected from ${roomCode}`);
+          logger.info('Player disconnected', { roomCode, playerId: socket.id });
         }
 
         socketSessions.delete(socket.id);
       }
 
-      console.log(`Client disconnected: ${socket.id}`);
+      socketLog.info('Client disconnected');
     });
 
-    // Get current players (for reconnection sync)
-    socket.on('get-players', (data: { roomCode: string }, callback: (response: any) => void) => {
-      const players = getPlayers(data.roomCode);
+    socket.on('get-players', async (data: unknown, callback: (response: any) => void) => {
+      if (!await checkLimit('get-players')) {
+        callback({ success: false, error: 'Rate limit exceeded.' });
+        return;
+      }
+
+      const validation = validateData(GetPlayersDataSchema, data, 'get-players');
+      if (!validation.success) {
+        callback({ success: false, error: validation.error });
+        return;
+      }
+
+      const players = getPlayers(validation.data.roomCode);
       callback({
         players: players.map(p => ({
           id: p.id,
