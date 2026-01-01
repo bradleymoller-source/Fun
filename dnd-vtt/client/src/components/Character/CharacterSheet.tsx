@@ -18,6 +18,8 @@ import {
   WARLOCK_SPELL_SLOTS,
   getSpellDetails,
   getCharacterResources,
+  WEAPON_MASTERIES,
+  WEAPON_MASTERY_DESCRIPTIONS,
 } from '../../data/dndData';
 import { Tooltip, RULE_TOOLTIPS } from '../ui/Tooltip';
 import { Button } from '../ui/Button';
@@ -878,6 +880,28 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
           </div>
         )}
       </div>
+
+      {/* Weapon Masteries */}
+      {character.weaponMasteries && character.weaponMasteries.length > 0 && (
+        <div>
+          <h4 className="text-gold font-semibold mb-2">Weapon Masteries</h4>
+          <div className="space-y-2">
+            {character.weaponMasteries.map(weapon => {
+              const masteryType = WEAPON_MASTERIES[weapon];
+              const description = masteryType ? WEAPON_MASTERY_DESCRIPTIONS[masteryType] : '';
+              return (
+                <div key={weapon} className="bg-orange-900/20 border border-orange-500/30 p-2 rounded">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-orange-300 font-semibold">{weapon}</span>
+                    <span className="text-gold text-sm font-bold">{masteryType}</span>
+                  </div>
+                  <p className="text-parchment/80 text-xs">{description}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Proficiencies */}
       <div>
