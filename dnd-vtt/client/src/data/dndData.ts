@@ -3647,3 +3647,288 @@ export const WARLOCK_SPELL_SLOTS: Record<number, { slots: number; level: number 
   19: { slots: 4, level: 5 },
   20: { slots: 4, level: 5 },
 };
+
+// ============ CLASS RESOURCES (Ki, Rage, etc.) ============
+
+export type RestType = 'short' | 'long';
+
+export interface ClassResourceDefinition {
+  id: string;
+  name: string;
+  description: string;
+  restoreOn: RestType;
+  maxAtLevel: (level: number, abilityMod?: number) => number;  // Function to calculate max uses
+  minLevel?: number;  // Level when this resource becomes available (default 1)
+  usesAbilityMod?: keyof AbilityScores;  // If max uses is based on an ability modifier
+}
+
+// Class resources by class
+export const CLASS_RESOURCES: Record<CharacterClass, ClassResourceDefinition[]> = {
+  barbarian: [
+    {
+      id: 'rage',
+      name: 'Rage',
+      description: 'Enter a battle fury that grants bonus damage and resistance',
+      restoreOn: 'long',
+      maxAtLevel: (level) => {
+        if (level >= 20) return 6;  // Unlimited at 20, but we track as 6
+        if (level >= 17) return 6;
+        if (level >= 12) return 5;
+        if (level >= 6) return 4;
+        if (level >= 3) return 3;
+        return 2;
+      },
+    },
+  ],
+  bard: [
+    {
+      id: 'bardic-inspiration',
+      name: 'Bardic Inspiration',
+      description: 'Inspire allies with a die they can add to ability checks, attacks, or saves',
+      restoreOn: 'long',  // Short rest at level 5+
+      maxAtLevel: (_level, chaMod = 0) => Math.max(1, chaMod),
+      usesAbilityMod: 'charisma',
+    },
+  ],
+  cleric: [
+    {
+      id: 'channel-divinity',
+      name: 'Channel Divinity',
+      description: 'Channel divine energy for powerful effects',
+      restoreOn: 'short',
+      minLevel: 2,
+      maxAtLevel: (level) => {
+        if (level >= 18) return 3;
+        if (level >= 6) return 2;
+        return 1;
+      },
+    },
+  ],
+  druid: [
+    {
+      id: 'wild-shape',
+      name: 'Wild Shape',
+      description: 'Transform into a beast you have seen',
+      restoreOn: 'short',
+      minLevel: 2,
+      maxAtLevel: () => 2,
+    },
+  ],
+  fighter: [
+    {
+      id: 'second-wind',
+      name: 'Second Wind',
+      description: 'Regain hit points equal to 1d10 + fighter level',
+      restoreOn: 'short',
+      maxAtLevel: () => 1,
+    },
+    {
+      id: 'action-surge',
+      name: 'Action Surge',
+      description: 'Take an additional action on your turn',
+      restoreOn: 'short',
+      minLevel: 2,
+      maxAtLevel: (level) => level >= 17 ? 2 : 1,
+    },
+    {
+      id: 'indomitable',
+      name: 'Indomitable',
+      description: 'Reroll a failed saving throw',
+      restoreOn: 'long',
+      minLevel: 9,
+      maxAtLevel: (level) => {
+        if (level >= 17) return 3;
+        if (level >= 13) return 2;
+        return 1;
+      },
+    },
+  ],
+  monk: [
+    {
+      id: 'ki-points',
+      name: 'Ki Points',
+      description: 'Fuel special martial arts techniques',
+      restoreOn: 'short',
+      minLevel: 2,
+      maxAtLevel: (level) => level,  // Ki points = monk level
+    },
+  ],
+  paladin: [
+    {
+      id: 'lay-on-hands',
+      name: 'Lay on Hands',
+      description: 'HP pool to heal creatures or cure diseases',
+      restoreOn: 'long',
+      maxAtLevel: (level) => level * 5,  // 5 HP per level
+    },
+    {
+      id: 'channel-divinity',
+      name: 'Channel Divinity',
+      description: 'Channel divine energy for powerful effects',
+      restoreOn: 'short',
+      minLevel: 3,
+      maxAtLevel: () => 1,
+    },
+    {
+      id: 'divine-sense',
+      name: 'Divine Sense',
+      description: 'Detect celestials, fiends, and undead',
+      restoreOn: 'long',
+      maxAtLevel: (_level, chaMod = 0) => 1 + Math.max(0, chaMod),
+      usesAbilityMod: 'charisma',
+    },
+  ],
+  ranger: [
+    {
+      id: 'favored-foe',
+      name: 'Favored Foe',
+      description: 'Mark a creature to deal extra damage',
+      restoreOn: 'long',
+      maxAtLevel: (level) => Math.ceil(level / 4) + 1,  // Proficiency bonus
+    },
+  ],
+  rogue: [
+    {
+      id: 'stroke-of-luck',
+      name: 'Stroke of Luck',
+      description: 'Turn a miss into a hit or failed check into success',
+      restoreOn: 'short',
+      minLevel: 20,
+      maxAtLevel: () => 1,
+    },
+  ],
+  sorcerer: [
+    {
+      id: 'sorcery-points',
+      name: 'Sorcery Points',
+      description: 'Fuel metamagic and create spell slots',
+      restoreOn: 'long',
+      minLevel: 2,
+      maxAtLevel: (level) => level,  // Sorcery points = sorcerer level
+    },
+  ],
+  warlock: [
+    // Warlock uses Pact Magic slots which are already tracked as spell slots
+  ],
+  wizard: [
+    {
+      id: 'arcane-recovery',
+      name: 'Arcane Recovery',
+      description: 'Recover spell slots during a short rest',
+      restoreOn: 'long',  // Can use once per long rest, during a short rest
+      maxAtLevel: () => 1,
+    },
+  ],
+};
+
+// Species/Race resources
+export interface SpeciesResourceDefinition extends ClassResourceDefinition {
+  species: Species[];  // Which species have this resource
+}
+
+export const SPECIES_RESOURCES: SpeciesResourceDefinition[] = [
+  {
+    id: 'breath-weapon',
+    name: 'Breath Weapon',
+    species: ['dragonborn'],
+    description: 'Exhale destructive energy',
+    restoreOn: 'long',
+    maxAtLevel: (level) => Math.ceil(level / 4) + 1,  // Proficiency bonus
+  },
+  {
+    id: 'stones-endurance',
+    name: "Stone's Endurance",
+    species: ['goliath'],
+    description: 'Reduce damage when hit',
+    restoreOn: 'short',
+    maxAtLevel: (level) => Math.ceil(level / 4) + 1,  // Proficiency bonus
+  },
+  {
+    id: 'relentless-endurance',
+    name: 'Relentless Endurance',
+    species: ['orc'],
+    description: 'Drop to 1 HP instead of 0',
+    restoreOn: 'long',
+    maxAtLevel: () => 1,
+  },
+  {
+    id: 'celestial-revelation',
+    name: 'Celestial Revelation',
+    species: ['aasimar'],
+    description: 'Transform with celestial power',
+    restoreOn: 'long',
+    maxAtLevel: () => 1,
+  },
+];
+
+// Feat resources
+export interface FeatResourceDefinition extends ClassResourceDefinition {
+  featName: string;
+}
+
+export const FEAT_RESOURCES: FeatResourceDefinition[] = [
+  {
+    id: 'lucky-points',
+    name: 'Luck Points',
+    featName: 'Lucky',
+    description: 'Reroll d20 or force enemy reroll',
+    restoreOn: 'long',
+    maxAtLevel: () => 3,
+  },
+];
+
+// Helper to get all resources for a character
+export function getCharacterResources(
+  characterClass: CharacterClass,
+  species: Species,
+  level: number,
+  abilityScores: AbilityScores,
+  feats?: string[]
+): Record<string, { max: number; restoreOn: RestType; name: string; description: string }> {
+  const resources: Record<string, { max: number; restoreOn: RestType; name: string; description: string }> = {};
+
+  // Add class resources
+  const classResources = CLASS_RESOURCES[characterClass] || [];
+  for (const resource of classResources) {
+    if (resource.minLevel && level < resource.minLevel) continue;
+
+    const abilityMod = resource.usesAbilityMod
+      ? getAbilityModifier(abilityScores[resource.usesAbilityMod])
+      : undefined;
+
+    resources[resource.id] = {
+      max: resource.maxAtLevel(level, abilityMod),
+      restoreOn: resource.restoreOn,
+      name: resource.name,
+      description: resource.description,
+    };
+  }
+
+  // Add species resources
+  for (const resource of SPECIES_RESOURCES) {
+    if (resource.species.includes(species)) {
+      resources[resource.id] = {
+        max: resource.maxAtLevel(level),
+        restoreOn: resource.restoreOn,
+        name: resource.name,
+        description: resource.description,
+      };
+    }
+  }
+
+  // Add feat resources
+  if (feats) {
+    for (const resource of FEAT_RESOURCES) {
+      if (feats.includes(resource.featName)) {
+        resources[resource.id] = {
+          max: resource.maxAtLevel(level),
+          restoreOn: resource.restoreOn,
+          name: resource.name,
+          description: resource.description,
+        };
+      }
+    }
+  }
+
+  return resources;
+}

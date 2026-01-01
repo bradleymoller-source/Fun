@@ -17,6 +17,7 @@ import {
   HALF_CASTER_SPELL_SLOTS,
   WARLOCK_SPELL_SLOTS,
   getSpellDetails,
+  getCharacterResources,
 } from '../../data/dndData';
 import { Tooltip, RULE_TOOLTIPS } from '../ui/Tooltip';
 import { Button } from '../ui/Button';
@@ -144,6 +145,23 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
     }
 
     onUpdate({ spellSlotsUsed: newSlotsUsed });
+  };
+
+  // Handle class resource toggle (ki, rage, etc.)
+  const handleResourceToggle = (resourceId: string, max: number) => {
+    if (!onUpdate) return;
+    const currentFeatureUses = character.featureUses || {};
+    const currentUse = currentFeatureUses[resourceId] || { used: 0, max, restoreOn: 'long' as const };
+
+    // Toggle: if all used, reset to 0; otherwise use one more
+    const newUsed = currentUse.used >= max ? 0 : currentUse.used + 1;
+
+    onUpdate({
+      featureUses: {
+        ...currentFeatureUses,
+        [resourceId]: { ...currentUse, used: newUsed, max },
+      },
+    });
   };
 
   const handleRollAbility = (ability: keyof AbilityScores) => {
@@ -732,6 +750,9 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
           );
         })}
       </div>
+
+      {/* Class Resources (Ki, Rage, etc.) */}
+      {renderClassResources()}
     </div>
   );
 
@@ -1068,6 +1089,107 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
                     />
                   ))}
                 </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  // Render class resources (Ki, Rage, Bardic Inspiration, etc.)
+  const renderClassResources = () => {
+    // Extract feat names from features (feats have specific sources like "Origin Feat", "Human Versatile", etc.)
+    const featNames = character.features
+      .filter(f => f.source === 'Origin Feat' || f.source === 'Human Versatile' || f.source.includes('Feat'))
+      .map(f => f.name);
+
+    // Get available resources for this character
+    const resources = getCharacterResources(
+      character.characterClass,
+      character.species,
+      character.level,
+      character.abilityScores,
+      featNames
+    );
+
+    const resourceEntries = Object.entries(resources);
+    if (resourceEntries.length === 0) return null;
+
+    return (
+      <div className="mb-4">
+        <h4 className="text-gold font-semibold mb-2">Class Resources</h4>
+        <div className="space-y-2">
+          {resourceEntries.map(([id, resource]) => {
+            const featureUse = character.featureUses?.[id] || { used: 0, max: resource.max };
+            const used = featureUse.used || 0;
+            const max = resource.max;
+            const remaining = max - used;
+
+            // For large pools like Ki or Sorcery Points, show as number
+            const isLargePool = max > 6;
+
+            return (
+              <div key={id} className="bg-dark-wood p-2 rounded border border-leather">
+                <div className="flex items-center justify-between mb-1">
+                  <Tooltip content={resource.description}>
+                    <span className="text-parchment text-sm cursor-help">{resource.name}</span>
+                  </Tooltip>
+                  <span className="text-parchment/50 text-xs">
+                    {resource.restoreOn === 'short' ? '⚡ Short Rest' : '🌙 Long Rest'}
+                  </span>
+                </div>
+                {isLargePool ? (
+                  // Large pool: show as number with +/- buttons
+                  <div className="flex items-center justify-center gap-2">
+                    <button
+                      onClick={() => isEditable && handleResourceToggle(id, max)}
+                      disabled={!isEditable || used <= 0}
+                      className="w-6 h-6 rounded bg-red-600 text-white font-bold text-sm hover:bg-red-500 disabled:opacity-50"
+                    >
+                      −
+                    </button>
+                    <span className="text-gold font-bold text-lg min-w-[60px] text-center">
+                      {remaining} / {max}
+                    </span>
+                    <button
+                      onClick={() => {
+                        if (!onUpdate || !isEditable) return;
+                        const currentFeatureUses = character.featureUses || {};
+                        const currentUse = currentFeatureUses[id] || { used: 0, max, restoreOn: resource.restoreOn };
+                        if (currentUse.used > 0) {
+                          onUpdate({
+                            featureUses: {
+                              ...currentFeatureUses,
+                              [id]: { ...currentUse, used: currentUse.used - 1, max },
+                            },
+                          });
+                        }
+                      }}
+                      disabled={!isEditable || used >= max}
+                      className="w-6 h-6 rounded bg-green-600 text-white font-bold text-sm hover:bg-green-500 disabled:opacity-50"
+                    >
+                      +
+                    </button>
+                  </div>
+                ) : (
+                  // Small pool: show as clickable circles
+                  <div className="flex gap-1 justify-center">
+                    {Array.from({ length: max }).map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => isEditable && handleResourceToggle(id, max)}
+                        disabled={!isEditable}
+                        className={`w-5 h-5 rounded-full border-2 transition-colors ${
+                          i < remaining
+                            ? 'bg-amber-500 border-amber-400'
+                            : 'border-amber-500/50 hover:border-amber-400'
+                        }`}
+                        title={`${remaining}/${max} remaining`}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             );
           })}

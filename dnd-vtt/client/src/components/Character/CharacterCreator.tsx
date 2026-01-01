@@ -61,6 +61,8 @@ import {
   MUSICAL_INSTRUMENTS,
   // Species trait choices
   HIGH_ELF_CANTRIPS,
+  // Class resources
+  getCharacterResources,
 } from '../../data/dndData';
 import type { ShopItem, OriginFeatName } from '../../data/dndData';
 
@@ -1020,6 +1022,23 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       portrait: portrait || undefined,
       createdAt: now,
       updatedAt: now,
+      // Initialize class resources (Ki, Rage, etc.)
+      featureUses: (() => {
+        const allFeats = [
+          ...(originFeat ? [originFeat.name] : []),
+          ...(species === 'human' && humanBonusFeat ? [humanBonusFeat] : []),
+        ];
+        const resources = getCharacterResources(characterClass, species, charLevel, finalScores, allFeats);
+        const featureUses: Record<string, { used: number; max: number; restoreOn: 'short' | 'long' | 'dawn' }> = {};
+        for (const [id, resource] of Object.entries(resources)) {
+          featureUses[id] = {
+            used: 0,
+            max: resource.max,
+            restoreOn: resource.restoreOn === 'short' ? 'short' : 'long',
+          };
+        }
+        return Object.keys(featureUses).length > 0 ? featureUses : undefined;
+      })(),
     };
   };
 
