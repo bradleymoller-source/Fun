@@ -9,6 +9,7 @@ import {
   SPECIES_NAMES,
   CLASS_HIT_DICE,
   CLASS_SUBCLASSES,
+  CLASS_FEATURES,
   getAbilityModifier,
   formatModifier,
   getProficiencyBonus,
@@ -20,6 +21,7 @@ import {
   getCharacterResources,
   WEAPON_MASTERIES,
   WEAPON_MASTERY_DESCRIPTIONS,
+  FIGHTING_STYLES,
 } from '../../data/dndData';
 import { Tooltip, RULE_TOOLTIPS } from '../ui/Tooltip';
 import { Button } from '../ui/Button';
@@ -902,6 +904,95 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
           </div>
         </div>
       )}
+
+      {/* Combat Actions - Key abilities for combat */}
+      {(() => {
+        // Get combat-relevant features from class
+        const classFeats = CLASS_FEATURES[character.characterClass]?.filter(f => f.level <= character.level) || [];
+
+        // Define combat action categories
+        const bonusActions: { name: string; description: string; source: string }[] = [];
+        const reactions: { name: string; description: string; source: string }[] = [];
+        const passives: { name: string; description: string; source: string }[] = [];
+
+        // Check class features for combat abilities
+        classFeats.forEach(feat => {
+          const lowerName = feat.name.toLowerCase();
+          const lowerDesc = feat.description.toLowerCase();
+
+          // Bonus actions
+          if (lowerDesc.includes('bonus action') || lowerName === 'martial arts' || lowerName === 'cunning action') {
+            bonusActions.push({ name: feat.name, description: feat.description, source: CLASS_NAMES[character.characterClass] });
+          }
+          // Reactions
+          else if (lowerDesc.includes('reaction') || lowerName.includes('deflect') || lowerName === 'uncanny dodge') {
+            reactions.push({ name: feat.name, description: feat.description, source: CLASS_NAMES[character.characterClass] });
+          }
+          // Passive combat features
+          else if (lowerName === 'unarmored defense' || lowerName === 'rage' || lowerName === 'sneak attack' ||
+                   lowerName === 'extra attack' || lowerName === 'evasion' || lowerName === 'divine smite' ||
+                   lowerName.includes('fighting style')) {
+            passives.push({ name: feat.name, description: feat.description, source: CLASS_NAMES[character.characterClass] });
+          }
+        });
+
+        // Add fighting style if selected
+        if (character.fightingStyle) {
+          const style = FIGHTING_STYLES.find(s => s.id === character.fightingStyle);
+          if (style) {
+            passives.push({ name: `Fighting Style: ${style.name}`, description: style.description, source: CLASS_NAMES[character.characterClass] });
+          }
+        }
+
+        const hasCombatActions = bonusActions.length > 0 || reactions.length > 0 || passives.length > 0;
+        if (!hasCombatActions) return null;
+
+        return (
+          <div>
+            <h4 className="text-gold font-semibold mb-2">Combat Actions</h4>
+            <div className="space-y-2">
+              {/* Bonus Actions */}
+              {bonusActions.length > 0 && (
+                <div className="bg-green-900/20 border border-green-500/30 p-2 rounded">
+                  <div className="text-green-400 text-xs font-semibold mb-1">⚡ Bonus Actions</div>
+                  {bonusActions.map((action, i) => (
+                    <div key={i} className="mb-1 last:mb-0">
+                      <span className="text-green-300 font-medium text-sm">{action.name}</span>
+                      <p className="text-parchment/70 text-xs">{action.description}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Reactions */}
+              {reactions.length > 0 && (
+                <div className="bg-yellow-900/20 border border-yellow-500/30 p-2 rounded">
+                  <div className="text-yellow-400 text-xs font-semibold mb-1">🛡️ Reactions</div>
+                  {reactions.map((action, i) => (
+                    <div key={i} className="mb-1 last:mb-0">
+                      <span className="text-yellow-300 font-medium text-sm">{action.name}</span>
+                      <p className="text-parchment/70 text-xs">{action.description}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Passive Combat Features */}
+              {passives.length > 0 && (
+                <div className="bg-blue-900/20 border border-blue-500/30 p-2 rounded">
+                  <div className="text-blue-400 text-xs font-semibold mb-1">⚔️ Passive</div>
+                  {passives.map((action, i) => (
+                    <div key={i} className="mb-1 last:mb-0">
+                      <span className="text-blue-300 font-medium text-sm">{action.name}</span>
+                      <p className="text-parchment/70 text-xs">{action.description}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Proficiencies */}
       <div>
