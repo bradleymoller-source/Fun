@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import type { TouchEvent } from 'react';
 
 export interface SelectionOption {
   id: string;
@@ -20,6 +21,8 @@ export interface SelectionOption {
   // Extra info
   hitDie?: number;
   extra?: Record<string, string | number>;
+  // Image (optional)
+  image?: string;
 }
 
 interface SelectionModalProps {
@@ -29,7 +32,7 @@ interface SelectionModalProps {
   title: string;
   options: SelectionOption[];
   selectedId?: string;
-  columns?: 1 | 2 | 3;
+  columns?: number; // Ignored in new design, kept for compatibility
 }
 
 const roleColors: Record<string, string> = {
@@ -41,10 +44,10 @@ const roleColors: Record<string, string> = {
   Utility: 'bg-cyan-600',
 };
 
-const complexityColors: Record<string, string> = {
-  Beginner: 'text-green-400 border-green-400',
-  Intermediate: 'text-yellow-400 border-yellow-400',
-  Advanced: 'text-red-400 border-red-400',
+const complexityColors: Record<string, { bg: string; text: string }> = {
+  Beginner: { bg: 'bg-green-900/50', text: 'text-green-400' },
+  Intermediate: { bg: 'bg-yellow-900/50', text: 'text-yellow-400' },
+  Advanced: { bg: 'bg-red-900/50', text: 'text-red-400' },
 };
 
 const powerColors: Record<string, string> = {
@@ -60,216 +63,287 @@ export function SelectionModal({
   title,
   options,
   selectedId,
-  columns = 2,
 }: SelectionModalProps) {
-  const [searchTerm, setSearchTerm] = useState('');
+  // Find initial index based on selectedId
+  const initialIndex = selectedId ? options.findIndex(o => o.id === selectedId) : 0;
+  const [currentIndex, setCurrentIndex] = useState(Math.max(0, initialIndex));
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Reset search when modal opens
+  // Minimum swipe distance
+  const minSwipeDistance = 50;
+
+  // Reset index when modal opens or options change
   useEffect(() => {
     if (isOpen) {
-      setSearchTerm('');
+      const idx = selectedId ? options.findIndex(o => o.id === selectedId) : 0;
+      setCurrentIndex(Math.max(0, idx));
     }
-  }, [isOpen]);
+  }, [isOpen, selectedId, options]);
 
   // Close on escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
+      if (e.key === 'ArrowLeft') goToPrevious();
+      if (e.key === 'ArrowRight') goToNext();
+      if (e.key === 'Enter') handleSelect();
     };
     if (isOpen) {
       document.addEventListener('keydown', handleEscape);
-      // Prevent body scroll when modal is open
       document.body.style.overflow = 'hidden';
     }
     return () => {
       document.removeEventListener('keydown', handleEscape);
       document.body.style.overflow = 'unset';
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, currentIndex]);
 
-  if (!isOpen) return null;
+  if (!isOpen || options.length === 0) return null;
 
-  const filteredOptions = options.filter(opt =>
-    opt.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    opt.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    opt.playstyle?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    opt.roles?.some(r => r.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const currentOption = options[currentIndex];
+  const isSelected = currentOption.id === selectedId;
 
-  const handleSelect = (id: string) => {
-    onSelect(id);
+  const goToNext = () => {
+    setCurrentIndex((prev) => (prev + 1) % options.length);
+  };
+
+  const goToPrevious = () => {
+    setCurrentIndex((prev) => (prev - 1 + options.length) % options.length);
+  };
+
+  const handleSelect = () => {
+    onSelect(currentOption.id);
     onClose();
   };
 
-  const gridCols = columns === 1 ? 'grid-cols-1' : columns === 3 ? 'md:grid-cols-3' : 'md:grid-cols-2';
+  // Touch handlers for swipe
+  const onTouchStart = (e: TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e: TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (isLeftSwipe) {
+      goToNext();
+    } else if (isRightSwipe) {
+      goToPrevious();
+    }
+  };
+
+  const colorClass = currentOption.color || 'amber';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/90"
         onClick={onClose}
       />
 
-      {/* Modal */}
-      <div className="relative w-full max-w-4xl max-h-[90vh] bg-gradient-to-b from-leather to-dark-wood border-4 border-gold rounded-xl shadow-2xl flex flex-col overflow-hidden">
+      {/* Modal Container */}
+      <div
+        ref={containerRef}
+        className="relative w-full h-full flex flex-col"
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gold/30">
+        <div className="flex items-center justify-between p-4 z-10">
           <h2 className="text-xl font-bold text-gold">{title}</h2>
           <button
             onClick={onClose}
-            className="text-parchment/60 hover:text-parchment text-2xl leading-none"
+            className="text-parchment/60 hover:text-parchment text-3xl leading-none w-10 h-10 flex items-center justify-center"
           >
             &times;
           </button>
         </div>
 
-        {/* Search */}
-        {options.length > 6 && (
-          <div className="p-3 border-b border-gold/20">
-            <input
-              type="text"
-              placeholder="Search..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-dark-wood/50 text-parchment px-3 py-2 rounded border border-leather focus:border-gold focus:outline-none"
-              autoFocus
+        {/* Navigation Dots */}
+        <div className="flex justify-center gap-1.5 px-4 pb-2 z-10">
+          {options.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => setCurrentIndex(idx)}
+              className={`w-2 h-2 rounded-full transition-all ${
+                idx === currentIndex
+                  ? 'bg-gold w-6'
+                  : options[idx].id === selectedId
+                  ? 'bg-gold/60'
+                  : 'bg-parchment/30 hover:bg-parchment/50'
+              }`}
             />
-          </div>
-        )}
+          ))}
+        </div>
 
-        {/* Options Grid */}
-        <div className={`flex-1 overflow-y-auto p-3 sm:p-4 grid ${gridCols} gap-3`}>
-          {filteredOptions.map((option) => {
-            const isSelected = option.id === selectedId;
-            const colorClass = option.color || 'amber';
+        {/* Card Container */}
+        <div className="flex-1 flex items-center justify-center px-4 pb-4 overflow-hidden">
+          {/* Previous Arrow */}
+          <button
+            onClick={goToPrevious}
+            className="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-12 h-12 flex items-center justify-center text-gold/60 hover:text-gold text-4xl"
+          >
+            ‹
+          </button>
 
-            return (
+          {/* Card */}
+          <div
+            className={`
+              w-full max-w-md h-full max-h-[70vh]
+              bg-gradient-to-b from-dark-wood to-leather
+              border-4 rounded-xl overflow-hidden
+              flex flex-col
+              transition-all duration-200
+              ${isSelected ? 'border-gold shadow-[0_0_20px_rgba(218,165,32,0.4)]' : `border-${colorClass}-500/50`}
+            `}
+          >
+            {/* Card Header */}
+            <div className={`p-4 bg-${colorClass}-900/30 border-b border-${colorClass}-500/30`}>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <h3 className="text-2xl font-bold text-gold">{currentOption.name}</h3>
+                  {currentOption.hitDie && (
+                    <span className="text-parchment/60 text-sm">Hit Die: d{currentOption.hitDie}</span>
+                  )}
+                </div>
+                {isSelected && (
+                  <span className="text-gold text-2xl">✓</span>
+                )}
+              </div>
+
+              {/* Roles */}
+              {currentOption.roles && currentOption.roles.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {currentOption.roles.map(role => (
+                    <span
+                      key={role}
+                      className={`${roleColors[role] || 'bg-gray-600'} text-white text-sm px-2 py-1 rounded font-medium`}
+                    >
+                      {role}
+                    </span>
+                  ))}
+                  {currentOption.complexity && (
+                    <span className={`${complexityColors[currentOption.complexity].bg} ${complexityColors[currentOption.complexity].text} text-sm px-2 py-1 rounded border border-current`}>
+                      {currentOption.complexity}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Power type for feats */}
+              {currentOption.power && (
+                <div className="flex gap-1.5 mt-2">
+                  <span className={`${powerColors[currentOption.power]} text-white text-sm px-2 py-1 rounded font-medium`}>
+                    {currentOption.power}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Card Content - Scrollable */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {/* Playstyle / Summary / Flavor */}
+              {(currentOption.playstyle || currentOption.summary || currentOption.flavor) && (
+                <div>
+                  <p className="text-parchment text-base leading-relaxed">
+                    {currentOption.playstyle || currentOption.summary || currentOption.flavor}
+                  </p>
+                </div>
+              )}
+
+              {/* Theme (for backgrounds) */}
+              {currentOption.theme && (
+                <div className="bg-black/20 rounded p-3">
+                  <span className="text-gold text-sm font-semibold">Theme</span>
+                  <p className="text-parchment/90 mt-1">{currentOption.theme}</p>
+                </div>
+              )}
+
+              {/* Description */}
+              {currentOption.description && !currentOption.playstyle && !currentOption.summary && (
+                <div>
+                  <p className="text-parchment/80">{currentOption.description}</p>
+                </div>
+              )}
+
+              {/* Key Stats */}
+              {currentOption.keyStats && (
+                <div className="bg-black/20 rounded p-3">
+                  <span className="text-gold text-sm font-semibold">Key Stats</span>
+                  <p className="text-parchment text-lg font-medium mt-1">{currentOption.keyStats}</p>
+                </div>
+              )}
+
+              {/* Traits (for species) */}
+              {currentOption.traits && (
+                <div className="bg-black/20 rounded p-3">
+                  <span className="text-gold text-sm font-semibold">Key Traits</span>
+                  <p className="text-parchment/90 mt-1">{currentOption.traits}</p>
+                </div>
+              )}
+
+              {/* Best For / Good For */}
+              {(currentOption.bestFor || currentOption.goodFor) && (
+                <div className="bg-black/20 rounded p-3">
+                  <span className="text-gold text-sm font-semibold">Great For</span>
+                  <p className="text-parchment/90 mt-1">
+                    {Array.isArray(currentOption.bestFor) ? currentOption.bestFor.join(', ') :
+                     Array.isArray(currentOption.goodFor) ? currentOption.goodFor.join(', ') :
+                     currentOption.goodFor}
+                  </p>
+                </div>
+              )}
+
+              {/* Extra info */}
+              {currentOption.extra && Object.entries(currentOption.extra).map(([key, value]) => (
+                <div key={key} className="bg-black/20 rounded p-3">
+                  <span className="text-gold text-sm font-semibold">{key}</span>
+                  <p className="text-parchment/90 mt-1">{value}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Card Footer */}
+            <div className="p-4 border-t border-gold/20 bg-black/20">
               <button
-                key={option.id}
-                onClick={() => handleSelect(option.id)}
+                onClick={handleSelect}
                 className={`
-                  text-left p-3 rounded-lg border-2 transition-all
+                  w-full py-3 rounded-lg font-bold text-lg transition-all
                   ${isSelected
-                    ? `border-gold bg-gold/20 ring-2 ring-gold/50`
-                    : `border-${colorClass}-500/30 bg-${colorClass}-900/20 hover:border-${colorClass}-400 hover:bg-${colorClass}-900/30`
+                    ? 'bg-gold/20 text-gold border-2 border-gold'
+                    : 'bg-gold text-dark-wood hover:bg-gold/90'
                   }
                 `}
               >
-                {/* Header Row */}
-                <div className="flex items-start justify-between gap-2 mb-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`font-bold ${isSelected ? 'text-gold' : 'text-parchment'}`}>
-                      {option.name}
-                    </span>
-                    {option.hitDie && (
-                      <span className="text-xs text-parchment/60">(d{option.hitDie})</span>
-                    )}
-                  </div>
-                  {isSelected && (
-                    <span className="text-gold text-sm">✓</span>
-                  )}
-                </div>
-
-                {/* Roles */}
-                {option.roles && option.roles.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mb-1">
-                    {option.roles.map(role => (
-                      <span
-                        key={role}
-                        className={`${roleColors[role] || 'bg-gray-600'} text-white text-xs px-1.5 py-0.5 rounded font-medium`}
-                      >
-                        {role}
-                      </span>
-                    ))}
-                    {option.complexity && (
-                      <span className={`${complexityColors[option.complexity]} text-xs px-1.5 py-0.5 rounded border`}>
-                        {option.complexity}
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {/* Power type for feats */}
-                {option.power && (
-                  <div className="flex gap-1 mb-1">
-                    <span className={`${powerColors[option.power]} text-white text-xs px-1.5 py-0.5 rounded font-medium`}>
-                      {option.power}
-                    </span>
-                  </div>
-                )}
-
-                {/* Playstyle / Summary / Flavor */}
-                {(option.playstyle || option.summary || option.flavor) && (
-                  <p className="text-parchment/80 text-xs mb-1">
-                    {option.playstyle || option.summary || option.flavor}
-                  </p>
-                )}
-
-                {/* Theme (for backgrounds) */}
-                {option.theme && (
-                  <p className="text-parchment/70 text-xs mb-1 italic">
-                    {option.theme}
-                  </p>
-                )}
-
-                {/* Key Stats */}
-                {option.keyStats && (
-                  <div className="text-xs">
-                    <span className="text-gold/80">Stats: </span>
-                    <span className="text-parchment/70">{option.keyStats}</span>
-                  </div>
-                )}
-
-                {/* Traits (for species) */}
-                {option.traits && (
-                  <div className="text-xs">
-                    <span className="text-gold/80">Traits: </span>
-                    <span className="text-parchment/70">{option.traits}</span>
-                  </div>
-                )}
-
-                {/* Best For / Good For */}
-                {(option.bestFor || option.goodFor) && (
-                  <div className="text-xs mt-0.5">
-                    <span className="text-gold/80">Good for: </span>
-                    <span className="text-parchment/70">
-                      {Array.isArray(option.bestFor) ? option.bestFor.join(', ') :
-                       Array.isArray(option.goodFor) ? option.goodFor.join(', ') :
-                       option.goodFor}
-                    </span>
-                  </div>
-                )}
-
-                {/* Extra info */}
-                {option.extra && Object.entries(option.extra).map(([key, value]) => (
-                  <div key={key} className="text-xs mt-0.5">
-                    <span className="text-gold/80">{key}: </span>
-                    <span className="text-parchment/70">{value}</span>
-                  </div>
-                ))}
+                {isSelected ? '✓ Selected' : 'Select'}
               </button>
-            );
-          })}
-
-          {filteredOptions.length === 0 && (
-            <div className="col-span-full text-center text-parchment/60 py-8">
-              No options match your search
             </div>
-          )}
+          </div>
+
+          {/* Next Arrow */}
+          <button
+            onClick={goToNext}
+            className="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-12 h-12 flex items-center justify-center text-gold/60 hover:text-gold text-4xl"
+          >
+            ›
+          </button>
         </div>
 
-        {/* Footer */}
-        <div className="p-3 border-t border-gold/30 flex justify-between items-center">
-          <span className="text-parchment/60 text-sm">
-            {filteredOptions.length} option{filteredOptions.length !== 1 ? 's' : ''}
-          </span>
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-leather hover:bg-leather/80 text-parchment rounded border border-gold/30"
-          >
-            Cancel
-          </button>
+        {/* Footer Counter */}
+        <div className="text-center pb-4 text-parchment/60">
+          {currentIndex + 1} of {options.length}
+          <span className="text-parchment/40 ml-2">• Swipe or use arrows</span>
         </div>
       </div>
     </div>
