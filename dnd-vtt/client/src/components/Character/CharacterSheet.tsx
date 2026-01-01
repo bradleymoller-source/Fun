@@ -22,7 +22,7 @@ import {
 import { Tooltip, RULE_TOOLTIPS } from '../ui/Tooltip';
 import { Button } from '../ui/Button';
 
-type SheetTab = 'stats' | 'skills' | 'combat' | 'equipment' | 'spells' | 'bio';
+type SheetTab = 'stats' | 'skills' | 'combat' | 'equipment' | 'spells' | 'features' | 'bio';
 
 // All D&D conditions
 const ALL_CONDITIONS: Condition[] = [
@@ -330,6 +330,7 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
     { id: 'combat', label: 'Combat' },
     { id: 'equipment', label: 'Gear' },
     { id: 'spells', label: 'Spells' },
+    { id: 'features', label: 'Feats' },
     { id: 'bio', label: 'Bio' },
   ];
 
@@ -1478,38 +1479,98 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
     );
   };
 
-  const renderBioTab = () => (
-    <div className="space-y-4">
-      {/* Features */}
-      <div>
-        <h4 className="text-gold font-semibold mb-2">Features & Traits</h4>
-        {character.features.length === 0 ? (
-          <p className="text-parchment/50 text-sm">No features or traits</p>
-        ) : (
-          <div className="space-y-2">
-            {character.features.map(feature => (
-              <div key={feature.id} className="bg-dark-wood rounded border border-leather overflow-hidden">
-                <button
-                  onClick={() => setExpandedFeature(expandedFeature === feature.id ? null : feature.id)}
-                  className="w-full p-3 flex justify-between items-start text-left hover:bg-leather/30"
-                >
-                  <div>
-                    <span className="text-gold font-semibold">{feature.name}</span>
-                    <span className="text-parchment/50 text-xs ml-2">{feature.source}</span>
-                  </div>
-                  <span className="text-parchment/50">{expandedFeature === feature.id ? '▼' : '▶'}</span>
-                </button>
-                {expandedFeature === feature.id && (
-                  <div className="px-3 pb-3 border-t border-leather">
-                    <p className="text-parchment text-sm mt-2">{feature.description}</p>
-                  </div>
-                )}
-              </div>
-            ))}
+  const renderFeaturesTab = () => {
+    // Separate feats from other features
+    const feats = character.features.filter(f =>
+      f.source === 'Origin Feat' ||
+      f.source === 'Human Versatile' ||
+      f.source.includes('Feat') ||
+      f.source === 'Bonus Feat'
+    );
+    const classFeatures = character.features.filter(f =>
+      f.source.includes('Class') ||
+      f.source === character.characterClass ||
+      f.source === CLASS_NAMES[character.characterClass]
+    );
+    const speciesFeatures = character.features.filter(f =>
+      f.source.includes('Species') ||
+      f.source === character.species ||
+      f.source === SPECIES_NAMES[character.species]
+    );
+    const otherFeatures = character.features.filter(f =>
+      !feats.includes(f) && !classFeatures.includes(f) && !speciesFeatures.includes(f)
+    );
+
+    const renderFeatureList = (features: typeof character.features, emptyMessage: string) => {
+      if (features.length === 0) {
+        return <p className="text-parchment/50 text-sm">{emptyMessage}</p>;
+      }
+      return (
+        <div className="space-y-2">
+          {features.map(feature => (
+            <div key={feature.id} className="bg-dark-wood rounded border border-leather overflow-hidden">
+              <button
+                onClick={() => setExpandedFeature(expandedFeature === feature.id ? null : feature.id)}
+                className="w-full p-2 flex justify-between items-start text-left hover:bg-leather/30"
+              >
+                <div>
+                  <span className="text-gold font-semibold text-sm">{feature.name}</span>
+                  <span className="text-parchment/50 text-xs ml-2">({feature.source})</span>
+                </div>
+                <span className="text-parchment/50 text-xs">{expandedFeature === feature.id ? '▼' : '▶'}</span>
+              </button>
+              {expandedFeature === feature.id && (
+                <div className="px-2 pb-2 border-t border-leather">
+                  <p className="text-parchment text-xs mt-2">{feature.description}</p>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      );
+    };
+
+    return (
+      <div className="space-y-4">
+        {/* Feats */}
+        <div>
+          <h4 className="text-gold font-semibold mb-2 flex items-center gap-2">
+            <span>⭐</span> Feats
+          </h4>
+          {renderFeatureList(feats, 'No feats acquired')}
+        </div>
+
+        {/* Class Features */}
+        <div>
+          <h4 className="text-gold font-semibold mb-2 flex items-center gap-2">
+            <span>⚔️</span> Class Features
+          </h4>
+          {renderFeatureList(classFeatures, 'No class features')}
+        </div>
+
+        {/* Species Traits */}
+        <div>
+          <h4 className="text-gold font-semibold mb-2 flex items-center gap-2">
+            <span>🧬</span> Species Traits
+          </h4>
+          {renderFeatureList(speciesFeatures, 'No species traits')}
+        </div>
+
+        {/* Other Features */}
+        {otherFeatures.length > 0 && (
+          <div>
+            <h4 className="text-gold font-semibold mb-2 flex items-center gap-2">
+              <span>📜</span> Other Features
+            </h4>
+            {renderFeatureList(otherFeatures, '')}
           </div>
         )}
       </div>
+    );
+  };
 
+  const renderBioTab = () => (
+    <div className="space-y-4">
       {/* Personality */}
       {character.personalityTraits && (
         <div>
@@ -1566,6 +1627,7 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
       case 'combat': return renderCombatTab();
       case 'equipment': return renderEquipmentTab();
       case 'spells': return renderSpellsTab();
+      case 'features': return renderFeaturesTab();
       case 'bio': return renderBioTab();
     }
   };
@@ -1580,7 +1642,7 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 min-w-[60px] px-2 py-1.5 rounded text-sm transition-colors ${
+            className={`px-2 py-1 rounded text-xs transition-colors whitespace-nowrap ${
               activeTab === tab.id
                 ? 'bg-gold text-dark-wood font-semibold'
                 : 'text-parchment hover:bg-leather'

@@ -1364,57 +1364,76 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
               ))}
             </div>
             {/* Subclass Choices */}
-            {CLASS_SUBCLASSES[characterClass].find(sc => sc.name === subclass)?.choices?.map(choice => {
-              const selectedOptions = subclassChoices[choice.id] || [];
-              const isComplete = selectedOptions.length === choice.count;
+            {(() => {
+              const selectedSubclass = CLASS_SUBCLASSES[characterClass].find(sc => sc.name === subclass);
+              const subclassLevelAvailable = selectedSubclass?.levelAvailable || 1;
+              const meetsLevelRequirement = level >= subclassLevelAvailable;
 
-              const toggleOption = (optionId: string) => {
-                const current = subclassChoices[choice.id] || [];
-                if (current.includes(optionId)) {
-                  // Remove
-                  setSubclassChoices({ ...subclassChoices, [choice.id]: current.filter(id => id !== optionId) });
-                } else if (current.length < choice.count) {
-                  // Add (only if we haven't reached the max)
-                  setSubclassChoices({ ...subclassChoices, [choice.id]: [...current, optionId] });
-                }
-              };
+              if (!selectedSubclass?.choices) return null;
 
-              return (
-                <div key={choice.id} className="mt-3 p-2 bg-dark-wood border border-gold/30 rounded">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-gold font-bold text-sm">{choice.name}</span>
-                    <span className={`text-xs px-2 py-0.5 rounded ${isComplete ? 'bg-green-600/80 text-white' : 'bg-leather text-parchment/70'}`}>
-                      {selectedOptions.length}/{choice.count}
-                    </span>
+              // If character doesn't meet level requirement, show a note
+              if (!meetsLevelRequirement) {
+                return (
+                  <div className="mt-3 p-2 bg-leather/30 border border-parchment/30 rounded">
+                    <p className="text-parchment/60 text-xs text-center">
+                      🔒 Subclass features unlock at level {subclassLevelAvailable}
+                    </p>
                   </div>
-                  <p className="text-parchment/60 text-xs mb-2">{choice.description}</p>
-                  <div className="space-y-1 max-h-48 overflow-y-auto">
-                    {choice.options.map(option => {
-                      const isSelected = selectedOptions.includes(option.id);
-                      const isDisabled = !isSelected && selectedOptions.length >= choice.count;
+                );
+              }
 
-                      return (
-                        <button
-                          key={option.id}
-                          onClick={() => toggleOption(option.id)}
-                          disabled={isDisabled}
-                          className={`w-full text-left p-2 rounded text-xs transition-colors ${
-                            isSelected
-                              ? 'bg-gold/30 border border-gold text-parchment'
-                              : isDisabled
-                              ? 'bg-leather/20 text-parchment/40 cursor-not-allowed'
-                              : 'bg-leather/30 hover:bg-leather/50 text-parchment/80 border border-transparent'
-                          }`}
-                        >
-                          <div className="font-semibold">{isSelected ? '✓ ' : ''}{option.name}</div>
-                          <div className="text-parchment/60 mt-0.5">{option.description}</div>
-                        </button>
-                      );
-                    })}
+              return selectedSubclass.choices.map(choice => {
+                const selectedOptions = subclassChoices[choice.id] || [];
+                const isComplete = selectedOptions.length === choice.count;
+
+                const toggleOption = (optionId: string) => {
+                  const current = subclassChoices[choice.id] || [];
+                  if (current.includes(optionId)) {
+                    // Remove
+                    setSubclassChoices({ ...subclassChoices, [choice.id]: current.filter(id => id !== optionId) });
+                  } else if (current.length < choice.count) {
+                    // Add (only if we haven't reached the max)
+                    setSubclassChoices({ ...subclassChoices, [choice.id]: [...current, optionId] });
+                  }
+                };
+
+                return (
+                  <div key={choice.id} className="mt-3 p-2 bg-dark-wood border border-gold/30 rounded">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-gold font-bold text-sm">{choice.name}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded ${isComplete ? 'bg-green-600/80 text-white' : 'bg-leather text-parchment/70'}`}>
+                        {selectedOptions.length}/{choice.count}
+                      </span>
+                    </div>
+                    <p className="text-parchment/60 text-xs mb-2">{choice.description}</p>
+                    <div className="space-y-1 max-h-48 overflow-y-auto">
+                      {choice.options.map(option => {
+                        const isSelected = selectedOptions.includes(option.id);
+                        const isDisabled = !isSelected && selectedOptions.length >= choice.count;
+
+                        return (
+                          <button
+                            key={option.id}
+                            onClick={() => toggleOption(option.id)}
+                            disabled={isDisabled}
+                            className={`w-full text-left p-2 rounded text-xs transition-colors ${
+                              isSelected
+                                ? 'bg-gold/30 border border-gold text-parchment'
+                                : isDisabled
+                                ? 'bg-leather/20 text-parchment/40 cursor-not-allowed'
+                                : 'bg-leather/30 hover:bg-leather/50 text-parchment/80 border border-transparent'
+                            }`}
+                          >
+                            <div className="font-semibold">{isSelected ? '✓ ' : ''}{option.name}</div>
+                            <div className="text-parchment/60 mt-0.5">{option.description}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              });
+            })()}
             {/* Bonus Spells */}
             {CLASS_SUBCLASSES[characterClass].find(sc => sc.name === subclass)?.bonusSpells && (
               <div className="mt-2 p-2 bg-blue-900/30 border border-blue-500/30 rounded">
@@ -1877,10 +1896,17 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
             className="w-full bg-parchment text-dark-wood px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-gold"
           >
             <option value="">Select a feat...</option>
-            {Object.keys(ORIGIN_FEATS).map(feat => (
-              <option key={feat} value={feat}>{feat}</option>
-            ))}
+            {Object.keys(ORIGIN_FEATS)
+              .filter(feat => feat !== originFeat?.name) // Filter out the background's origin feat
+              .map(feat => (
+                <option key={feat} value={feat}>{feat}</option>
+              ))}
           </select>
+          {originFeat && (
+            <p className="text-parchment/50 text-xs mt-1 italic">
+              Note: {originFeat.name} is already selected from your background.
+            </p>
+          )}
           {humanBonusFeat && (
             <div className="mt-2 text-xs">
               <p className="text-parchment/70">{ORIGIN_FEATS[humanBonusFeat].description}</p>
