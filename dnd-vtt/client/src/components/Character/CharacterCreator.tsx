@@ -94,6 +94,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
   const [subclassChoices, setSubclassChoices] = useState<Record<string, string[]>>({});
   const [fightingStyle, setFightingStyle] = useState<string>('');
   const [eldritchInvocations, setEldritchInvocations] = useState<string[]>([]);
+  const [pactOfTomeCantrips, setPactOfTomeCantrips] = useState<string[]>([]); // Cantrips from Pact of the Tome
   const [expertiseSkills, setExpertiseSkills] = useState<SkillName[]>([]);
   // Origin feat choices
   const [originFeatCantrips, setOriginFeatCantrips] = useState<string[]>([]);
@@ -228,6 +229,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       setFightingStyle('');
     }
     setEldritchInvocations([]);
+    setPactOfTomeCantrips([]);
     setExpertiseSkills([]);
   }, [characterClass]);
 
@@ -236,6 +238,13 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     setRolledHp(null);
     setHpMethod('standard');
   }, [characterClass]);
+
+  // Clear Pact of the Tome cantrips if invocation is deselected
+  useEffect(() => {
+    if (!eldritchInvocations.includes('pact-of-the-tome')) {
+      setPactOfTomeCantrips([]);
+    }
+  }, [eldritchInvocations]);
 
   // Reset equipment when class changes
   useEffect(() => {
@@ -927,6 +936,18 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
         ...selectedCantrips,
         ...(highElfCantrip ? [highElfCantrip] : []),
         ...originFeatCantrips,
+        // Species innate cantrips (e.g., Aasimar Light)
+        ...(speciesTraits.cantrips || []),
+        // Species choice cantrips based on lineage/legacy selection
+        ...(species === 'elf' && speciesChoice === 'drow' ? ['Dancing Lights'] : []),
+        ...(species === 'gnome' && speciesChoice === 'forest-gnome' ? ['Minor Illusion'] : []),
+        ...(species === 'tiefling' && speciesChoice === 'abyssal' ? ['Poison Spray'] : []),
+        ...(species === 'tiefling' && speciesChoice === 'chthonic' ? ['Chill Touch'] : []),
+        ...(species === 'tiefling' && speciesChoice === 'infernal' ? ['Thaumaturgy'] : []),
+        // Monk Warrior of the Elements - Elementalism cantrip
+        ...(characterClass === 'monk' && subclass === 'Warrior of the Elements' ? ['Elementalism'] : []),
+        // Pact of the Tome cantrips (Warlock invocation)
+        ...pactOfTomeCantrips,
       ],
       spells: [
         ...selectedSpells,
@@ -1198,6 +1219,58 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
               );
             })}
           </div>
+
+          {/* Pact of the Tome Cantrip Selection */}
+          {eldritchInvocations.includes('pact-of-the-tome') && (
+            <div className="mt-3 pt-3 border-t border-purple-500/30">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-purple-300 text-xs font-semibold">Pact of the Tome Cantrips</span>
+                <span className={`text-xs px-2 py-0.5 rounded ${
+                  pactOfTomeCantrips.length === 3
+                    ? 'bg-green-600/80 text-white'
+                    : 'bg-leather text-parchment/70'
+                }`}>
+                  {pactOfTomeCantrips.length}/3
+                </span>
+              </div>
+              <p className="text-parchment/70 text-xs mb-2">Choose 3 cantrips from any class spell list.</p>
+              <div className="grid grid-cols-2 gap-1 max-h-32 overflow-y-auto">
+                {/* Get all unique cantrips from all classes */}
+                {(() => {
+                  const allCantrips = new Set<string>();
+                  Object.values(CLASS_CANTRIPS).forEach(list => {
+                    list?.forEach(c => allCantrips.add(c.name));
+                  });
+                  return Array.from(allCantrips).sort().map(cantrip => {
+                    const isSelected = pactOfTomeCantrips.includes(cantrip);
+                    const atMax = pactOfTomeCantrips.length >= 3;
+                    return (
+                      <button
+                        key={cantrip}
+                        onClick={() => {
+                          if (isSelected) {
+                            setPactOfTomeCantrips(pactOfTomeCantrips.filter(c => c !== cantrip));
+                          } else if (!atMax) {
+                            setPactOfTomeCantrips([...pactOfTomeCantrips, cantrip]);
+                          }
+                        }}
+                        disabled={!isSelected && atMax}
+                        className={`text-left px-2 py-1 rounded text-xs ${
+                          isSelected
+                            ? 'bg-purple-600/40 text-purple-200'
+                            : atMax
+                            ? 'text-parchment/30 cursor-not-allowed'
+                            : 'text-parchment/70 hover:bg-leather/30'
+                        }`}
+                      >
+                        {isSelected ? '✓ ' : ''}{cantrip}
+                      </button>
+                    );
+                  });
+                })()}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1950,7 +2023,28 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     const acquiredCantrips: { name: string; source: string }[] = [];
     const acquiredSpells: { name: string; source: string }[] = [];
 
-    // High Elf cantrip
+    // Species innate cantrips (e.g., Aasimar Light)
+    const speciesTraits = SPECIES_TRAITS[species];
+    if (speciesTraits.cantrips) {
+      speciesTraits.cantrips.forEach(c => {
+        acquiredCantrips.push({ name: c, source: SPECIES_NAMES[species] });
+      });
+    }
+
+    // Species choice cantrips (lineage/legacy)
+    if (species === 'elf' && speciesChoice === 'drow') {
+      acquiredCantrips.push({ name: 'Dancing Lights', source: 'Drow' });
+    }
+    if (species === 'gnome' && speciesChoice === 'forest-gnome') {
+      acquiredCantrips.push({ name: 'Minor Illusion', source: 'Forest Gnome' });
+    }
+    if (species === 'tiefling') {
+      if (speciesChoice === 'abyssal') acquiredCantrips.push({ name: 'Poison Spray', source: 'Abyssal Legacy' });
+      if (speciesChoice === 'chthonic') acquiredCantrips.push({ name: 'Chill Touch', source: 'Chthonic Legacy' });
+      if (speciesChoice === 'infernal') acquiredCantrips.push({ name: 'Thaumaturgy', source: 'Infernal Legacy' });
+    }
+
+    // High Elf cantrip (wizard cantrip choice)
     if (highElfCantrip) {
       acquiredCantrips.push({ name: highElfCantrip, source: 'High Elf' });
     }
@@ -1967,6 +2061,16 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     const subclassBonusSpells = CLASS_SUBCLASSES[characterClass]?.find(sc => sc.name === subclass)?.bonusSpells || [];
     subclassBonusSpells.forEach(s => {
       acquiredSpells.push({ name: s, source: subclass || 'Subclass' });
+    });
+
+    // Monk Warrior of the Elements - Elementalism cantrip
+    if (characterClass === 'monk' && subclass === 'Warrior of the Elements') {
+      acquiredCantrips.push({ name: 'Elementalism', source: 'Warrior of the Elements' });
+    }
+
+    // Pact of the Tome cantrips (Warlock invocation)
+    pactOfTomeCantrips.forEach(c => {
+      acquiredCantrips.push({ name: c, source: 'Pact of the Tome' });
     });
 
     return (
