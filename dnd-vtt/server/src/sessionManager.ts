@@ -474,5 +474,41 @@ export function deleteCharacter(roomCode: string, playerId: string): boolean {
   return deleted;
 }
 
+// Update a character by characterId (for DM use)
+export function updateCharacterById(roomCode: string, characterId: string, updates: any): any | null {
+  const session = getSession(roomCode);
+  if (!session) return null;
+
+  // Find the character by ID
+  for (const [playerId, charData] of session.characters.entries()) {
+    try {
+      const character = JSON.parse(charData.data);
+      if (character.id === characterId) {
+        // Apply updates
+        const updatedCharacter = { ...character, ...updates, updatedAt: new Date().toISOString() };
+
+        // Save back
+        const newCharData: CharacterData = {
+          id: characterId,
+          playerId,
+          name: updatedCharacter.name || character.name,
+          data: JSON.stringify(updatedCharacter),
+          updatedAt: new Date().toISOString(),
+        };
+
+        session.characters.set(playerId, newCharData);
+        updateActivity(roomCode);
+
+        console.log(`Character ${characterId} updated by DM in ${roomCode}`);
+        return { character: updatedCharacter, playerId };
+      }
+    } catch {
+      // Skip invalid characters
+    }
+  }
+
+  return null;
+}
+
 // Re-export for use in index.ts
 export { cleanupExpiredSessions };

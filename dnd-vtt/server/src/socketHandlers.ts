@@ -26,6 +26,7 @@ import {
   getCharacter,
   getAllCharacters,
   deleteCharacter,
+  updateCharacterById,
 } from './sessionManager';
 import { JoinSessionRequest, ReclaimSessionRequest, Token, MapState, DiceRoll, ChatMessage, InitiativeEntry } from './types';
 
@@ -739,6 +740,33 @@ export function setupSocketHandlers(io: Server): void {
       console.log(`Character deleted by ${socket.id} in room ${roomCode}`);
 
       callback({ success: true });
+    });
+
+    // DM updates a player's character (HP, conditions, etc.)
+    socket.on('dm-update-character', (data: { characterId: string; updates: any }, callback: (response: any) => void) => {
+      const sessionInfo = socketSessions.get(socket.id);
+
+      if (!sessionInfo || !sessionInfo.isDm) {
+        callback({ success: false, error: 'Only the DM can update player characters' });
+        return;
+      }
+
+      const { roomCode } = sessionInfo;
+      const result = updateCharacterById(roomCode, data.characterId, data.updates);
+
+      if (!result) {
+        callback({ success: false, error: 'Character not found' });
+        return;
+      }
+
+      // Notify the player about their character being updated
+      io.to(result.playerId).emit('character-updated-by-dm', {
+        character: result.character,
+      });
+
+      console.log(`DM updated character ${data.characterId} in room ${roomCode}`);
+
+      callback({ success: true, character: result.character });
     });
 
     // ============ END PHASE 4 ============

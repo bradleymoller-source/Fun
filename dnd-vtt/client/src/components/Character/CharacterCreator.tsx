@@ -2451,7 +2451,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
             <h4 className="text-purple-400 text-sm mb-2">
               Class Cantrips ({selectedCantrips.length}/{cantripsNeeded})
             </h4>
-            <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
+            <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
               {cantrips.map(cantrip => {
                 const isSelected = selectedCantrips.includes(cantrip.name);
                 const isAlreadyAcquired = acquiredCantrips.some(ac => ac.name === cantrip.name);
@@ -2460,16 +2460,16 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
                     key={cantrip.name}
                     onClick={() => !isAlreadyAcquired && toggleCantrip(cantrip.name)}
                     disabled={isAlreadyAcquired || (!isSelected && selectedCantrips.length >= cantripsNeeded)}
-                    className={`p-2 rounded text-left text-xs transition-colors ${
+                    className={`w-full p-3 rounded text-left text-xs transition-colors ${
                       isAlreadyAcquired
                         ? 'bg-green-900/30 border border-green-500/50 text-green-400/70 cursor-not-allowed'
                         : isSelected
-                        ? 'bg-purple-500/20 border border-purple-500 text-purple-300'
+                        ? 'bg-purple-500/20 border-2 border-purple-500 text-purple-300'
                         : 'bg-dark-wood border border-leather text-parchment hover:border-purple-500/50 disabled:opacity-50'
                     }`}
                   >
-                    <div className="font-semibold">{isAlreadyAcquired ? '✓ ' : ''}{cantrip.name}</div>
-                    <div className="opacity-70 truncate">{isAlreadyAcquired ? 'Already acquired' : cantrip.description}</div>
+                    <div className="font-semibold text-sm">{isAlreadyAcquired ? '✓ ' : ''}{cantrip.name}</div>
+                    <div className="text-parchment/70 mt-1">{isAlreadyAcquired ? 'Already acquired' : cantrip.description}</div>
                   </button>
                 );
               })}
@@ -2482,7 +2482,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
             <h4 className="text-blue-400 text-sm mb-2">
               Class 1st Level Spells ({selectedSpells.length}/{Math.min(spellsNeeded, spells.length)})
             </h4>
-            <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
+            <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
               {spells.map(spell => {
                 const isSelected = selectedSpells.includes(spell.name);
                 const isAlreadyAcquired = acquiredSpells.some(as => as.name === spell.name);
@@ -2491,16 +2491,16 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
                     key={spell.name}
                     onClick={() => !isAlreadyAcquired && toggleSpell(spell.name)}
                     disabled={isAlreadyAcquired || (!isSelected && selectedSpells.length >= spellsNeeded)}
-                    className={`p-2 rounded text-left text-xs transition-colors ${
+                    className={`w-full p-3 rounded text-left text-xs transition-colors ${
                       isAlreadyAcquired
                         ? 'bg-green-900/30 border border-green-500/50 text-green-400/70 cursor-not-allowed'
                         : isSelected
-                        ? 'bg-blue-500/20 border border-blue-500 text-blue-300'
+                        ? 'bg-blue-500/20 border-2 border-blue-500 text-blue-300'
                         : 'bg-dark-wood border border-leather text-parchment hover:border-blue-500/50 disabled:opacity-50'
                     }`}
                   >
-                    <div className="font-semibold">{isAlreadyAcquired ? '✓ ' : ''}{spell.name}</div>
-                    <div className="opacity-70 truncate">{isAlreadyAcquired ? 'Already acquired' : spell.description}</div>
+                    <div className="font-semibold text-sm">{isAlreadyAcquired ? '✓ ' : ''}{spell.name}</div>
+                    <div className="text-parchment/70 mt-1">{isAlreadyAcquired ? 'Already acquired' : spell.description}</div>
                   </button>
                 );
               })}

@@ -224,6 +224,13 @@ export function useSocket() {
       store.removeFromAllCharacters(data.playerId);
     });
 
+    // Character updated by DM (player receives when DM changes HP, conditions, etc.)
+    socket.on('character-updated-by-dm', (data) => {
+      if (data.character) {
+        store.setCharacter(data.character);
+      }
+    });
+
     return () => {
       socket.disconnect();
     };
