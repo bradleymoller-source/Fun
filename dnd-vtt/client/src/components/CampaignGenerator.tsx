@@ -879,7 +879,53 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
 
             {campaign.overview?.readAloud && (
               <div>
-                <h4 className="text-gold text-sm font-bold mb-2">Opening Narration</h4>
+                <div className="flex justify-between items-center mb-2">
+                  <h4 className="text-gold text-sm font-bold">Opening Narration</h4>
+                  {!sceneImages['opening-scene'] && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => handleGenerateSceneImage(
+                        'opening-scene',
+                        `${campaign.overview?.readAloud?.substring(0, 200) || 'fantasy adventure beginning scene'}, ${campaign.title || 'epic quest'}, cinematic wide shot`,
+                        'dramatic and immersive, sense of adventure',
+                        'atmospheric dramatic lighting'
+                      )}
+                      disabled={generatingSceneId === 'opening-scene'}
+                    >
+                      {generatingSceneId === 'opening-scene' ? '🎨 Generating...' : '🖼️ Generate Scene Visual'}
+                    </Button>
+                  )}
+                </div>
+
+                {/* Opening Scene Image */}
+                {sceneImages['opening-scene'] && (
+                  <div className="relative rounded-lg overflow-hidden border-2 border-gold/50 mb-3">
+                    <img
+                      src={sceneImages['opening-scene']}
+                      alt="Opening scene"
+                      className="w-full h-48 object-cover"
+                      loading="lazy"
+                    />
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3">
+                      <p className="text-gold font-medieval text-lg">Opening Scene: {campaign.title}</p>
+                    </div>
+                    <button
+                      onClick={() => handleGenerateSceneImage(
+                        'opening-scene',
+                        `${campaign.overview?.readAloud?.substring(0, 200) || 'fantasy adventure beginning scene'}, ${campaign.title || 'epic quest'}, cinematic wide shot`,
+                        'dramatic and immersive, sense of adventure',
+                        'atmospheric dramatic lighting'
+                      )}
+                      disabled={generatingSceneId === 'opening-scene'}
+                      className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-gold p-1 rounded text-xs"
+                      title="Regenerate scene"
+                    >
+                      {generatingSceneId === 'opening-scene' ? '⏳' : '🔄'}
+                    </button>
+                  </div>
+                )}
+
                 {renderReadAloud(campaign.overview.readAloud)}
               </div>
             )}
