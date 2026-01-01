@@ -98,9 +98,11 @@ export function SelectionModal({
   selectedId,
 }: SelectionModalProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const [touchStartY, setTouchStartY] = useState<number | null>(null);
   const [dragOffset, setDragOffset] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isHorizontalSwipe, setIsHorizontalSwipe] = useState<boolean | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const wasOpen = useRef(false);
 
@@ -153,33 +155,52 @@ export function SelectionModal({
 
   const onTouchStart = (e: TouchEvent) => {
     if (isTransitioning) return;
-    setTouchStart(e.targetTouches[0].clientX);
+    setTouchStartX(e.targetTouches[0].clientX);
+    setTouchStartY(e.targetTouches[0].clientY);
+    setIsHorizontalSwipe(null); // Reset direction detection
   };
 
   const onTouchMove = (e: TouchEvent) => {
-    if (!touchStart || isTransitioning) return;
-    const currentTouch = e.targetTouches[0].clientX;
-    const diff = currentTouch - touchStart;
-    // Limit drag at edges
-    if ((currentIndex === 0 && diff > 0) || (currentIndex === options.length - 1 && diff < 0)) {
-      setDragOffset(diff * 0.3); // Resistance at edges
-    } else {
-      setDragOffset(diff);
+    if (touchStartX === null || touchStartY === null || isTransitioning) return;
+
+    const currentX = e.targetTouches[0].clientX;
+    const currentY = e.targetTouches[0].clientY;
+    const diffX = currentX - touchStartX;
+    const diffY = currentY - touchStartY;
+
+    // Determine swipe direction on first significant movement
+    if (isHorizontalSwipe === null && (Math.abs(diffX) > 10 || Math.abs(diffY) > 10)) {
+      setIsHorizontalSwipe(Math.abs(diffX) > Math.abs(diffY));
+    }
+
+    // Only handle horizontal swipes
+    if (isHorizontalSwipe === true) {
+      e.preventDefault(); // Prevent vertical scroll
+      // Limit drag at edges
+      if ((currentIndex === 0 && diffX > 0) || (currentIndex === options.length - 1 && diffX < 0)) {
+        setDragOffset(diffX * 0.3); // Resistance at edges
+      } else {
+        setDragOffset(diffX);
+      }
     }
   };
 
   const onTouchEnd = () => {
-    if (!touchStart) return;
-    const threshold = window.innerWidth * 0.15;
+    if (touchStartX === null) return;
 
-    if (dragOffset < -threshold && currentIndex < options.length - 1) {
-      navigateTo(currentIndex + 1);
-    } else if (dragOffset > threshold && currentIndex > 0) {
-      navigateTo(currentIndex - 1);
+    if (isHorizontalSwipe === true) {
+      const threshold = window.innerWidth * 0.15;
+      if (dragOffset < -threshold && currentIndex < options.length - 1) {
+        navigateTo(currentIndex + 1);
+      } else if (dragOffset > threshold && currentIndex > 0) {
+        navigateTo(currentIndex - 1);
+      }
     }
 
     setDragOffset(0);
-    setTouchStart(null);
+    setTouchStartX(null);
+    setTouchStartY(null);
+    setIsHorizontalSwipe(null);
   };
 
   // Calculate the transform for the carousel
@@ -386,7 +407,7 @@ export function SelectionModal({
       {/* Carousel Container */}
       <div
         ref={containerRef}
-        className="absolute inset-0 pt-14 pb-16 overflow-hidden"
+        className="absolute inset-0 pt-14 pb-16 overflow-hidden touch-pan-y"
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
