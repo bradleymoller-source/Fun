@@ -273,15 +273,10 @@ export function SelectionModal({
 
             {/* Scrollable Description */}
             <div className="flex-1 overflow-y-auto space-y-3 text-sm">
-              {(option.playstyle || option.summary || option.flavor) && (
+              {/* Combined description - use theme if no other description, or combine them */}
+              {(option.playstyle || option.summary || option.flavor || option.theme) && (
                 <p className="text-parchment leading-relaxed">
-                  {option.playstyle || option.summary || option.flavor}
-                </p>
-              )}
-
-              {option.theme && (
-                <p className="text-parchment/80">
-                  <span className="text-gold/80">Theme: </span>{option.theme}
+                  {option.playstyle || option.summary || option.flavor || option.theme}
                 </p>
               )}
 
@@ -308,13 +303,6 @@ export function SelectionModal({
                     </div>
                   ))}
                 </div>
-              )}
-
-              {/* Tool proficiency for backgrounds */}
-              {option.toolProficiency && (
-                <p className="text-parchment/80">
-                  <span className="text-gold/80">Tool: </span>{option.toolProficiency}
-                </p>
               )}
 
               {/* Full feat info for backgrounds */}

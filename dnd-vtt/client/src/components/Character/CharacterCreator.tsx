@@ -3439,11 +3439,12 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     const roleInfo = BACKGROUND_ROLE_INFO[b];
     const bg2024 = BACKGROUNDS_2024[b];
     const featData = bg2024 ? ORIGIN_FEATS[bg2024.originFeat] : undefined;
+    // Combine flavor and theme into one description
+    const combinedDesc = [roleInfo?.flavor, roleInfo?.theme].filter(Boolean).join(' ');
     return {
       id: b,
       name: b,
-      theme: roleInfo?.theme,
-      flavor: roleInfo?.flavor,
+      flavor: combinedDesc || undefined,
       goodFor: roleInfo?.goodFor,
       color: roleInfo?.color || 'amber',
       // Skills with full descriptions
@@ -3451,8 +3452,6 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
         name: SKILL_NAMES[s],
         description: SKILL_DESCRIPTIONS[s],
       })) : undefined,
-      // Tool proficiency
-      toolProficiency: bg2024?.toolProficiency,
       // Full feat info
       featInfo: featData ? {
         name: featData.name,
