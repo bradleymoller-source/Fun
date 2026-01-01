@@ -922,6 +922,124 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       source: SPECIES_NAMES[species],
       description: f.description,
     }));
+
+    // Add subspecies/lineage-specific features based on speciesChoice
+    if (species === 'elf') {
+      if (speciesChoice === 'wood-elf') {
+        features.push({
+          id: 'wood-elf-mask',
+          name: 'Mask of the Wild',
+          source: 'Wood Elf',
+          description: 'You can attempt to hide when lightly obscured by foliage, heavy rain, falling snow, mist, or other natural phenomena.',
+        });
+      } else if (speciesChoice === 'drow') {
+        features.push({
+          id: 'drow-darkvision',
+          name: 'Superior Darkvision',
+          source: 'Drow',
+          description: 'Your darkvision extends to 120 feet.',
+        });
+        if (charLevel >= 3) {
+          features.push({
+            id: 'drow-faerie-fire',
+            name: 'Drow Magic: Faerie Fire',
+            source: 'Drow',
+            description: 'You can cast Faerie Fire once per long rest. Charisma is your spellcasting ability.',
+          });
+        }
+        if (charLevel >= 5) {
+          features.push({
+            id: 'drow-darkness',
+            name: 'Drow Magic: Darkness',
+            source: 'Drow',
+            description: 'You can cast Darkness once per long rest. Charisma is your spellcasting ability.',
+          });
+        }
+      }
+    } else if (species === 'halfling') {
+      if (speciesChoice === 'lightfoot') {
+        features.push({
+          id: 'lightfoot-stealth',
+          name: 'Naturally Stealthy',
+          source: 'Lightfoot Halfling',
+          description: 'You can attempt to hide when obscured only by a creature at least one size larger than you.',
+        });
+      } else if (speciesChoice === 'stout') {
+        features.push({
+          id: 'stout-resilience',
+          name: 'Stout Resilience',
+          source: 'Stout Halfling',
+          description: 'You have resistance to poison damage and advantage on saving throws against poison.',
+        });
+      }
+    } else if (species === 'gnome') {
+      if (speciesChoice === 'forest-gnome') {
+        features.push({
+          id: 'forest-gnome-beasts',
+          name: 'Speak with Small Beasts',
+          source: 'Forest Gnome',
+          description: 'Through sounds and gestures, you can communicate simple ideas with Small or smaller beasts.',
+        });
+      } else if (speciesChoice === 'rock-gnome') {
+        features.push({
+          id: 'rock-gnome-tinker',
+          name: 'Tinker',
+          source: 'Rock Gnome',
+          description: "You can spend 1 hour and 10 gp to create a Tiny clockwork device (AC 5, 1 HP). Choose: Clockwork Toy, Fire Starter, or Music Box. Lasts 24 hours unless you use an action to dismantle it.",
+        });
+      }
+    } else if (species === 'tiefling') {
+      // Tiefling spells at higher levels
+      if (speciesChoice === 'abyssal' && charLevel >= 3) {
+        features.push({
+          id: 'abyssal-ray',
+          name: 'Abyssal Legacy: Ray of Sickness',
+          source: 'Abyssal Tiefling',
+          description: 'You can cast Ray of Sickness once per long rest. Charisma is your spellcasting ability.',
+        });
+      }
+      if (speciesChoice === 'abyssal' && charLevel >= 5) {
+        features.push({
+          id: 'abyssal-hold',
+          name: 'Abyssal Legacy: Hold Person',
+          source: 'Abyssal Tiefling',
+          description: 'You can cast Hold Person once per long rest. Charisma is your spellcasting ability.',
+        });
+      }
+      if (speciesChoice === 'chthonic' && charLevel >= 3) {
+        features.push({
+          id: 'chthonic-false-life',
+          name: 'Chthonic Legacy: False Life',
+          source: 'Chthonic Tiefling',
+          description: 'You can cast False Life once per long rest. Charisma is your spellcasting ability.',
+        });
+      }
+      if (speciesChoice === 'chthonic' && charLevel >= 5) {
+        features.push({
+          id: 'chthonic-ray',
+          name: 'Chthonic Legacy: Ray of Enfeeblement',
+          source: 'Chthonic Tiefling',
+          description: 'You can cast Ray of Enfeeblement once per long rest. Charisma is your spellcasting ability.',
+        });
+      }
+      if (speciesChoice === 'infernal' && charLevel >= 3) {
+        features.push({
+          id: 'infernal-rebuke',
+          name: 'Infernal Legacy: Hellish Rebuke',
+          source: 'Infernal Tiefling',
+          description: 'You can cast Hellish Rebuke (2nd level) once per long rest. Charisma is your spellcasting ability.',
+        });
+      }
+      if (speciesChoice === 'infernal' && charLevel >= 5) {
+        features.push({
+          id: 'infernal-darkness',
+          name: 'Infernal Legacy: Darkness',
+          source: 'Infernal Tiefling',
+          description: 'You can cast Darkness once per long rest. Charisma is your spellcasting ability.',
+        });
+      }
+    }
+
     if (originFeat) features.push({
       id: 'origin-feat',
       name: originFeat.name,
@@ -963,11 +1081,16 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       skillProficiencies: finalSkills,
       armorProficiencies: armorProfs,
       weaponProficiencies: weaponProfs,
-      toolProficiencies: background2024?.toolProficiency ? [background2024.toolProficiency] : [],
+      toolProficiencies: [
+        ...(background2024?.toolProficiency ? [background2024.toolProficiency] : []),
+        // Rock Gnome gets Tinker's Tools
+        ...(species === 'gnome' && speciesChoice === 'rock-gnome' ? ["Tinker's Tools"] : []),
+      ],
       languages,
       armorClass: baseAC,
       initiative: dexMod,
-      speed: speciesTraits.speed,
+      // Apply subspecies speed modifiers
+      speed: species === 'elf' && speciesChoice === 'wood-elf' ? 35 : speciesTraits.speed,
       maxHitPoints: Math.max(1, maxHp),
       currentHitPoints: Math.max(1, maxHp),
       temporaryHitPoints: 0,
@@ -1006,6 +1129,16 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
         ...originFeatSpells,
         // Subclass bonus spells only at level 3+
         ...(level >= 3 ? (CLASS_SUBCLASSES[characterClass]?.find(sc => sc.name === subclass)?.bonusSpells || []) : []),
+        // Drow innate spells
+        ...(species === 'elf' && speciesChoice === 'drow' && charLevel >= 3 ? ['Faerie Fire'] : []),
+        ...(species === 'elf' && speciesChoice === 'drow' && charLevel >= 5 ? ['Darkness'] : []),
+        // Tiefling legacy spells
+        ...(species === 'tiefling' && speciesChoice === 'abyssal' && charLevel >= 3 ? ['Ray of Sickness'] : []),
+        ...(species === 'tiefling' && speciesChoice === 'abyssal' && charLevel >= 5 ? ['Hold Person'] : []),
+        ...(species === 'tiefling' && speciesChoice === 'chthonic' && charLevel >= 3 ? ['False Life'] : []),
+        ...(species === 'tiefling' && speciesChoice === 'chthonic' && charLevel >= 5 ? ['Ray of Enfeeblement'] : []),
+        ...(species === 'tiefling' && speciesChoice === 'infernal' && charLevel >= 3 ? ['Hellish Rebuke'] : []),
+        ...(species === 'tiefling' && speciesChoice === 'infernal' && charLevel >= 5 ? ['Darkness'] : []),
       ],
       personalityTraits,
       ideals,
