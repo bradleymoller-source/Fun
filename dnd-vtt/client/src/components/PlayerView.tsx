@@ -152,9 +152,12 @@ export function PlayerView() {
   const handleCharacterDelete = async () => {
     try {
       await deleteCharacter();
-      console.log('Character deleted');
+      setInitiativeMessage('✅ Character deleted');
+      setTimeout(() => setInitiativeMessage(null), 3000);
     } catch (error) {
       console.error('Failed to delete character:', error);
+      setInitiativeMessage('❌ Delete failed: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      setTimeout(() => setInitiativeMessage(null), 4000);
     }
   };
 
