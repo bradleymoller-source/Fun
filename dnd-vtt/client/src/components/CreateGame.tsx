@@ -82,10 +82,10 @@ export function CreateGame() {
             <div className="space-y-4 mb-6">
               <Input
                 label="Room Code"
-                placeholder="ABC123"
+                placeholder="ABCD1234"
                 value={reclaimCode}
                 onChange={(e) => setReclaimCode(e.target.value.toUpperCase())}
-                maxLength={6}
+                maxLength={8}
               />
               <Input
                 label="DM Key"

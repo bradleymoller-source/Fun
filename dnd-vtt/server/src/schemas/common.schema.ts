@@ -3,7 +3,7 @@ import { z } from 'zod';
 // Common validation schemas used across the application
 
 export const RoomCodeSchema = z.string()
-  .min(6, 'Room code must be at least 6 characters')
+  .min(8, 'Room code must be at least 8 characters')
   .max(20, 'Room code must be at most 20 characters')
   .regex(/^[A-Z0-9]+$/i, 'Room code must be alphanumeric');
 

@@ -44,10 +44,10 @@ export function JoinGame() {
         <div className="space-y-4 mb-6">
           <Input
             label="Room Code"
-            placeholder="Enter 6-character code"
+            placeholder="Enter 8-character code"
             value={roomCode}
             onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-            maxLength={6}
+            maxLength={8}
           />
           <Input
             label="Your Name"
