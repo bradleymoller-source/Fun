@@ -159,22 +159,36 @@ export function PlayerView() {
 
   // Phase 4: Character Initiative Roll Handler
   const handleCharacterInitiativeRoll = async (roll: number) => {
-    if (!character) return;
+    console.log('PlayerView handleCharacterInitiativeRoll called with roll:', roll);
+    console.log('PlayerView: socket connected?', !!socket, 'socket.id:', socket?.id);
+    if (!character) {
+      console.error('PlayerView: No character available');
+      alert('No character available to roll initiative');
+      return;
+    }
+    if (!socket?.id) {
+      console.error('PlayerView: Socket not connected');
+      alert('Not connected to server');
+      return;
+    }
     const entry: InitiativeEntry = {
-      id: `init-${socket?.id || 'player'}-${Date.now()}`,
+      id: `init-${socket.id}-${Date.now()}`,
       name: character.name,
       initiative: roll,
       isNpc: false,
       isActive: false,
-      playerId: socket?.id,
+      playerId: socket.id,
       currentHp: character.currentHitPoints,
       maxHp: character.maxHitPoints,
     };
+    console.log('PlayerView: Creating initiative entry', entry);
     try {
       await playerRollInitiative(entry);
       console.log(`${character.name} rolled initiative: ${roll}`);
+      alert(`Initiative rolled: ${roll}! Check the Map tab to see the tracker.`);
     } catch (error) {
       console.error('Failed to add initiative entry:', error);
+      alert('Failed to add initiative: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
   };
 

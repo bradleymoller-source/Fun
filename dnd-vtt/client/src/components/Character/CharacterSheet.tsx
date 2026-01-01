@@ -185,9 +185,14 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
     const d20Roll = Math.floor(Math.random() * 20) + 1;
     const totalRoll = d20Roll + totalMod;
 
+    console.log('CharacterSheet handleRollInitiative: d20=' + d20Roll + ' mod=' + totalMod + ' total=' + totalRoll);
+
     // If we have an initiative callback, add to tracker
     if (onRollInitiative) {
+      console.log('CharacterSheet: Calling onRollInitiative with', totalRoll);
       onRollInitiative(totalRoll);
+    } else {
+      console.log('CharacterSheet: No onRollInitiative callback provided');
     }
 
     // Also do a visual dice roll if available
