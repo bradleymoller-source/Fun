@@ -685,6 +685,28 @@ export const ALL_SKILLS: SkillName[] = [
   'persuasion',
 ];
 
+// Skill descriptions for character creation help
+export const SKILL_DESCRIPTIONS: Record<SkillName, string> = {
+  athletics: 'Climbing, jumping, swimming, and feats of physical strength',
+  acrobatics: 'Balance, tumbling, aerial maneuvers, and staying on your feet',
+  sleightOfHand: 'Pickpocketing, concealing objects, and manual trickery',
+  stealth: 'Hiding, moving silently, and avoiding detection',
+  arcana: 'Knowledge of spells, magic items, planes, and magical creatures',
+  history: 'Recalling lore about historical events, people, and civilizations',
+  investigation: 'Searching for clues, making deductions, and detailed examination',
+  nature: 'Knowledge of terrain, plants, animals, and natural cycles',
+  religion: 'Lore about deities, rites, prayers, and religious hierarchies',
+  animalHandling: 'Calming, controlling, and understanding animal behavior',
+  insight: 'Reading body language, detecting lies, and understanding intentions',
+  medicine: 'Stabilizing the dying, diagnosing illness, and first aid',
+  perception: 'Noticing threats, spotting hidden objects, and sensory awareness',
+  survival: 'Tracking, hunting, navigating wilderness, and predicting weather',
+  deception: 'Lying convincingly, disguising intent, and misleading others',
+  intimidation: 'Threatening, coercing, and using fear to influence others',
+  performance: 'Entertaining through music, dance, acting, or storytelling',
+  persuasion: 'Influencing through tact, social graces, and good nature',
+};
+
 // Species display names
 export const SPECIES_NAMES: Record<Species, string> = {
   aasimar: 'Aasimar',

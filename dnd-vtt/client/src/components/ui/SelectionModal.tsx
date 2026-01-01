@@ -1,6 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import type { TouchEvent } from 'react';
 
+export interface DetailedItem {
+  name: string;
+  description: string;
+}
+
 export interface SelectionOption {
   id: string;
   name: string;
@@ -11,6 +16,7 @@ export interface SelectionOption {
   complexity?: 'Beginner' | 'Intermediate' | 'Advanced';
   goodFor?: string | string[];
   traits?: string;
+  traitsList?: string[]; // Full trait descriptions for species
   bestFor?: string[];
   flavor?: string;
   theme?: string;
@@ -20,6 +26,9 @@ export interface SelectionOption {
   hitDie?: number;
   extra?: Record<string, string | number>;
   image?: string;
+  skills?: DetailedItem[]; // Skills with descriptions for backgrounds
+  featInfo?: { name: string; description: string; benefits: string[] }; // Full feat info for backgrounds
+  toolProficiency?: string; // Tool proficiency for backgrounds
 }
 
 interface SelectionModalProps {
@@ -263,7 +272,7 @@ export function SelectionModal({
             )}
 
             {/* Scrollable Description */}
-            <div className="flex-1 overflow-y-auto space-y-2 text-sm">
+            <div className="flex-1 overflow-y-auto space-y-3 text-sm">
               {(option.playstyle || option.summary || option.flavor) && (
                 <p className="text-parchment leading-relaxed">
                   {option.playstyle || option.summary || option.flavor}
@@ -276,7 +285,55 @@ export function SelectionModal({
                 </p>
               )}
 
-              {option.traits && (
+              {/* Full traits list for species */}
+              {option.traitsList && option.traitsList.length > 0 && (
+                <div className="space-y-1">
+                  <span className="text-gold font-semibold">Racial Traits:</span>
+                  {option.traitsList.map((trait, idx) => (
+                    <div key={idx} className="text-parchment/90 pl-2 border-l border-gold/30">
+                      {trait}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Skills with descriptions for backgrounds */}
+              {option.skills && option.skills.length > 0 && (
+                <div className="space-y-1">
+                  <span className="text-gold font-semibold">Skill Proficiencies:</span>
+                  {option.skills.map((skill, idx) => (
+                    <div key={idx} className="pl-2 border-l border-gold/30">
+                      <span className="text-parchment font-medium">{skill.name}</span>
+                      <span className="text-parchment/70"> — {skill.description}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Tool proficiency for backgrounds */}
+              {option.toolProficiency && (
+                <p className="text-parchment/80">
+                  <span className="text-gold/80">Tool: </span>{option.toolProficiency}
+                </p>
+              )}
+
+              {/* Full feat info for backgrounds */}
+              {option.featInfo && (
+                <div className="space-y-1 bg-black/20 rounded-lg p-2">
+                  <div className="text-gold font-semibold">Origin Feat: {option.featInfo.name}</div>
+                  <p className="text-parchment/80 text-xs">{option.featInfo.description}</p>
+                  <div className="space-y-0.5">
+                    {option.featInfo.benefits.map((benefit, idx) => (
+                      <div key={idx} className="text-parchment/90 text-xs pl-2 flex gap-1">
+                        <span className="text-gold">•</span>
+                        <span>{benefit}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {option.traits && !option.traitsList && (
                 <p className="text-parchment/80">
                   <span className="text-gold/80">Traits: </span>{option.traits}
                 </p>
@@ -385,24 +442,6 @@ export function SelectionModal({
         </button>
       </div>
 
-      {/* Bottom Navigation */}
-      <div className="absolute bottom-0 left-0 right-0 z-20 pb-4 pt-2 bg-gradient-to-t from-black to-transparent">
-        <div className="flex justify-center gap-1.5">
-          {options.map((opt, idx) => (
-            <button
-              key={idx}
-              onClick={() => navigateTo(idx)}
-              className={`h-2 rounded-full transition-all ${
-                idx === currentIndex
-                  ? 'bg-gold w-8'
-                  : opt.id === selectedId
-                  ? 'bg-gold/60 w-2'
-                  : 'bg-white/30 hover:bg-white/50 w-2'
-              }`}
-            />
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

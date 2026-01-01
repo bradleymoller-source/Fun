@@ -75,6 +75,7 @@ import {
   SUBSPECIES_ROLE_INFO,
   BACKGROUND_ROLE_INFO,
   FEAT_ROLE_INFO,
+  SKILL_DESCRIPTIONS,
 } from '../../data/dndData';
 import type { ShopItem, OriginFeatName } from '../../data/dndData';
 
@@ -3409,10 +3410,12 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
 
   const speciesOptions: SelectionOption[] = SPECIES_LIST.map(s => {
     const roleInfo = SPECIES_ROLE_INFO[s];
+    const speciesFullInfo = SPECIES_INFO[s];
     return {
       id: s,
       name: SPECIES_NAMES[s],
       traits: roleInfo.traits,
+      traitsList: speciesFullInfo.traits, // Full trait descriptions
       bestFor: roleInfo.bestFor,
       flavor: roleInfo.flavor,
       color: roleInfo.color,
@@ -3435,6 +3438,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
   const backgroundOptions: SelectionOption[] = BACKGROUNDS.map(b => {
     const roleInfo = BACKGROUND_ROLE_INFO[b];
     const bg2024 = BACKGROUNDS_2024[b];
+    const featData = bg2024 ? ORIGIN_FEATS[bg2024.originFeat] : undefined;
     return {
       id: b,
       name: b,
@@ -3442,9 +3446,18 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       flavor: roleInfo?.flavor,
       goodFor: roleInfo?.goodFor,
       color: roleInfo?.color || 'amber',
-      extra: bg2024 ? {
-        'Skills': bg2024.skillProficiencies.map(s => SKILL_NAMES[s]).join(', '),
-        'Feat': bg2024.originFeat,
+      // Skills with full descriptions
+      skills: bg2024 ? bg2024.skillProficiencies.map(s => ({
+        name: SKILL_NAMES[s],
+        description: SKILL_DESCRIPTIONS[s],
+      })) : undefined,
+      // Tool proficiency
+      toolProficiency: bg2024?.toolProficiency,
+      // Full feat info
+      featInfo: featData ? {
+        name: featData.name,
+        description: featData.description,
+        benefits: featData.benefits,
       } : undefined,
     };
   });
@@ -3462,8 +3475,11 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
         power: roleInfo?.power,
         goodFor: roleInfo?.goodFor,
         color: roleInfo?.color || 'amber',
-        extra: {
-          'Benefits': feat.benefits.slice(0, 2).join('; ') + (feat.benefits.length > 2 ? '...' : ''),
+        // Full feat benefits
+        featInfo: {
+          name: feat.name,
+          description: feat.description,
+          benefits: feat.benefits,
         },
       };
     });
