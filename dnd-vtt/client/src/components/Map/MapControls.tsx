@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { useSessionStore } from '../../stores/sessionStore';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
+import { TokenArtPicker } from './TokenArtPicker';
 import type { Token, TokenSize } from '../../types';
 
 interface MapControlsProps {
@@ -30,6 +31,7 @@ export function MapControls({ onAddToken, onUpdateToken, onRemoveToken }: MapCon
   const [tokenSize, setTokenSize] = useState<TokenSize>('medium');
   const [tokenColor, setTokenColor] = useState(TOKEN_COLORS[0]);
   const [tokenHidden, setTokenHidden] = useState(false);
+  const [showTokenArtPicker, setShowTokenArtPicker] = useState(false);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -61,8 +63,32 @@ export function MapControls({ onAddToken, onUpdateToken, onRemoveToken }: MapCon
     setTokenName('');
   };
 
+  // Handle token selection from art picker
+  const handleTokenArtSelect = (tokenData: { name: string; color: string; imageUrl?: string }) => {
+    const token: Token = {
+      id: `token-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      name: tokenData.name,
+      x: 0,
+      y: 0,
+      size: tokenSize,
+      color: tokenData.color,
+      isHidden: tokenHidden,
+      imageUrl: tokenData.imageUrl,
+    };
+
+    onAddToken(token);
+  };
+
   return (
     <div className="space-y-4">
+      {/* Token Art Picker Modal */}
+      {showTokenArtPicker && (
+        <TokenArtPicker
+          onSelect={handleTokenArtSelect}
+          onClose={() => setShowTokenArtPicker(false)}
+        />
+      )}
+
       {/* Map Upload Section */}
       <div className="bg-dark-wood p-4 rounded-lg border border-leather">
         <h3 className="font-medieval text-gold text-lg mb-3">Map Image</h3>
@@ -210,14 +236,24 @@ export function MapControls({ onAddToken, onUpdateToken, onRemoveToken }: MapCon
             Hidden (DM only)
           </label>
 
-          <Button
-            size="sm"
-            onClick={handleAddToken}
-            disabled={!tokenName.trim()}
-            className="w-full"
-          >
-            Add Token
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              onClick={handleAddToken}
+              disabled={!tokenName.trim()}
+              className="flex-1"
+            >
+              Add Token
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => setShowTokenArtPicker(true)}
+              title="Browse token library"
+            >
+              Library
+            </Button>
+          </div>
         </div>
       </div>
 

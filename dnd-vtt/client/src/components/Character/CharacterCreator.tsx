@@ -1083,7 +1083,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     }
 
     // Add Unarmed Strike for Tavern Brawler feat (from origin feat or human bonus feat)
-    const hasTavernBrawler = originFeat === 'Tavern Brawler' || humanBonusFeat === 'Tavern Brawler';
+    const hasTavernBrawler = originFeat?.name === 'Tavern Brawler' || humanBonusFeat === 'Tavern Brawler';
     if (hasTavernBrawler && characterClass !== 'monk') { // Monk already has better unarmed
       const strMod = getAbilityModifier(finalScores.strength);
       const profBonus = getProficiencyBonus(charLevel);

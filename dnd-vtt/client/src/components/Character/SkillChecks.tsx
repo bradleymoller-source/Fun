@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Button } from '../ui/Button';
 import type { Character, SkillName, AbilityScores } from '../../types';
 
 // Map skills to their associated ability

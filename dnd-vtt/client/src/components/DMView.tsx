@@ -14,6 +14,7 @@ import { MonsterPanel } from './Monster/MonsterPanel';
 import { PartyDashboard } from './PartyDashboard';
 import { EncounterBuilder } from './EncounterBuilder';
 import { CampaignGenerator } from './CampaignGenerator';
+import { NotesPanel } from './DM/NotesPanel';
 import type { Token, DiceRoll, ChatMessage, InitiativeEntry, FogArea, Character } from '../types';
 
 type MapOrientation = 'landscape' | 'portrait';
@@ -591,6 +592,11 @@ export function DMView() {
                 onEndCombat={handleEndCombat}
                 onRemoveToken={removeToken}
               />
+            </Panel>
+
+            {/* DM Notes */}
+            <Panel>
+              <NotesPanel roomCode={roomCode || ''} />
             </Panel>
 
             {/* Campaign Generator */}
