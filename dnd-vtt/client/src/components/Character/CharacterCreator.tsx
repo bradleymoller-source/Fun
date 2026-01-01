@@ -267,7 +267,31 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
   // Get background ability score options (for restricted ASI)
   const backgroundAbilities = background2024?.abilityScores || [];
 
-  const steps: CreationStep[] = classInfo.isSpellcaster
+  // Check if character has any acquired cantrips from non-class sources
+  const hasAcquiredCantrips = (): boolean => {
+    // Origin feat cantrips (Magic Initiate)
+    if (originFeat?.cantripCount && originFeat.cantripCount > 0) return true;
+    // Species innate cantrips
+    if (speciesTraits?.cantrips && speciesTraits.cantrips.length > 0) return true;
+    // High Elf wizard cantrip
+    if (species === 'elf' && speciesChoice === 'high-elf') return true;
+    // Drow Dancing Lights
+    if (species === 'elf' && speciesChoice === 'drow') return true;
+    // Forest Gnome Minor Illusion
+    if (species === 'gnome' && speciesChoice === 'forest-gnome') return true;
+    // Tiefling lineage cantrips
+    if (species === 'tiefling') return true;
+    // Monk Warrior of Elements
+    if (characterClass === 'monk' && subclass === 'Warrior of the Elements') return true;
+    // Pact of the Tome
+    if (pactOfTomeCantrips.length > 0) return true;
+    return false;
+  };
+
+  // Show spells step if spellcaster OR has any acquired cantrips
+  const showSpellsStep = classInfo.isSpellcaster || hasAcquiredCantrips();
+
+  const steps: CreationStep[] = showSpellsStep
     ? ['basics', 'abilities', 'skills', 'spells', 'equipment', 'details', 'review']
     : ['basics', 'abilities', 'skills', 'equipment', 'details', 'review'];
   const currentStepIndex = steps.indexOf(step);
@@ -2073,12 +2097,24 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       acquiredCantrips.push({ name: c, source: 'Pact of the Tome' });
     });
 
+    // Check if this is a non-spellcaster just viewing acquired cantrips
+    const isNonSpellcaster = !classInfo.isSpellcaster && cantripsNeeded === 0;
+
     return (
       <div className="space-y-4">
-        <h3 className="font-medieval text-lg text-gold">Spellcasting</h3>
-        <p className="text-parchment/70 text-xs">
-          Spellcasting Ability: {classInfo.spellcastingAbility ? ABILITY_NAMES[classInfo.spellcastingAbility] : 'None'}
-        </p>
+        <h3 className="font-medieval text-lg text-gold">
+          {isNonSpellcaster ? 'Acquired Magic' : 'Spellcasting'}
+        </h3>
+        {classInfo.spellcastingAbility && (
+          <p className="text-parchment/70 text-xs">
+            Spellcasting Ability: {ABILITY_NAMES[classInfo.spellcastingAbility]}
+          </p>
+        )}
+        {isNonSpellcaster && (
+          <p className="text-parchment/70 text-xs">
+            Your species or background grants you the following magical abilities.
+          </p>
+        )}
 
         {/* Acquired Cantrips/Spells from Race/Background/Subclass */}
         {(acquiredCantrips.length > 0 || acquiredSpells.length > 0) && (
