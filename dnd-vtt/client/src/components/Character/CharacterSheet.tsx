@@ -412,8 +412,8 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
 
       {/* Delete Confirmation Dialog */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-dark-wood border-2 border-red-500 rounded-lg p-6 max-w-sm mx-4">
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[9999]">
+          <div className="bg-dark-wood border-4 border-red-500 rounded-lg p-6 max-w-sm mx-4 shadow-2xl">
             <h3 className="text-red-400 font-medieval text-xl mb-3">Delete Character?</h3>
             <p className="text-parchment mb-4">
               Are you sure you want to delete <span className="text-gold font-semibold">{character.name}</span>?
