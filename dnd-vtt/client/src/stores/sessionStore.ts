@@ -76,6 +76,7 @@ interface SessionStore extends SessionState {
   updateCharacter: (updates: Partial<Character>) => void;
   setAllCharacters: (characters: Character[]) => void;
   updateAllCharacters: (playerId: string, character: Character) => void;
+  removeFromAllCharacters: (playerId: string) => void;
   addCharacterToSession: (character: Character) => void;
   removeCharacterFromSession: (characterId: string) => void;
   setPlayerTab: (tab: 'map' | 'character') => void;
@@ -403,6 +404,11 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       allCharacters: state.allCharacters.some((c) => c.playerId === playerId)
         ? state.allCharacters.map((c) => (c.playerId === playerId ? character : c))
         : [...state.allCharacters, character],
+    })),
+
+  removeFromAllCharacters: (playerId) =>
+    set((state) => ({
+      allCharacters: state.allCharacters.filter((c) => c.playerId !== playerId),
     })),
 
   addCharacterToSession: (character) =>

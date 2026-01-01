@@ -21,7 +21,7 @@ const ORIENTATION_SIZES = {
 
 export function PlayerView() {
   const { roomCode, playerName, players, isConnected, playerTab, character, setPlayerTab, setCharacter, updateCharacter } = useSessionStore();
-  const { rollDice, sendChatMessage, moveToken, saveCharacter, addInitiativeEntry, socket } = useSocket();
+  const { rollDice, sendChatMessage, moveToken, saveCharacter, deleteCharacter, addInitiativeEntry, socket } = useSocket();
   const [showParty, setShowParty] = useState(false);
   const [mapOrientation, setMapOrientation] = useState<MapOrientation>('landscape');
   const [mapDimensions, setMapDimensions] = useState(ORIENTATION_SIZES.landscape);
@@ -144,6 +144,16 @@ export function PlayerView() {
       console.log('Imported character saved to server:', importedCharacter.name);
     } catch (error) {
       console.error('Failed to save imported character:', error);
+    }
+  };
+
+  // Phase 4: Character Delete Handler
+  const handleCharacterDelete = async () => {
+    try {
+      await deleteCharacter();
+      console.log('Character deleted');
+    } catch (error) {
+      console.error('Failed to delete character:', error);
     }
   };
 
@@ -280,6 +290,7 @@ export function PlayerView() {
               character={character}
               onUpdate={handleCharacterUpdate}
               onImport={handleCharacterImport}
+              onDelete={handleCharacterDelete}
               isEditable={true}
             />
           </Panel>

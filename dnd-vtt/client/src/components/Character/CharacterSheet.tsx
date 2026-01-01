@@ -35,16 +35,18 @@ interface CharacterSheetProps {
   onUpdate?: (updates: Partial<Character>) => void;
   onRoll?: (notation: string, label: string) => void;
   onImport?: (character: Character) => void;
+  onDelete?: () => void;
   isEditable?: boolean;
   showExportImport?: boolean;
 }
 
-export function CharacterSheet({ character, onUpdate, onRoll, onImport, isEditable = true, showExportImport = true }: CharacterSheetProps) {
+export function CharacterSheet({ character, onUpdate, onRoll, onImport, onDelete, isEditable = true, showExportImport = true }: CharacterSheetProps) {
   const [activeTab, setActiveTab] = useState<SheetTab>('stats');
   const [showConditionPicker, setShowConditionPicker] = useState(false);
   const [expandedFeature, setExpandedFeature] = useState<string | null>(null);
   const [expandedSpell, setExpandedSpell] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const profBonus = getProficiencyBonus(character.level);
@@ -359,7 +361,7 @@ export function CharacterSheet({ character, onUpdate, onRoll, onImport, isEditab
         </div>
       </div>
 
-      {/* Export/Import Buttons */}
+      {/* Export/Import/Delete Buttons */}
       {showExportImport && (
         <div className="flex justify-center gap-2 mt-3">
           <Button size="sm" variant="secondary" onClick={handleExport}>
@@ -379,10 +381,43 @@ export function CharacterSheet({ character, onUpdate, onRoll, onImport, isEditab
               </Button>
             </>
           )}
+          {onDelete && (
+            <Button size="sm" variant="danger" onClick={() => setShowDeleteConfirm(true)}>
+              Delete
+            </Button>
+          )}
         </div>
       )}
       {importError && (
         <p className="text-red-400 text-xs text-center mt-2">{importError}</p>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-dark-wood border-2 border-red-500 rounded-lg p-6 max-w-sm mx-4">
+            <h3 className="text-red-400 font-medieval text-xl mb-3">Delete Character?</h3>
+            <p className="text-parchment mb-4">
+              Are you sure you want to delete <span className="text-gold font-semibold">{character.name}</span>?
+              This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <Button size="sm" variant="secondary" onClick={() => setShowDeleteConfirm(false)}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                variant="danger"
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  onDelete?.();
+                }}
+              >
+                Delete Forever
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

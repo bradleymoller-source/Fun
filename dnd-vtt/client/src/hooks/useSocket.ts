@@ -219,6 +219,11 @@ export function useSocket() {
       store.updateAllCharacters(data.playerId, data.character);
     });
 
+    // Character deleted (DM receives when player deletes)
+    socket.on('character-deleted', (data) => {
+      store.removeFromAllCharacters(data.playerId);
+    });
+
     return () => {
       socket.disconnect();
     };
@@ -643,6 +648,27 @@ export function useSocket() {
     });
   }, []);
 
+  // Delete character from server
+  const deleteCharacter = useCallback(() => {
+    return new Promise<void>((resolve, reject) => {
+      if (!socketRef.current) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      socketRef.current.emit('delete-character', (response: any) => {
+        if (response.success) {
+          console.log('Character deleted from server');
+          store.setCharacter(null);
+          resolve();
+        } else {
+          store.setError(response.error);
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }, []);
+
   // Load character from server
   const loadCharacter = useCallback(() => {
     return new Promise<Character | null>((resolve, reject) => {
@@ -736,6 +762,7 @@ export function useSocket() {
     endCombat,
     // Phase 4: Character
     saveCharacter,
+    deleteCharacter,
     loadCharacter,
     getAllCharacters,
     updatePlayerCharacter,

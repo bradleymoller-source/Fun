@@ -25,6 +25,7 @@ import {
   saveCharacter,
   getCharacter,
   getAllCharacters,
+  deleteCharacter,
 } from './sessionManager';
 import { JoinSessionRequest, ReclaimSessionRequest, Token, MapState, DiceRoll, ChatMessage, InitiativeEntry } from './types';
 
@@ -672,6 +673,36 @@ export function setupSocketHandlers(io: Server): void {
       const characters = getAllCharacters(roomCode);
 
       callback({ success: true, characters });
+    });
+
+    // Delete character (player deletes their character)
+    socket.on('delete-character', (callback: (response: any) => void) => {
+      const sessionInfo = socketSessions.get(socket.id);
+
+      if (!sessionInfo) {
+        callback({ success: false, error: 'Not in a session' });
+        return;
+      }
+
+      const { roomCode } = sessionInfo;
+      const deleted = deleteCharacter(roomCode, socket.id);
+
+      if (!deleted) {
+        callback({ success: false, error: 'Failed to delete character or character not found' });
+        return;
+      }
+
+      // Notify DM about the character deletion
+      const session = getSession(roomCode);
+      if (session?.dmSocketId) {
+        io.to(session.dmSocketId).emit('character-deleted', {
+          playerId: socket.id,
+        });
+      }
+
+      console.log(`Character deleted by ${socket.id} in room ${roomCode}`);
+
+      callback({ success: true });
     });
 
     // ============ END PHASE 4 ============
