@@ -1788,7 +1788,7 @@ export const CLASS_FEATURES: Record<CharacterClass, ClassFeature[]> = {
     { name: 'Extra Attack (3)', description: 'Attack four times when you take the Attack action.', level: 20 },
   ],
   monk: [
-    { name: 'Martial Arts', description: 'Unarmed strikes deal 1d6 damage. DEX for monk weapons. Bonus action unarmed strike after Attack.', level: 1 },
+    { name: 'Martial Arts', description: 'Use DEX instead of STR for unarmed strikes and monk weapons. Unarmed deals 1d6 (scales with level). Bonus action unarmed strike after Attack action.', level: 1 },
     { name: 'Unarmored Defense', description: 'AC = 10 + DEX mod + WIS mod when not wearing armor or shield', level: 1 },
     { name: 'Focus', description: 'Gain Focus Points = monk level. Spend to fuel special techniques. Regain all on short/long rest.', level: 2 },
     { name: 'Unarmored Movement', description: 'Speed increases by 10 ft when not wearing armor. Increases at higher levels.', level: 2 },

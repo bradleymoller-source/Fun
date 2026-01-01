@@ -920,17 +920,25 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
           const lowerName = feat.name.toLowerCase();
           const lowerDesc = feat.description.toLowerCase();
 
-          // Bonus actions
+          // Bonus actions (explicit or by description)
           if (lowerDesc.includes('bonus action') || lowerName === 'martial arts' || lowerName === 'cunning action') {
             bonusActions.push({ name: feat.name, description: feat.description, source: CLASS_NAMES[character.characterClass] });
           }
-          // Reactions
+          // Reactions (explicit or by description)
           else if (lowerDesc.includes('reaction') || lowerName.includes('deflect') || lowerName === 'uncanny dodge') {
             reactions.push({ name: feat.name, description: feat.description, source: CLASS_NAMES[character.characterClass] });
           }
-          // Passive combat features
-          else if (lowerName === 'unarmored defense' || lowerName === 'rage' || lowerName === 'sneak attack' ||
-                   lowerName === 'extra attack' || lowerName === 'evasion' || lowerName === 'divine smite' ||
+          // On-hit choices (spend resource or slot for extra effect)
+          else if (lowerName === 'divine smite' || lowerName === 'stunning strike' ||
+                   lowerName === 'reckless attack' || lowerName === 'cunning strike' ||
+                   lowerName === 'blessed strikes' || lowerName === 'radiant strikes') {
+            passives.push({ name: feat.name, description: feat.description, source: CLASS_NAMES[character.characterClass] });
+          }
+          // Passive combat features (AC, damage, attacks)
+          else if (lowerName === 'unarmored defense' || lowerName === 'sneak attack' ||
+                   lowerName === 'extra attack' || lowerName.startsWith('extra attack') ||
+                   lowerName === 'evasion' || lowerName === 'danger sense' ||
+                   lowerName === 'aura of protection' || lowerName === 'empowered strikes' ||
                    lowerName.includes('fighting style')) {
             passives.push({ name: feat.name, description: feat.description, source: CLASS_NAMES[character.characterClass] });
           }

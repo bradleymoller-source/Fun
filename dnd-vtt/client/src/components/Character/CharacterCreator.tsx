@@ -765,18 +765,48 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     let startingGold = 0;
     let baseAC = 10 + dexMod;
 
+    // Check for fighting style bonuses
+    const hasArchery = fightingStyle === 'archery';
+    const hasDueling = fightingStyle === 'dueling';
+    const hasDefense = fightingStyle === 'defense';
+
     if (equipmentMethod === 'pack') {
       const pack = CLASS_STARTING_PACKS[characterClass];
 
       // Convert pack weapons to character weapons
-      weapons = pack.weapons.map((w, idx) => ({
-        id: `weapon-${idx}`,
-        name: w.name,
-        attackBonus: 2, // Base proficiency at level 1
-        damage: w.damage,
-        properties: w.properties,
-        equipped: idx === 0, // First weapon is equipped
-      }));
+      weapons = pack.weapons.map((w, idx) => {
+        // Check if weapon is ranged (has ammunition property)
+        const isRanged = w.properties?.some(p => p.toLowerCase().includes('ammunition'));
+        // Check if weapon is one-handed melee (for dueling - not two-handed and no ammunition)
+        const isOneHandedMelee = !isRanged && !w.properties?.some(p => p.toLowerCase().includes('two-handed'));
+
+        // Calculate attack bonus
+        let attackBonus = getProficiencyBonus(level);
+        if (hasArchery && isRanged) {
+          attackBonus += 2; // Archery fighting style
+        }
+
+        // Calculate damage (add dueling bonus if applicable)
+        let damage = w.damage;
+        if (hasDueling && isOneHandedMelee) {
+          // Add +2 to damage for dueling
+          const damageMatch = damage.match(/^(\d+d\d+)(\+(\d+))?/);
+          if (damageMatch) {
+            const baseDice = damageMatch[1];
+            const existingBonus = parseInt(damageMatch[3] || '0');
+            damage = `${baseDice}+${existingBonus + 2}`;
+          }
+        }
+
+        return {
+          id: `weapon-${idx}`,
+          name: w.name,
+          attackBonus,
+          damage,
+          properties: w.properties,
+          equipped: idx === 0,
+        };
+      });
 
       // Convert pack equipment to character equipment
       equipment = pack.equipment.map((e, idx) => ({
@@ -837,6 +867,10 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
         if (pack.shield) {
           baseAC += 2;
         }
+        // Defense fighting style adds +1 AC while wearing armor
+        if (hasDefense) {
+          baseAC += 1;
+        }
       }
 
       startingGold = pack.gold;
@@ -845,14 +879,38 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       const weaponItems = shopCart.filter(i => i.category === 'weapon');
       const nonWeaponItems = shopCart.filter(i => i.category !== 'weapon');
 
-      weapons = weaponItems.map((w, idx) => ({
-        id: w.id,
-        name: w.name,
-        attackBonus: 2,
-        damage: w.damage || '1d4',
-        properties: w.properties,
-        equipped: idx === 0,
-      }));
+      weapons = weaponItems.map((w, idx) => {
+        // Check if weapon is ranged (has ammunition property)
+        const isRanged = w.properties?.some(p => p.toLowerCase().includes('ammunition'));
+        // Check if weapon is one-handed melee (for dueling)
+        const isOneHandedMelee = !isRanged && !w.properties?.some(p => p.toLowerCase().includes('two-handed'));
+
+        // Calculate attack bonus
+        let attackBonus = getProficiencyBonus(level);
+        if (hasArchery && isRanged) {
+          attackBonus += 2;
+        }
+
+        // Calculate damage
+        let damage = w.damage || '1d4';
+        if (hasDueling && isOneHandedMelee) {
+          const damageMatch = damage.match(/^(\d+d\d+)(\+(\d+))?/);
+          if (damageMatch) {
+            const baseDice = damageMatch[1];
+            const existingBonus = parseInt(damageMatch[3] || '0');
+            damage = `${baseDice}+${existingBonus + 2}`;
+          }
+        }
+
+        return {
+          id: w.id,
+          name: w.name,
+          attackBonus,
+          damage,
+          properties: w.properties,
+          equipped: idx === 0,
+        };
+      });
 
       // Map non-weapon items with proper armor properties
       equipment = nonWeaponItems.map(e => {
@@ -904,6 +962,10 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
           baseAC = armorItem.armorClass;
         } else {
           baseAC = armorItem.armorClass + Math.min(dexMod, 2);
+        }
+        // Defense fighting style adds +1 AC while wearing armor
+        if (hasDefense) {
+          baseAC += 1;
         }
       }
       if (shieldItem) {
