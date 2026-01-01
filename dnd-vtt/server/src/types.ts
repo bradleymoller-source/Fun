@@ -85,6 +85,9 @@ export interface InitiativeEntry {
   maxHp?: number;
   currentHp?: number;
   conditions?: Condition[];
+  // Turn manipulation
+  isHolding?: boolean;
+  originalInitiative?: number;
 }
 
 // Simplified character data for server storage

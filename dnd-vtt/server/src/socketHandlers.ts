@@ -19,6 +19,7 @@ import {
   setInitiative,
   addInitiativeEntry,
   removeInitiativeEntry,
+  reorderInitiative,
   nextTurn,
   startCombat,
   endCombat,
@@ -45,6 +46,7 @@ import {
   ShowMapToPlayersDataSchema,
   AddInitiativeDataSchema,
   RemoveInitiativeDataSchema,
+  ReorderInitiativeDataSchema,
   RollDiceDataSchema,
   SendChatDataSchema,
   SaveCharacterDataSchema,
@@ -708,6 +710,39 @@ export function setupSocketHandlers(io: Server): void {
       }
 
       io.to(roomCode).emit('initiative-updated', { initiative });
+
+      callback({ success: true, initiative });
+    });
+
+    socket.on('reorder-initiative', async (data: unknown, callback: (response: any) => void) => {
+      if (!await checkLimit('reorder-initiative')) {
+        callback({ success: false, error: 'Rate limit exceeded.' });
+        return;
+      }
+
+      const sessionInfo = socketSessions.get(socket.id);
+      if (!sessionInfo || !sessionInfo.isDm) {
+        callback({ success: false, error: 'Only the DM can reorder initiative' });
+        return;
+      }
+
+      const validation = validateData(ReorderInitiativeDataSchema, data, 'reorder-initiative');
+      if (!validation.success) {
+        callback({ success: false, error: validation.error });
+        return;
+      }
+
+      const { roomCode } = sessionInfo;
+      const initiative = reorderInitiative(roomCode, validation.data.fromIndex, validation.data.toIndex);
+
+      if (!initiative) {
+        callback({ success: false, error: 'Failed to reorder initiative' });
+        return;
+      }
+
+      io.to(roomCode).emit('initiative-updated', { initiative });
+
+      logger.debug('Initiative reordered', { roomCode, from: validation.data.fromIndex, to: validation.data.toIndex });
 
       callback({ success: true, initiative });
     });

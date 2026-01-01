@@ -620,6 +620,26 @@ export function useSocket() {
     });
   }, []);
 
+  // Reorder initiative (DM only)
+  const reorderInitiative = useCallback((fromIndex: number, toIndex: number) => {
+    return new Promise<void>((resolve, reject) => {
+      if (!socketRef.current) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      socketRef.current.emit('reorder-initiative', { fromIndex, toIndex }, (response: any) => {
+        if (response.success) {
+          store.setInitiative(response.initiative);
+          resolve();
+        } else {
+          store.setError(response.error);
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }, []);
+
   // Advance to next turn (DM only)
   const nextTurn = useCallback(() => {
     return new Promise<void>((resolve, reject) => {
@@ -813,6 +833,7 @@ export function useSocket() {
     addInitiativeEntry,
     playerRollInitiative,
     removeInitiativeEntry,
+    reorderInitiative,
     nextTurn,
     startCombat,
     endCombat,

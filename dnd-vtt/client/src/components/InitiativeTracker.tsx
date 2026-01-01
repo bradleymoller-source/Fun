@@ -35,6 +35,7 @@ interface InitiativeTrackerProps {
   onAddEntry: (entry: InitiativeEntry) => void;
   onRemoveEntry: (entryId: string) => void;
   onUpdateEntry: (entryId: string, updates: Partial<InitiativeEntry>) => void;
+  onReorderInitiative?: (fromIndex: number, toIndex: number) => void;  // DM reordering
   onNextTurn: () => void;
   onStartCombat: () => void;
   onEndCombat: () => void;
@@ -50,6 +51,7 @@ export function InitiativeTracker({
   onAddEntry,
   onRemoveEntry,
   onUpdateEntry,
+  onReorderInitiative,
   onNextTurn,
   onStartCombat,
   onEndCombat,
@@ -65,6 +67,7 @@ export function InitiativeTracker({
   const [isNpc, setIsNpc] = useState(true);
   const [hpDelta, setHpDelta] = useState<Record<string, string>>({});
   const [showConditions, setShowConditions] = useState<string | null>(null); // Entry ID to show conditions for
+  const [showReorder, setShowReorder] = useState(false); // Show reorder controls
 
   const handleAddEntry = () => {
     if (!newName.trim() || !newInit.trim()) return;
@@ -153,6 +156,50 @@ export function InitiativeTracker({
     onUpdateEntry(entryId, { conditions: newConditions });
   };
 
+  // Hold action - mark entry as holding and skip to next turn
+  const handleHoldAction = (entryId: string) => {
+    const entry = initiative.find(e => e.id === entryId);
+    if (!entry) return;
+
+    onUpdateEntry(entryId, {
+      isHolding: true,
+      originalInitiative: entry.originalInitiative ?? entry.initiative,
+    });
+
+    // Move to next turn if this was the active entry
+    if (entry.isActive) {
+      onNextTurn();
+    }
+  };
+
+  // Release held action - insert at current position
+  const handleReleaseHold = (entryId: string, insertAfterIndex: number) => {
+    const entry = initiative.find(e => e.id === entryId);
+    if (!entry) return;
+
+    // Reset holding state and move to new position
+    onUpdateEntry(entryId, { isHolding: false });
+
+    // Find current position of the holding entry
+    const currentIndex = initiative.findIndex(e => e.id === entryId);
+    if (currentIndex !== -1 && onReorderInitiative && currentIndex !== insertAfterIndex) {
+      onReorderInitiative(currentIndex, insertAfterIndex);
+    }
+  };
+
+  // Move entry up or down in initiative order (DM only)
+  const handleMoveEntry = (index: number, direction: 'up' | 'down') => {
+    if (!onReorderInitiative) return;
+
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= initiative.length) return;
+
+    onReorderInitiative(index, newIndex);
+  };
+
+  // Count held entries
+  const heldEntries = initiative.filter(e => e.isHolding);
+
   return (
     <div className="space-y-3">
       {/* Combat Controls (DM only) */}
@@ -172,11 +219,29 @@ export function InitiativeTracker({
               <Button size="sm" onClick={onNextTurn} className="flex-1">
                 Next Turn
               </Button>
+              <Button
+                size="sm"
+                variant={showReorder ? 'primary' : 'secondary'}
+                onClick={() => setShowReorder(!showReorder)}
+                title="Reorder initiative"
+              >
+                ↕️
+              </Button>
               <Button size="sm" variant="danger" onClick={onEndCombat}>
                 End Combat
               </Button>
             </>
           )}
+        </div>
+      )}
+
+      {/* Held Actions Banner */}
+      {heldEntries.length > 0 && (
+        <div className="bg-yellow-900/30 border border-yellow-500/50 rounded p-2 text-sm">
+          <span className="text-yellow-400">⏸️ Holding: </span>
+          <span className="text-parchment">
+            {heldEntries.map(e => e.name).join(', ')}
+          </span>
         </div>
       )}
 
@@ -344,10 +409,13 @@ export function InitiativeTracker({
                         ? 'text-gray-500 line-through'
                         : entry.isActive
                           ? 'text-gold'
-                          : 'text-parchment'
+                          : entry.isHolding
+                            ? 'text-yellow-400'
+                            : 'text-parchment'
                     }`}>
                       {entry.name}
                       {isDead && <span className="ml-2 text-red-400 text-xs no-underline">(Dead)</span>}
+                      {entry.isHolding && <span className="ml-2 text-yellow-400 text-xs">⏸️ Holding</span>}
                     </div>
                     <div className="flex items-center gap-1">
                       <span className="text-parchment/50 text-xs">
@@ -370,6 +438,49 @@ export function InitiativeTracker({
                     </div>
                   </div>
 
+                  {/* Reorder Controls (DM only, when reorder mode is on) */}
+                  {isDm && showReorder && (
+                    <div className="flex flex-col gap-0.5">
+                      <button
+                        onClick={() => handleMoveEntry(index, 'up')}
+                        disabled={index === 0}
+                        className="w-5 h-4 flex items-center justify-center text-xs bg-leather/50 rounded hover:bg-leather disabled:opacity-30"
+                        title="Move up"
+                      >
+                        ▲
+                      </button>
+                      <button
+                        onClick={() => handleMoveEntry(index, 'down')}
+                        disabled={index === initiative.length - 1}
+                        className="w-5 h-4 flex items-center justify-center text-xs bg-leather/50 rounded hover:bg-leather disabled:opacity-30"
+                        title="Move down"
+                      >
+                        ▼
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Hold/Release Button (DM or active player) */}
+                  {isInCombat && !isDead && (isDm || (entry.playerId === playerId && entry.isActive)) && (
+                    entry.isHolding ? (
+                      <button
+                        onClick={() => handleReleaseHold(entry.id, index)}
+                        className="px-2 py-0.5 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-500"
+                        title="Release held action"
+                      >
+                        Release
+                      </button>
+                    ) : entry.isActive ? (
+                      <button
+                        onClick={() => handleHoldAction(entry.id)}
+                        className="px-2 py-0.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-500"
+                        title="Hold action"
+                      >
+                        Hold
+                      </button>
+                    ) : null
+                  )}
+
                   {/* Conditions Button (DM only) */}
                   {isDm && (
                     <button
@@ -384,8 +495,11 @@ export function InitiativeTracker({
                   )}
 
                   {/* Initiative Score */}
-                  <div className={`font-bold text-lg flex-shrink-0 ${entry.isActive ? 'text-gold' : 'text-parchment/70'}`}>
+                  <div className={`font-bold text-lg flex-shrink-0 ${entry.isActive ? 'text-gold' : entry.isHolding ? 'text-yellow-400' : 'text-parchment/70'}`}>
                     {entry.initiative}
+                    {entry.originalInitiative !== undefined && entry.originalInitiative !== entry.initiative && (
+                      <span className="text-xs text-parchment/40 ml-1">({entry.originalInitiative})</span>
+                    )}
                   </div>
 
                   {/* Remove Button (DM only) */}

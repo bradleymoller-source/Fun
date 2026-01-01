@@ -13,6 +13,8 @@ export const InitiativeEntrySchema = z.object({
   maxHp: z.number().min(0).max(10000).optional(),
   currentHp: z.number().min(-100).max(10000).optional(),
   conditions: z.array(ConditionSchema).optional(),
+  isHolding: z.boolean().optional(),
+  originalInitiative: z.number().min(-10).max(50).optional(),
 });
 
 // Add initiative request
@@ -23,6 +25,12 @@ export const AddInitiativeDataSchema = z.object({
 // Remove initiative request
 export const RemoveInitiativeDataSchema = z.object({
   entryId: IdSchema,
+});
+
+// Reorder initiative request
+export const ReorderInitiativeDataSchema = z.object({
+  fromIndex: z.number().min(0).max(100),
+  toIndex: z.number().min(0).max(100),
 });
 
 // Dice roll schema

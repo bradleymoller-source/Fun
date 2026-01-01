@@ -358,6 +358,26 @@ export function removeInitiativeEntry(roomCode: string, entryId: string): Initia
   return session.initiative;
 }
 
+export function reorderInitiative(roomCode: string, fromIndex: number, toIndex: number): InitiativeEntry[] | null {
+  const session = getSession(roomCode);
+  if (!session) return null;
+
+  // Validate indices
+  if (fromIndex < 0 || fromIndex >= session.initiative.length ||
+      toIndex < 0 || toIndex >= session.initiative.length) {
+    return null;
+  }
+
+  // Remove the entry from its current position
+  const [entry] = session.initiative.splice(fromIndex, 1);
+
+  // Insert at the new position
+  session.initiative.splice(toIndex, 0, entry);
+
+  updateActivity(roomCode);
+  return session.initiative;
+}
+
 export function nextTurn(roomCode: string): InitiativeEntry[] | null {
   const session = getSession(roomCode);
   if (!session || session.initiative.length === 0) return null;

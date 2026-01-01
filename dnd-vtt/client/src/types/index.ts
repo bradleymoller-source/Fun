@@ -161,6 +161,9 @@ export interface InitiativeEntry {
   conditions?: Condition[];
   // Monster stats (from campaign generator)
   monsterStats?: MonsterStats;
+  // Turn manipulation
+  isHolding?: boolean;  // Currently holding action
+  originalInitiative?: number;  // Original init before hold/delay
 }
 
 // ============ PHASE 4: CHARACTER SHEET ============
