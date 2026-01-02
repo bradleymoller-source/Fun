@@ -28,6 +28,7 @@ import {
   getAllCharacters,
   deleteCharacter,
   updateCharacterById,
+  transferCharacterByPlayerName,
 } from './sessionManager';
 import { Token, MapState, DiceRoll, ChatMessage, InitiativeEntry } from './types';
 import { logger, createSocketLogger } from './utils/logger';
@@ -207,6 +208,13 @@ export function setupSocketHandlers(io: Server): void {
 
       logger.info('Player joined', { roomCode: upperRoomCode, playerName, isReconnect });
 
+      // Try to recover character for reconnecting players
+      let character = getCharacter(upperRoomCode, socket.id);
+      if (!character && isReconnect) {
+        // Try to transfer character from old socket id
+        character = transferCharacterByPlayerName(upperRoomCode, playerName, socket.id);
+      }
+
       const initiativeState = getInitiative(upperRoomCode);
 
       callback({
@@ -215,6 +223,7 @@ export function setupSocketHandlers(io: Server): void {
         map: playerMap,
         initiative: initiativeState?.initiative || [],
         isInCombat: initiativeState?.isInCombat || false,
+        character, // Include character if found
       });
     });
 

@@ -498,6 +498,36 @@ export function getAllCharacters(roomCode: string): any[] {
   return characters;
 }
 
+// Find and transfer character by player name to new socket id (for reconnecting players)
+export function transferCharacterByPlayerName(roomCode: string, playerName: string, newPlayerId: string): any | null {
+  const session = getSession(roomCode);
+  if (!session) return null;
+
+  // Look through all characters to find one with matching player name
+  for (const [oldPlayerId, charData] of session.characters.entries()) {
+    try {
+      const character = JSON.parse(charData.data);
+      // Match by character name (which is set to player name or custom name)
+      // Also check the player entry to match by player name
+      const player = session.players.get(oldPlayerId);
+      if (player?.name === playerName || character.name === playerName) {
+        // Transfer character to new socket id
+        session.characters.delete(oldPlayerId);
+        const newCharData: CharacterData = {
+          ...charData,
+          playerId: newPlayerId,
+        };
+        session.characters.set(newPlayerId, newCharData);
+        logger.info(`Transferred character "${character.name}" from ${oldPlayerId} to ${newPlayerId} for player "${playerName}"`);
+        return character;
+      }
+    } catch {
+      // Skip invalid character data
+    }
+  }
+  return null;
+}
+
 export function deleteCharacter(roomCode: string, playerId: string): boolean {
   const session = getSession(roomCode);
   if (!session) return false;

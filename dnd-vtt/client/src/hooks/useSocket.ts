@@ -71,6 +71,11 @@ export function useSocket() {
                 if (response.initiative) {
                   useSessionStore.getState().setInitiative(response.initiative);
                 }
+                // Restore character if server found one
+                if (response.character) {
+                  useSessionStore.getState().setCharacter(response.character);
+                  console.log('Character restored:', response.character.name);
+                }
                 useSessionStore.getState().setView('player');
               } else {
                 console.log('Stored player session expired or invalid, clearing...');
@@ -110,6 +115,11 @@ export function useSocket() {
               }
               if (response.isInCombat) {
                 useSessionStore.getState().startCombat();
+              }
+              // Restore character if server found one
+              if (response.character) {
+                useSessionStore.getState().setCharacter(response.character);
+                console.log('Character restored:', response.character.name);
               }
             }
           });
@@ -328,6 +338,11 @@ export function useSocket() {
           }
           if (response.isInCombat) {
             store.startCombat();
+          }
+          // Restore character if server found one for this player
+          if (response.character) {
+            store.setCharacter(response.character);
+            console.log('Character restored from server:', response.character.name);
           }
           store.setView('player');
           // Save to localStorage for persistence
