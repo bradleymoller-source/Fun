@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { useSessionStore } from '../stores/sessionStore';
-import { useSocket } from '../hooks/useSocket';
-import type { Condition } from '../types';
+import type { Condition, InitiativeEntry } from '../types';
 
 interface GeneratedNPC {
   name: string;
@@ -83,6 +82,9 @@ interface GeneratedCampaign {
 interface CampaignGeneratorProps {
   onCampaignGenerated?: (campaign: GeneratedCampaign) => void;
   onDungeonGenerated?: (dungeon: DungeonMap) => void;
+  // Socket functions passed from parent (DMView) to ensure same connection
+  addInitiativeEntry: (entry: InitiativeEntry) => Promise<void>;
+  startCombat: () => Promise<void>;
 }
 
 // Adventure Types - the core structure of the adventure
@@ -188,7 +190,7 @@ const ROOM_COLORS: Record<DungeonRoom['type'], string> = {
   secret: '#9C27B0',
 };
 
-export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: CampaignGeneratorProps) {
+export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, addInitiativeEntry, startCombat }: CampaignGeneratorProps) {
   // Form state
   const [adventureType, setAdventureType] = useState(ADVENTURE_TYPES[0].value);
   const [theme, setTheme] = useState(THEMES[0]);
@@ -230,9 +232,6 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
 
   // Get session store for adding maps to the game's Map Library and local state
   const { addMapToLibrary, addToken, isInCombat } = useSessionStore();
-
-  // Get socket functions for server-synced initiative (so players can see entries)
-  const { addInitiativeEntry, startCombat } = useSocket();
 
   // Monster colors for token differentiation
   const MONSTER_COLORS = [

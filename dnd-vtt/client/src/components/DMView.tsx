@@ -604,7 +604,10 @@ export function DMView() {
               <h2 className="font-medieval text-xl text-gold mb-4">
                 AI Campaign Generator
               </h2>
-              <CampaignGenerator />
+              <CampaignGenerator
+                addInitiativeEntry={addInitiativeEntry}
+                startCombat={startCombat}
+              />
             </Panel>
 
             {/* Encounter Builder */}
