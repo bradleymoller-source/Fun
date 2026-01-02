@@ -31,6 +31,7 @@ const io = new Server(httpServer, {
     methods: ['GET', 'POST'],
     credentials: NODE_ENV === 'production',
   },
+  maxHttpBufferSize: 10 * 1024 * 1024, // 10MB to handle large base64 images
 });
 
 // Middleware
