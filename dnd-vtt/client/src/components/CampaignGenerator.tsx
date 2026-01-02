@@ -51,8 +51,26 @@ interface DungeonRoom {
     hasSecret?: boolean;
     hasPuzzle?: boolean;
     isBoss?: boolean;
+    isRitual?: boolean;
+    isOptional?: boolean;
   };
   outline?: string;
+  accessRequirement?: {
+    type: 'none' | 'key' | 'puzzle' | 'secret' | 'passphrase' | 'boss_defeated' | 'ritual';
+    keyId?: string;
+    keyLocation?: string;
+    description?: string;
+    dcCheck?: number;
+  };
+  guardian?: {
+    type: 'combat' | 'trap' | 'puzzle' | 'guardian_spirit' | 'curse';
+    description: string;
+  };
+  ritualEffect?: {
+    description: string;
+    bossDebuff: string;
+  };
+  pathType?: 'critical' | 'optional' | 'secret' | 'shortcut';
 }
 
 interface DungeonMap {
@@ -61,6 +79,16 @@ interface DungeonMap {
   height: number;
   rooms: DungeonRoom[];
   theme: string;
+  keys?: Array<{
+    id: string;
+    name: string;
+    description: string;
+    locationRoomId: string;
+    unlocksRoomId: string;
+  }>;
+  ritualCount?: number;
+  secretCount?: number;
+  shortcutCount?: number;
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

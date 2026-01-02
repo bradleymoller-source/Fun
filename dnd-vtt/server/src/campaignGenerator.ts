@@ -496,8 +496,30 @@ export interface DungeonRoom {
     hasSecret?: boolean;
     hasPuzzle?: boolean;
     isBoss?: boolean;
+    isRitual?: boolean;       // Ritual that affects boss if stopped
+    isOptional?: boolean;     // Not on critical path
   };
   outline?: string;           // Brief outline for narrative AI
+  // Access requirements - what's needed to enter this room
+  accessRequirement?: {
+    type: 'none' | 'key' | 'puzzle' | 'secret' | 'passphrase' | 'boss_defeated' | 'ritual';
+    keyId?: string;           // e.g., "iron_key", "skull_medallion"
+    keyLocation?: string;     // Which room has the key
+    description?: string;     // e.g., "Requires the Iron Key found in the Guard Room"
+    dcCheck?: number;         // DC for secret door perception, puzzle solving, etc.
+  };
+  // For treasure rooms - what guards it
+  guardian?: {
+    type: 'combat' | 'trap' | 'puzzle' | 'guardian_spirit' | 'curse';
+    description: string;
+  };
+  // For ritual rooms - effect on boss
+  ritualEffect?: {
+    description: string;      // What stopping the ritual does
+    bossDebuff: string;       // e.g., "Boss loses legendary resistance", "Boss starts at half HP"
+  };
+  // Path classification
+  pathType?: 'critical' | 'optional' | 'secret' | 'shortcut';
 }
 
 export interface DungeonMap {
@@ -506,6 +528,17 @@ export interface DungeonMap {
   height: number;
   rooms: DungeonRoom[];
   theme: string;
+  // Dungeon-wide metadata
+  keys?: Array<{
+    id: string;
+    name: string;
+    description: string;
+    locationRoomId: string;
+    unlocksRoomId: string;
+  }>;
+  ritualCount?: number;       // How many rituals can be stopped
+  secretCount?: number;       // How many secret areas exist
+  shortcutCount?: number;     // How many shortcuts exist
 }
 
 // Helper to extract JSON from AI response
@@ -736,31 +769,73 @@ function buildAct2Prompt(request: CampaignRequest, overviewData: any, dungeonMap
     if (flags.hasTreasure) contentTypes.push('TREASURE');
     if (flags.hasPuzzle) contentTypes.push('PUZZLE');
     if (flags.hasSecret) contentTypes.push('SECRET');
+    if (flags.isRitual) contentTypes.push('RITUAL');
     if (flags.isBoss) contentTypes.push('BOSS FIGHT');
+    if (flags.isOptional) contentTypes.push('OPTIONAL');
 
     const exitsStr = room.exits?.join('; ') || 'Standard exits';
     const contentStr = contentTypes.length > 0 ? contentTypes.join(', ') : 'Exploration/Roleplay';
+    const pathStr = room.pathType ? `[${room.pathType.toUpperCase()} PATH]` : '';
+
+    // Access requirements
+    let accessStr = '';
+    if (room.accessRequirement) {
+      accessStr = `\n  - ACCESS: ${room.accessRequirement.description}`;
+    }
+
+    // Guardian info
+    let guardianStr = '';
+    if (room.guardian) {
+      guardianStr = `\n  - GUARDIAN: ${room.guardian.description}`;
+    }
+
+    // Ritual effect
+    let ritualStr = '';
+    if (room.ritualEffect) {
+      ritualStr = `\n  - RITUAL EFFECT: ${room.ritualEffect.description} → If stopped: ${room.ritualEffect.bossDebuff}`;
+    }
 
     return `
-ROOM ${roomNum}: "${room.name}" (${room.type})
+ROOM ${roomNum}: "${room.name}" (${room.type}) ${pathStr}
   - Exits: ${exitsStr}
   - Content: ${contentStr}
   - Outline: ${room.outline || 'Standard room encounter'}
-  - Features: ${room.features?.join(', ') || 'None specified'}`;
+  - Features: ${room.features?.join(', ') || 'None specified'}${accessStr}${guardianStr}${ritualStr}`;
   }).join('\n') : '';
 
-  const dungeonMapContext = dungeonMap ? `
-DUNGEON MAP STRUCTURE - Use these EXACT rooms in order:
-The dungeon "${dungeonMap.name}" has ${dungeonMap.rooms.length} rooms. Flesh out each room based on its outline and content flags:
+  // Key information
+  const keysInfo = dungeonMap?.keys?.length ? `
+KEYS AND LOCKS:
+${dungeonMap.keys.map(k => `- ${k.name}: Found in ${k.locationRoomId}, unlocks ${k.unlocksRoomId}. ${k.description}`).join('\n')}
+` : '';
 
+  // Dungeon summary
+  const dungeonSummary = dungeonMap ? `
+DUNGEON SUMMARY:
+- Rooms on critical path: ${dungeonMap.rooms.filter(r => r.pathType === 'critical').length}
+- Optional side areas: ${dungeonMap.rooms.filter(r => r.pathType === 'optional').length}
+- Secret areas: ${dungeonMap.secretCount || 0}
+- Shortcuts/loops: ${dungeonMap.shortcutCount || 0}
+- Rituals that weaken boss: ${dungeonMap.ritualCount || 0}
+` : '';
+
+  const dungeonMapContext = dungeonMap ? `
+DUNGEON MAP STRUCTURE - JAQUAYS-STYLE NON-LINEAR DUNGEON:
+The dungeon "${dungeonMap.name}" has ${dungeonMap.rooms.length} rooms with branching paths, secrets, and meaningful choices.
+${dungeonSummary}${keysInfo}
+ROOM DETAILS:
 ${roomStructure}
 
-IMPORTANT INSTRUCTIONS:
+IMPORTANT NARRATIVE INSTRUCTIONS:
 - Your "rooms" array MUST match these room names and IDs exactly
-- Use the Exits to describe how rooms connect in your narrative
-- Use the Content flags to determine what happens in each room (add encounters for COMBAT rooms, describe traps for TRAP rooms, etc.)
-- Use the Outline as a starting point - expand it into full descriptions
-- The Features should be incorporated into your readAloud descriptions
+- CRITICAL PATH rooms must be completed to reach the boss
+- OPTIONAL rooms are side content - describe how players can find/access them
+- SECRET rooms require perception checks (mention the DC in your narrative)
+- LOCKED rooms require keys - the key location must be discoverable
+- GUARDIAN encounters must be challenging - treasure is NEVER free
+- RITUAL rooms: If players stop the ritual, note the boss debuff they earn
+- Create a sense of exploration and meaningful choice
+- Shortcuts should feel rewarding to discover but come with trade-offs
 ` : '';
 
   return `You are a master D&D 5e Dungeon Master. Create ACT 2 (the dungeon/adventure site) for this adventure:
@@ -1488,221 +1563,405 @@ Use grid coordinates (0-19 for x and y).`;
   }
 }
 
-// Procedural dungeon generator with detailed room outlines
+// Jaquays-style procedural dungeon generator
+// Creates non-linear dungeons with loops, branches, secrets, and meaningful choices
 function generateProceduralDungeon(theme: string): DungeonMap {
   const rooms: DungeonRoom[] = [];
-  const roomCount = 6 + Math.floor(Math.random() * 5); // 6-10 rooms (focused, not sprawling)
+  const keys: DungeonMap['keys'] = [];
 
-  // Room templates with content variety
-  const roomTemplates: Array<{
+  // Utility functions
+  const pick = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+  const chance = (pct: number): boolean => Math.random() * 100 < pct;
+
+  // Key/lock item templates
+  const keyTemplates = [
+    { id: 'iron_key', name: 'Iron Key', desc: 'A heavy iron key with arcane symbols' },
+    { id: 'skull_medallion', name: 'Skull Medallion', desc: 'A medallion shaped like a screaming skull' },
+    { id: 'crystal_shard', name: 'Crystal Shard', desc: 'A glowing crystal fragment' },
+    { id: 'blood_gem', name: 'Blood Gem', desc: 'A crimson gem that pulses with dark energy' },
+    { id: 'shadow_token', name: 'Shadow Token', desc: 'A coin made of solidified shadow' },
+    { id: 'bone_key', name: 'Bone Key', desc: 'A key carved from ancient bone' },
+  ];
+
+  // Guardian templates for treasure rooms
+  const guardianTemplates = [
+    { type: 'combat' as const, desc: 'Animated armor stands guard, attacking any who approach the treasure' },
+    { type: 'combat' as const, desc: 'A bound elemental protects this hoard, attacking intruders on sight' },
+    { type: 'trap' as const, desc: 'Poison gas fills the room when treasure is disturbed (DC 14 Con save)' },
+    { type: 'trap' as const, desc: 'Floor tiles collapse into a spike pit when weight is removed from pedestals' },
+    { type: 'puzzle' as const, desc: 'Treasure is sealed behind a combination lock - clues are hidden in previous rooms' },
+    { type: 'puzzle' as const, desc: 'Three statues must be rotated to face the correct directions to unlock the vault' },
+    { type: 'guardian_spirit' as const, desc: 'A spectral guardian demands proof of worth - answer its riddle or face combat' },
+    { type: 'curse' as const, desc: 'The treasure is cursed - taking it without the blessing triggers a curse (DC 15 Wis save)' },
+  ];
+
+  // Ritual effect templates (weaken the boss)
+  const ritualEffects = [
+    { desc: 'Dark priests channel power to the boss', bossDebuff: 'Boss loses one Legendary Resistance' },
+    { desc: 'A blood ritual strengthens the boss\'s defenses', bossDebuff: 'Boss AC reduced by 2' },
+    { desc: 'Soul-binding ritual empowers the boss', bossDebuff: 'Boss starts combat with 75% HP instead of full' },
+    { desc: 'Summoning circle calls reinforcements', bossDebuff: 'No additional minions spawn during boss fight' },
+    { desc: 'Ward stones protect the inner sanctum', bossDebuff: 'Boss loses damage resistance' },
+  ];
+
+  // === DUNGEON STRUCTURE ===
+  // We'll build: Critical Path + Side Branches + Secret Areas + Shortcuts
+
+  // CRITICAL PATH: Entrance -> Combat -> Challenge -> Antechamber -> Boss (4-5 rooms)
+  // SIDE BRANCHES: 2-3 optional areas with guarded treasure, rituals, or secrets
+  // SHORTCUTS: Hidden passages that skip rooms or loop back
+
+  const criticalPath: Array<{
     type: DungeonRoom['type'];
-    names: string[];
+    name: string;
     contentFlags: DungeonRoom['contentFlags'];
-    outlineTemplates: string[];
+    outline: string;
+    pathType: 'critical' | 'optional' | 'secret' | 'shortcut';
   }> = [
     {
       type: 'entrance',
-      names: ['Grand Entrance', 'Dungeon Gate', 'Ancient Doorway', 'Cavern Mouth'],
+      name: pick(['Grand Entrance', 'Dungeon Gate', 'Ancient Doorway', 'Cavern Mouth']),
       contentFlags: {},
-      outlineTemplates: [
-        'Entry point. Signs of previous adventurers. Environmental storytelling about the dungeon.',
-        'Guarded entrance. Initial challenge or puzzle to proceed.',
-        'Ominous entrance with warnings. Sets the tone for what lies ahead.',
-      ],
+      outline: 'Entry point. Environmental storytelling. Hints about dangers ahead and optional paths.',
+      pathType: 'critical',
     },
     {
       type: 'room',
-      names: ['Guard Post', 'Barracks', 'Patrol Station', 'Watch Room'],
+      name: pick(['Guard Post', 'Watchroom', 'Sentry Hall', 'Patrol Station']),
       contentFlags: { hasBattle: true },
-      outlineTemplates: [
-        'Combat encounter with guards/sentries. Tactical terrain features.',
-        'Enemies on patrol. Opportunity for stealth or ambush.',
-        'Defensive position with enemies. Cover and chokepoints.',
-      ],
-    },
-    {
-      type: 'trap',
-      names: ['Trapped Hall', 'Danger Room', 'Pit Chamber', 'Blade Gallery'],
-      contentFlags: { hasTrap: true },
-      outlineTemplates: [
-        'Deadly trap requiring skill checks to bypass. Clues for observant players.',
-        'Environmental hazard. Multiple approaches to solve.',
-        'Trap with treasure bait. Risk vs reward decision.',
-      ],
+      outline: 'First combat encounter. Guards/sentries. One guard carries a key to a locked side room.',
+      pathType: 'critical',
     },
     {
       type: 'room',
-      names: ['Puzzle Chamber', 'Riddle Room', 'Lock Room', 'Test Chamber'],
+      name: pick(['Central Hub', 'Crossroads Chamber', 'Great Hall', 'Junction Room']),
       contentFlags: { hasPuzzle: true },
-      outlineTemplates: [
-        'Puzzle blocking progress. Multiple solutions possible.',
-        'Ancient test of wisdom. Clues scattered in previous rooms.',
-        'Mechanical puzzle with consequences for failure.',
-      ],
-    },
-    {
-      type: 'treasure',
-      names: ['Vault', 'Treasury', 'Hoard Room', 'Gold Chamber'],
-      contentFlags: { hasTreasure: true },
-      outlineTemplates: [
-        'Treasure cache with guardian or trap. Valuable loot.',
-        'Hidden riches. Requires solving puzzle or defeating guardian.',
-        'Ancient treasury. Magic items and gold.',
-      ],
-    },
-    {
-      type: 'secret',
-      names: ['Hidden Chamber', 'Secret Study', 'Concealed Vault', 'Mystery Room'],
-      contentFlags: { hasSecret: true, hasTreasure: true },
-      outlineTemplates: [
-        'Optional secret room with bonus loot. DC 15+ to find.',
-        'Hidden area with lore and treasure.',
-        'Secret passage leading to shortcut or bonus encounter.',
-      ],
+      outline: 'Hub room with multiple exits. Puzzle or skill challenge. Visible locked door to optional area. Secret door (DC 15) to shortcut.',
+      pathType: 'critical',
     },
     {
       type: 'room',
-      names: ['Ritual Chamber', 'Dark Shrine', 'Altar Room', 'Ceremony Hall'],
+      name: pick(['Antechamber', 'Threshold', 'Gate Room', 'Final Passage']),
       contentFlags: { hasBattle: true, hasTrap: true },
-      outlineTemplates: [
-        'Enemies performing ritual. Interrupt or face consequences.',
-        'Combat with environmental hazards. Time pressure element.',
-        'Mini-boss encounter with thematic enemies.',
-      ],
+      outline: 'Final challenge before boss. Elite guards or dangerous trap. Optional: ritual chamber accessible from here.',
+      pathType: 'critical',
     },
     {
       type: 'boss',
-      names: ['Throne Room', 'Inner Sanctum', 'Dark Heart', 'Final Chamber'],
+      name: pick(['Throne Room', 'Inner Sanctum', 'Dark Heart', 'Final Chamber']),
       contentFlags: { isBoss: true, hasBattle: true, hasTreasure: true },
-      outlineTemplates: [
-        'Boss encounter. Lair actions and legendary actions. Final treasure.',
-        'Climactic battle with dungeon master. Epic terrain.',
-        'Final confrontation. Multiple phases possible.',
-      ],
+      outline: 'Boss encounter with lair actions. Treasure hoard. Difficulty may be reduced if rituals were stopped.',
+      pathType: 'critical',
     },
   ];
 
-  const directions = ['North', 'South', 'East', 'West', 'Northeast', 'Northwest', 'Southeast', 'Southwest'];
-  const exitTypes = ['door', 'archway', 'passage', 'stairs', 'tunnel', 'gate', 'crawlway'];
+  // SIDE BRANCHES (optional content - off the critical path)
+  const sideBranches: typeof criticalPath = [
+    {
+      type: 'treasure',
+      name: pick(['Locked Vault', 'Hidden Treasury', 'Sealed Hoard', 'Forgotten Cache']),
+      contentFlags: { hasTreasure: true, isOptional: true },
+      outline: 'LOCKED: Requires key from Guard Post. Guarded treasure - not free! Combat/trap/puzzle guardian.',
+      pathType: 'optional',
+    },
+    {
+      type: 'room',
+      name: pick(['Ritual Chamber', 'Dark Shrine', 'Profane Altar', 'Summoning Circle']),
+      contentFlags: { hasBattle: true, isRitual: true, isOptional: true },
+      outline: 'RITUAL: Cultists performing dark rite. If stopped, boss is weakened. Combat encounter.',
+      pathType: 'optional',
+    },
+    {
+      type: 'secret',
+      name: pick(['Hidden Armory', 'Secret Cache', 'Concealed Study', 'Lost Chamber']),
+      contentFlags: { hasTreasure: true, hasSecret: true, isOptional: true },
+      outline: 'SECRET: DC 18 Perception to find. Contains powerful magic item. Trapped entrance.',
+      pathType: 'secret',
+    },
+  ];
 
-  // Helper to get random direction for exits
-  function getExitDirection(fromRoom: number, toRoom: number, usedDirs: string[]): string {
-    const available = directions.filter(d => !usedDirs.includes(d));
-    if (available.length === 0) return directions[Math.floor(Math.random() * directions.length)];
-    return available[Math.floor(Math.random() * available.length)];
+  // SHORTCUTS (secret passages that create loops)
+  const shortcuts: typeof criticalPath = [
+    {
+      type: 'corridor',
+      name: pick(['Hidden Passage', 'Secret Tunnel', 'Concealed Route', 'Shadow Path']),
+      contentFlags: { hasSecret: true, isOptional: true },
+      outline: 'SHORTCUT: Secret passage from Central Hub directly to Antechamber. Bypasses some content but also some loot.',
+      pathType: 'shortcut',
+    },
+  ];
+
+  // === LAYOUT GENERATION ===
+  // Grid-based layout with positions
+  // Critical path goes roughly left-to-right
+  // Branches go north/south from hub room
+  // Shortcuts create diagonal connections
+
+  interface RoomDef {
+    template: typeof criticalPath[0];
+    x: number;
+    y: number;
+    connections: string[];
+    exits: string[];
   }
 
-  // Helper to create exit description
-  function createExit(dir: string, targetId: string, targetName: string): string {
-    const exitType = exitTypes[Math.floor(Math.random() * exitTypes.length)];
-    return `${dir} ${exitType} to ${targetName} (${targetId})`;
+  const roomDefs: RoomDef[] = [];
+
+  // Position critical path (horizontal, center of grid)
+  const centerY = 2; // Middle of a 5-tall grid
+
+  criticalPath.forEach((template, i) => {
+    roomDefs.push({
+      template,
+      x: i * 1.2, // Slight offset to create visual interest
+      y: centerY + (i % 2 === 0 ? 0 : (chance(50) ? -0.3 : 0.3)),
+      connections: [],
+      exits: [],
+    });
+  });
+
+  // Connect critical path linearly
+  for (let i = 0; i < roomDefs.length - 1; i++) {
+    const currentId = `room-${i + 1}`;
+    const nextId = `room-${i + 2}`;
+    roomDefs[i].connections.push(nextId);
   }
 
-  // Build room sequence - ensure variety
-  const roomSequence: typeof roomTemplates[0][] = [];
+  // Add side branches off the hub room (index 2)
+  const hubIndex = 2;
+  const hubRoom = roomDefs[hubIndex];
 
-  // Always start with entrance
-  roomSequence.push(roomTemplates.find(t => t.type === 'entrance')!);
+  // Locked treasure room (north of hub)
+  const treasureRoom = sideBranches[0];
+  const treasureIndex = roomDefs.length;
+  roomDefs.push({
+    template: treasureRoom,
+    x: hubRoom.x + 0.5,
+    y: hubRoom.y - 1.2,
+    connections: [],
+    exits: [],
+  });
 
-  // Middle rooms - mix of combat, traps, puzzles, treasure
-  const middleTemplates = roomTemplates.filter(t => t.type !== 'entrance' && t.type !== 'boss');
-  for (let i = 1; i < roomCount - 1; i++) {
-    // Ensure variety - don't repeat same type twice in a row
-    let template;
-    do {
-      template = middleTemplates[Math.floor(Math.random() * middleTemplates.length)];
-    } while (roomSequence.length > 0 && roomSequence[roomSequence.length - 1].type === template.type);
-    roomSequence.push(template);
-  }
+  // Connect hub to treasure (but it's locked!)
+  const treasureRoomId = `room-${treasureIndex + 1}`;
+  hubRoom.connections.push(treasureRoomId);
 
-  // Always end with boss
-  roomSequence.push(roomTemplates.find(t => t.type === 'boss')!);
+  // Create key for treasure room (key is in guard room, index 1)
+  const keyTemplate = pick(keyTemplates.filter(k => !keys.find(existing => existing.id === k.id)));
+  keys.push({
+    id: keyTemplate.id,
+    name: keyTemplate.name,
+    description: keyTemplate.desc,
+    locationRoomId: 'room-2', // Guard room
+    unlocksRoomId: treasureRoomId,
+  });
 
-  // Generate room positions in a branching layout
-  const gridSize = 5;
-  const positions: Array<{x: number, y: number}> = [];
-  let currentX = 0;
-  let currentY = Math.floor(gridSize / 2);
+  // Ritual room (south of antechamber, index 3)
+  const antechamberIndex = 3;
+  const antechamber = roomDefs[antechamberIndex];
+  const ritualRoom = sideBranches[1];
+  const ritualIndex = roomDefs.length;
+  roomDefs.push({
+    template: ritualRoom,
+    x: antechamber.x - 0.3,
+    y: antechamber.y + 1.2,
+    connections: [],
+    exits: [],
+  });
 
-  for (let i = 0; i < roomSequence.length; i++) {
-    positions.push({ x: currentX, y: currentY });
+  // Connect antechamber to ritual room
+  const ritualRoomId = `room-${ritualIndex + 1}`;
+  antechamber.connections.push(ritualRoomId);
 
-    // Move to next position - alternate between east and varying north/south
-    if (i < roomSequence.length - 1) {
-      const moveEast = Math.random() > 0.3;
-      if (moveEast) {
-        currentX++;
-      }
-      // Vary vertical position
-      const vertMove = Math.floor(Math.random() * 3) - 1; // -1, 0, or 1
-      currentY = Math.max(0, Math.min(gridSize - 1, currentY + vertMove));
+  // Secret room (off the guard room, but hidden)
+  const guardIndex = 1;
+  const guardRoom = roomDefs[guardIndex];
+  const secretRoom = sideBranches[2];
+  const secretIndex = roomDefs.length;
+  roomDefs.push({
+    template: secretRoom,
+    x: guardRoom.x,
+    y: guardRoom.y - 1,
+    connections: [],
+    exits: [],
+  });
+
+  // Secret connection (marked as secret)
+  const secretRoomId = `room-${secretIndex + 1}`;
+  guardRoom.connections.push(secretRoomId);
+
+  // Shortcut passage (from hub to antechamber)
+  const shortcut = shortcuts[0];
+  const shortcutIndex = roomDefs.length;
+  roomDefs.push({
+    template: shortcut,
+    x: (hubRoom.x + antechamber.x) / 2,
+    y: centerY - 1,
+    connections: [],
+    exits: [],
+  });
+
+  const shortcutRoomId = `room-${shortcutIndex + 1}`;
+  // Hub has secret exit to shortcut
+  hubRoom.connections.push(shortcutRoomId);
+  // Shortcut connects to antechamber
+  roomDefs[shortcutIndex].connections.push(`room-${antechamberIndex + 1}`);
+
+  // === CREATE FINAL ROOMS ===
+  const directions = ['North', 'South', 'East', 'West'];
+  const exitTypes = ['door', 'archway', 'passage', 'stairs', 'tunnel', 'gate'];
+
+  function getDirection(from: RoomDef, to: RoomDef): string {
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    if (Math.abs(dx) > Math.abs(dy)) {
+      return dx > 0 ? 'East' : 'West';
     }
+    return dy < 0 ? 'North' : 'South';
   }
 
-  // Create rooms with full details
-  for (let i = 0; i < roomSequence.length; i++) {
-    const template = roomSequence[i];
-    const pos = positions[i];
-    const name = template.names[Math.floor(Math.random() * template.names.length)];
-    const outline = template.outlineTemplates[Math.floor(Math.random() * template.outlineTemplates.length)];
+  roomDefs.forEach((def, index) => {
+    const roomIdStr = `room-${index + 1}`;
+    const isTreasure = def.template.type === 'treasure';
+    const isRitual = def.template.contentFlags?.isRitual;
+    const isSecret = def.template.pathType === 'secret';
+    const isShortcut = def.template.pathType === 'shortcut';
 
-    // Calculate connections and exits
-    const connections: string[] = [];
+    // Build exits based on connections
     const exits: string[] = [];
-    const usedDirs: string[] = [];
+    def.connections.forEach(targetId => {
+      const targetIndex = parseInt(targetId.split('-')[1]) - 1;
+      const targetDef = roomDefs[targetIndex];
+      const dir = getDirection(def, targetDef);
+      const exitType = pick(exitTypes);
 
-    // Connect to next room
-    if (i < roomSequence.length - 1) {
-      const nextId = `room-${i + 2}`;
-      const nextName = roomSequence[i + 1].names[Math.floor(Math.random() * roomSequence[i + 1].names.length)];
-      connections.push(nextId);
-      const dir = getExitDirection(i, i + 1, usedDirs);
-      usedDirs.push(dir);
-      exits.push(createExit(dir, nextId, nextName));
-    }
+      let exitDesc = `${dir} ${exitType} to ${targetDef.template.name} (${targetId})`;
 
-    // Sometimes add branch connection to non-adjacent room (secret passage, etc)
-    if (template.type === 'secret' && i > 2) {
-      const branchTo = Math.floor(Math.random() * (i - 1)) + 1;
-      const branchId = `room-${branchTo + 1}`;
-      if (!connections.includes(branchId)) {
-        connections.push(branchId);
-        const dir = getExitDirection(i, branchTo, usedDirs);
-        exits.push(createExit(dir, branchId, `earlier chamber`) + ' (hidden)');
+      // Add access requirement notes
+      if (targetDef.template.type === 'treasure' && keys.find(k => k.unlocksRoomId === targetId)) {
+        const key = keys.find(k => k.unlocksRoomId === targetId)!;
+        exitDesc += ` [LOCKED - requires ${key.name}]`;
+      }
+      if (targetDef.template.pathType === 'secret') {
+        exitDesc += ` [SECRET - DC 18 Perception]`;
+      }
+      if (targetDef.template.pathType === 'shortcut') {
+        exitDesc += ` [HIDDEN - DC 15 Investigation]`;
+      }
+
+      exits.push(exitDesc);
+    });
+
+    // Add back-connections for navigation
+    roomDefs.forEach((otherDef, otherIndex) => {
+      if (otherDef.connections.includes(roomIdStr) && !def.connections.includes(`room-${otherIndex + 1}`)) {
+        const dir = getDirection(def, otherDef);
+        exits.push(`${dir} back to ${otherDef.template.name} (room-${otherIndex + 1})`);
+      }
+    });
+
+    // Build access requirements
+    let accessRequirement: DungeonRoom['accessRequirement'] = undefined;
+
+    if (isTreasure) {
+      const key = keys.find(k => k.unlocksRoomId === roomIdStr);
+      if (key) {
+        accessRequirement = {
+          type: 'key',
+          keyId: key.id,
+          keyLocation: key.locationRoomId,
+          description: `Requires ${key.name} (found in ${roomDefs[parseInt(key.locationRoomId.split('-')[1]) - 1].template.name})`,
+        };
       }
     }
 
-    // Add back-reference exit from previous room
-    if (i > 0) {
-      const prevName = roomSequence[i - 1].names[0];
-      const backDir = getExitDirection(i, i - 1, usedDirs);
-      usedDirs.push(backDir);
-      exits.unshift(createExit(backDir, `room-${i}`, prevName) + ' (back)');
+    if (isSecret) {
+      accessRequirement = {
+        type: 'secret',
+        dcCheck: 18,
+        description: 'Hidden door - DC 18 Perception to notice the concealed entrance',
+      };
+    }
+
+    if (isShortcut) {
+      accessRequirement = {
+        type: 'secret',
+        dcCheck: 15,
+        description: 'Secret passage - DC 15 Investigation to find the hidden mechanism',
+      };
+    }
+
+    // Build guardian for treasure rooms
+    let guardian: DungeonRoom['guardian'] = undefined;
+    if (isTreasure) {
+      const guardianTemplate = pick(guardianTemplates);
+      guardian = {
+        type: guardianTemplate.type,
+        description: guardianTemplate.desc,
+      };
+    }
+
+    // Build ritual effect
+    let ritualEffect: DungeonRoom['ritualEffect'] = undefined;
+    if (isRitual) {
+      const effect = pick(ritualEffects);
+      ritualEffect = {
+        description: effect.desc,
+        bossDebuff: effect.bossDebuff,
+      };
+    }
+
+    // Enhanced outline based on room type
+    let outline = def.template.outline;
+    if (guardian) {
+      outline += ` GUARDIAN: ${guardian.description}`;
+    }
+    if (ritualEffect) {
+      outline += ` RITUAL EFFECT: If stopped - ${ritualEffect.bossDebuff}`;
+    }
+    if (accessRequirement) {
+      outline += ` ACCESS: ${accessRequirement.description}`;
+    }
+
+    // Add key placement info to guard room
+    if (index === 1) { // Guard room
+      const placedKeys = keys.filter(k => k.locationRoomId === roomIdStr);
+      if (placedKeys.length > 0) {
+        outline += ` KEY FOUND HERE: ${placedKeys.map(k => k.name).join(', ')} (carried by guard captain or hidden in locked chest)`;
+      }
     }
 
     rooms.push({
-      id: `room-${i + 1}`,
-      x: pos.x * 4,
-      y: pos.y * 4,
-      width: template.type === 'boss' ? 4 : template.type === 'corridor' ? 1 : 3,
-      height: template.type === 'boss' ? 4 : template.type === 'corridor' ? 4 : 3,
-      type: template.type,
-      name,
-      description: `A ${template.type} chamber in the ${theme} dungeon.`,
-      connections,
-      features: generateRoomFeatures(template.type),
+      id: roomIdStr,
+      x: Math.round(def.x * 5),
+      y: Math.round(def.y * 5),
+      width: def.template.type === 'boss' ? 4 : def.template.type === 'corridor' ? 2 : 3,
+      height: def.template.type === 'boss' ? 4 : def.template.type === 'corridor' ? 3 : 3,
+      type: def.template.type,
+      name: def.template.name,
+      description: `A ${def.template.type} in the ${theme} dungeon.`,
+      connections: def.connections,
+      features: generateRoomFeatures(def.template.type),
       exits,
-      contentFlags: { ...template.contentFlags },
+      contentFlags: { ...def.template.contentFlags },
       outline,
+      pathType: def.template.pathType,
+      accessRequirement,
+      guardian,
+      ritualEffect,
     });
-  }
+  });
 
   return {
     name: `${theme.charAt(0).toUpperCase() + theme.slice(1)} Dungeon`,
-    width: 24,
-    height: 24,
+    width: 30,
+    height: 30,
     rooms,
     theme,
+    keys,
+    ritualCount: rooms.filter(r => r.ritualEffect).length,
+    secretCount: rooms.filter(r => r.pathType === 'secret').length,
+    shortcutCount: rooms.filter(r => r.pathType === 'shortcut').length,
   };
 }
 
