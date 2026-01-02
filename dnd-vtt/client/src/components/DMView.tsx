@@ -15,7 +15,8 @@ import { PartyDashboard } from './PartyDashboard';
 import { EncounterBuilder } from './EncounterBuilder';
 import { CampaignGenerator } from './CampaignGenerator';
 import { NotesPanel } from './DM/NotesPanel';
-import type { Token, DiceRoll, ChatMessage, InitiativeEntry, FogArea, Character } from '../types';
+import { StorePanel } from './StorePanel';
+import type { Token, DiceRoll, ChatMessage, InitiativeEntry, FogArea, Character, StoreItem } from '../types';
 
 type MapOrientation = 'landscape' | 'portrait';
 
@@ -44,6 +45,7 @@ export function DMView() {
     endCombat,
     getAllCharacters,
     updatePlayerCharacter,
+    distributeItem,
     socket,
   } = useSocket();
   const [dmNotes, setDmNotes] = useState<Record<string, string>>({});
@@ -326,6 +328,21 @@ export function DMView() {
   const handleClearFog = () => {
     setFogOfWar([]);
     // Fog is synced via the debounced map update effect
+  };
+
+  // Store/Loot handlers
+  const handleUpdateStore = async (items: StoreItem[]) => {
+    // Individual items are synced via socket events
+    console.log('Store updated:', items);
+  };
+
+  const handleDistributeItem = async (itemId: string, playerId: string, playerName: string, quantity: number) => {
+    try {
+      await distributeItem(itemId, playerId, playerName, quantity);
+      console.log(`Item ${itemId} distributed to ${playerName}`);
+    } catch (error) {
+      console.error('Failed to distribute item:', error);
+    }
   };
 
   // Keyboard shortcuts
@@ -663,6 +680,19 @@ export function DMView() {
                 playerId={socket?.id || 'dm'}
                 playerName="DM"
                 isDm={true}
+              />
+            </Panel>
+
+            {/* Store & Loot */}
+            <Panel>
+              <h2 className="font-medieval text-xl text-gold mb-4">
+                Store & Loot
+              </h2>
+              <StorePanel
+                isDm={true}
+                players={players}
+                onUpdateStore={handleUpdateStore}
+                onDistributeItem={handleDistributeItem}
               />
             </Panel>
 

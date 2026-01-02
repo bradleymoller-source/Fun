@@ -695,7 +695,7 @@ REQUIREMENTS:
 }
 
 // Build prompt for Act 2 (Dungeon/Encounters)
-function buildAct2Prompt(request: CampaignRequest, overviewData: any): string {
+function buildAct2Prompt(request: CampaignRequest, overviewData: any, dungeonMap?: DungeonMap): string {
   const adventureType = request.adventureType || 'dungeon_crawl';
 
   // Extract throughlines from Act 1
@@ -714,6 +714,22 @@ function buildAct2Prompt(request: CampaignRequest, overviewData: any): string {
   const npcContext = keyNpcs.slice(0, 3).map((npc: any) =>
     `- ${npc.name} (${npc.role}): mentioned ${npc.keyInformation?.[0] || 'local rumors'}`
   ).join('\n');
+
+  // Build room structure from pre-generated dungeon map (if provided)
+  const roomStructure = dungeonMap ? dungeonMap.rooms.map((room, index) => {
+    const roomNum = index + 1;
+    return `Room ${roomNum}: "${room.name}" (${room.type}) - Features: ${room.features?.join(', ') || 'standard'}`;
+  }).join('\n') : '';
+
+  const dungeonMapContext = dungeonMap ? `
+IMPORTANT - DUNGEON MAP STRUCTURE:
+You MUST use these EXACT room names and numbers in your narrative. The dungeon map has already been generated with these rooms:
+
+${roomStructure}
+
+Your "rooms" array MUST match these room names EXACTLY. Do not invent new room names - use the names above.
+The dungeon name is: "${dungeonMap.name}"
+` : '';
 
   return `You are a master D&D 5e Dungeon Master. Create ACT 2 (the dungeon/adventure site) for this adventure:
 
@@ -736,7 +752,7 @@ NARRATIVE THROUGHLINES (these MUST appear in Act 2):
 ${throughlineContext || 'No throughlines defined'}
 
 CRITICAL: Each throughline must have its "act2Discovery" element somewhere in the dungeon - as a hidden item, NPC dialogue, room description, or treasure.
-
+${dungeonMapContext}
 Return ONLY valid JSON with this structure:
 
 \`\`\`json
@@ -1192,6 +1208,10 @@ export async function generateCampaign(req: Request, res: Response) {
 
     console.log('Starting SPLIT campaign generation with theme:', request.theme, 'setting:', request.setting);
 
+    // FIRST: Generate the dungeon map structure so AI can reference it
+    const dungeonMap = generateProceduralDungeon(request.theme);
+    console.log('Pre-generated dungeon map with', dungeonMap.rooms.length, 'rooms');
+
     // Part 1: Generate Overview + Act 1
     let overviewAndAct1;
     try {
@@ -1206,13 +1226,14 @@ export async function generateCampaign(req: Request, res: Response) {
     }
 
     // Part 2: Generate Act 2 (Dungeon) - CRITICAL: Contains encounters
+    // Pass the dungeon map so AI uses the same room names
     // Retry up to 2 times since this is the most important part
     let act2Data;
     let act2Error = null;
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
         console.log(`Generating Act 2 (attempt ${attempt}/2)...`);
-        const prompt2 = buildAct2Prompt(request, overviewAndAct1);
+        const prompt2 = buildAct2Prompt(request, overviewAndAct1, dungeonMap);
         act2Data = await callGeminiAndParse(prompt2, 'Act 2');
         if (act2Data?.act2?.encounters?.length > 0) {
           console.log(`Act 2 generated successfully with ${act2Data.act2.encounters.length} encounters`);
@@ -1272,14 +1293,10 @@ export async function generateCampaign(req: Request, res: Response) {
         : undefined,
     };
 
-    // Generate dungeon map if requested
+    // Use the pre-generated dungeon map (which the AI narrative now matches)
     if (request.includeMap) {
-      try {
-        campaign.dungeonMap = await generateDungeonMap(request, campaign);
-      } catch (mapError) {
-        console.error('Dungeon map generation failed, using procedural:', mapError);
-        campaign.dungeonMap = generateProceduralDungeon(request.theme);
-      }
+      campaign.dungeonMap = dungeonMap;
+      console.log('Using pre-generated dungeon map that matches narrative');
     }
 
     console.log('Campaign generated successfully:', campaign.title);

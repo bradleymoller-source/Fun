@@ -1,4 +1,4 @@
-import type { Session, Player, CreateSessionResponse, MapState, Token, FogArea, InitiativeEntry, CharacterData } from './types';
+import type { Session, Player, CreateSessionResponse, MapState, Token, FogArea, InitiativeEntry, CharacterData, StoreItem, LootItem, PlayerInventoryItem } from './types';
 import { generateRoomCode, generateDmKey } from './roomCode';
 import db, { cleanupExpiredSessions } from './database';
 import { logger } from './utils/logger';
@@ -41,6 +41,9 @@ export function createSession(): CreateSessionResponse {
     initiative: [],
     isInCombat: false,
     characters: new Map(),
+    storeItems: [],
+    lootItems: [],
+    playerInventories: [],
     createdAt: now,
     lastActivity: now,
   };
@@ -215,6 +218,24 @@ export function addToken(roomCode: string, token: Token): Token[] | null {
   const session = getSession(roomCode);
   if (!session) return null;
 
+  // Check for duplicate tokens - don't add if a token with same ID or same ownerId already exists
+  const existingById = session.map.tokens.find(t => t.id === token.id);
+  const existingByOwner = token.ownerId ? session.map.tokens.find(t => t.ownerId === token.ownerId) : null;
+
+  if (existingById) {
+    // Token with this ID already exists - update it instead of adding duplicate
+    Object.assign(existingById, token);
+    updateActivity(roomCode);
+    return session.map.tokens;
+  }
+
+  if (existingByOwner) {
+    // Player already has a token - update their existing token instead
+    Object.assign(existingByOwner, token);
+    updateActivity(roomCode);
+    return session.map.tokens;
+  }
+
   session.map.tokens.push(token);
   updateActivity(roomCode);
   return session.map.tokens;
@@ -303,6 +324,9 @@ export function loadSessionsFromDb(): void {
       initiative: [],
       isInCombat: false,
       characters: new Map(),
+      storeItems: [],
+      lootItems: [],
+      playerInventories: [],
       createdAt: new Date(row.created_at),
       lastActivity: new Date(row.last_activity),
     };
@@ -573,6 +597,108 @@ export function updateCharacterById(roomCode: string, characterId: string, updat
   }
 
   return null;
+}
+
+// Store & Loot management functions
+export function getStoreItems(roomCode: string): StoreItem[] {
+  const session = getSession(roomCode);
+  return session?.storeItems || [];
+}
+
+export function setStoreItems(roomCode: string, items: StoreItem[]): StoreItem[] | null {
+  const session = getSession(roomCode);
+  if (!session) return null;
+  session.storeItems = items;
+  updateActivity(roomCode);
+  return session.storeItems;
+}
+
+export function addStoreItem(roomCode: string, item: StoreItem): StoreItem[] | null {
+  const session = getSession(roomCode);
+  if (!session) return null;
+  session.storeItems.push(item);
+  updateActivity(roomCode);
+  return session.storeItems;
+}
+
+export function removeStoreItem(roomCode: string, itemId: string): StoreItem[] | null {
+  const session = getSession(roomCode);
+  if (!session) return null;
+  session.storeItems = session.storeItems.filter(i => i.id !== itemId);
+  updateActivity(roomCode);
+  return session.storeItems;
+}
+
+export function getLootItems(roomCode: string): LootItem[] {
+  const session = getSession(roomCode);
+  return session?.lootItems || [];
+}
+
+export function setLootItems(roomCode: string, items: LootItem[]): LootItem[] | null {
+  const session = getSession(roomCode);
+  if (!session) return null;
+  session.lootItems = items;
+  updateActivity(roomCode);
+  return session.lootItems;
+}
+
+export function addLootItem(roomCode: string, item: LootItem): LootItem[] | null {
+  const session = getSession(roomCode);
+  if (!session) return null;
+  session.lootItems.push(item);
+  updateActivity(roomCode);
+  return session.lootItems;
+}
+
+export function removeLootItem(roomCode: string, itemId: string): LootItem[] | null {
+  const session = getSession(roomCode);
+  if (!session) return null;
+  session.lootItems = session.lootItems.filter(i => i.id !== itemId);
+  updateActivity(roomCode);
+  return session.lootItems;
+}
+
+export function getPlayerInventories(roomCode: string): PlayerInventoryItem[] {
+  const session = getSession(roomCode);
+  return session?.playerInventories || [];
+}
+
+export function distributeItemToPlayer(
+  roomCode: string,
+  lootItemId: string,
+  playerId: string,
+  playerName: string,
+  quantity: number
+): { lootItems: LootItem[]; playerInventories: PlayerInventoryItem[] } | null {
+  const session = getSession(roomCode);
+  if (!session) return null;
+
+  const lootItem = session.lootItems.find(i => i.id === lootItemId);
+  if (!lootItem) return null;
+
+  // Add to player inventory
+  const inventoryItem: PlayerInventoryItem = {
+    id: `inv-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    name: lootItem.name,
+    description: lootItem.description,
+    quantity,
+    playerId,
+    playerName,
+  };
+  session.playerInventories.push(inventoryItem);
+
+  // Remove or reduce quantity from loot pool
+  if (lootItem.quantity <= quantity) {
+    session.lootItems = session.lootItems.filter(i => i.id !== lootItemId);
+  } else {
+    lootItem.quantity -= quantity;
+  }
+
+  updateActivity(roomCode);
+  return {
+    lootItems: session.lootItems,
+    playerInventories: session.playerInventories,
+  };
 }
 
 // Re-export for use in index.ts

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Player, SessionState, MapState, Token, FogArea, SavedMap, DiceRoll, ChatMessage, InitiativeEntry, Character, Monster } from '../types';
+import type { Player, SessionState, MapState, Token, FogArea, SavedMap, DiceRoll, ChatMessage, InitiativeEntry, Character, Monster, StoreItem, LootItem, PlayerInventoryItem } from '../types';
 
 const initialMapState: MapState = {
   imageUrl: null,
@@ -87,6 +87,17 @@ interface SessionStore extends SessionState {
   removeMonster: (monsterId: string) => void;
   setActiveMonster: (monster: Monster | null) => void;
   setMonsters: (monsters: Monster[]) => void;
+
+  // Store & Loot Actions
+  setStoreItems: (items: StoreItem[]) => void;
+  addStoreItem: (item: StoreItem) => void;
+  updateStoreItem: (itemId: string, updates: Partial<StoreItem>) => void;
+  removeStoreItem: (itemId: string) => void;
+  setLootItems: (items: LootItem[]) => void;
+  addLootItem: (item: LootItem) => void;
+  removeLootItem: (itemId: string) => void;
+  setPlayerInventories: (items: PlayerInventoryItem[]) => void;
+  addToPlayerInventory: (item: PlayerInventoryItem) => void;
 }
 
 const initialState: SessionState = {
@@ -107,6 +118,9 @@ const initialState: SessionState = {
   allCharacters: [],
   monsters: [],
   activeMonster: null,
+  storeItems: [],
+  lootItems: [],
+  playerInventories: [],
   view: 'landing',
   playerTab: 'map',
   error: null,
@@ -468,4 +482,43 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   setActiveMonster: (activeMonster) => set({ activeMonster }),
 
   setMonsters: (monsters) => set({ monsters }),
+
+  // Store & Loot Actions
+  setStoreItems: (storeItems) => set({ storeItems }),
+
+  addStoreItem: (item) =>
+    set((state) => ({
+      storeItems: [...state.storeItems, item],
+    })),
+
+  updateStoreItem: (itemId, updates) =>
+    set((state) => ({
+      storeItems: state.storeItems.map((item) =>
+        item.id === itemId ? { ...item, ...updates } : item
+      ),
+    })),
+
+  removeStoreItem: (itemId) =>
+    set((state) => ({
+      storeItems: state.storeItems.filter((item) => item.id !== itemId),
+    })),
+
+  setLootItems: (lootItems) => set({ lootItems }),
+
+  addLootItem: (item) =>
+    set((state) => ({
+      lootItems: [...state.lootItems, item],
+    })),
+
+  removeLootItem: (itemId) =>
+    set((state) => ({
+      lootItems: state.lootItems.filter((item) => item.id !== itemId),
+    })),
+
+  setPlayerInventories: (playerInventories) => set({ playerInventories }),
+
+  addToPlayerInventory: (item) =>
+    set((state) => ({
+      playerInventories: [...state.playerInventories, item],
+    })),
 }));

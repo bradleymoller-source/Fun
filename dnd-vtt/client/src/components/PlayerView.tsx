@@ -10,6 +10,7 @@ import { ChatPanel } from './ChatPanel';
 import { InitiativeTracker } from './InitiativeTracker';
 import { CharacterCreator } from './Character/CharacterCreator';
 import { CharacterSheet } from './Character/CharacterSheet';
+import { PlayerStorePanel } from './PlayerStorePanel';
 import type { DiceRoll, ChatMessage, Character, InitiativeEntry } from '../types';
 
 type MapOrientation = 'landscape' | 'portrait';
@@ -21,7 +22,7 @@ const ORIENTATION_SIZES = {
 
 export function PlayerView() {
   const { roomCode, playerName, players, isConnected, playerTab, character, setPlayerTab, setCharacter, updateCharacter } = useSessionStore();
-  const { rollDice, sendChatMessage, moveToken, saveCharacter, deleteCharacter, playerRollInitiative, leaveSession, socket } = useSocket();
+  const { rollDice, sendChatMessage, moveToken, saveCharacter, deleteCharacter, playerRollInitiative, leaveSession, getStore, socket } = useSocket();
   const [showParty, setShowParty] = useState(false);
   const [mapOrientation, setMapOrientation] = useState<MapOrientation>('landscape');
   const [mapDimensions, setMapDimensions] = useState(ORIENTATION_SIZES.landscape);
@@ -85,6 +86,13 @@ export function PlayerView() {
     window.addEventListener('resize', updateDimensions);
     return () => window.removeEventListener('resize', updateDimensions);
   }, [mapOrientation]);
+
+  // Load store items when connected
+  useEffect(() => {
+    if (roomCode && isConnected) {
+      getStore().catch(console.error);
+    }
+  }, [roomCode, isConnected, getStore]);
 
   // Phase 3: Dice Roll Handler
   const handleDiceRoll = async (roll: DiceRoll) => {
@@ -322,6 +330,14 @@ export function PlayerView() {
             playerId={socket?.id || 'player'}
             playerName={playerName || 'Player'}
           />
+        </Panel>
+
+        {/* Store */}
+        <Panel>
+          <h2 className="font-medieval text-xl text-gold mb-4">
+            Shop & Inventory
+          </h2>
+          <PlayerStorePanel />
         </Panel>
       </div>
     </>

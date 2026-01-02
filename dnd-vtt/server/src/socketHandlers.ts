@@ -29,6 +29,15 @@ import {
   deleteCharacter,
   updateCharacterById,
   transferCharacterByPlayerName,
+  getStoreItems,
+  setStoreItems,
+  addStoreItem,
+  removeStoreItem,
+  getLootItems,
+  addLootItem,
+  removeLootItem,
+  distributeItemToPlayer,
+  getPlayerInventories,
 } from './sessionManager';
 import { Token, MapState, DiceRoll, ChatMessage, InitiativeEntry } from './types';
 import { logger, createSocketLogger } from './utils/logger';
@@ -52,6 +61,12 @@ import {
   SendChatDataSchema,
   SaveCharacterDataSchema,
   DmUpdateCharacterDataSchema,
+  UpdateStoreDataSchema,
+  AddStoreItemDataSchema,
+  RemoveStoreItemDataSchema,
+  AddLootItemDataSchema,
+  RemoveLootItemDataSchema,
+  DistributeItemDataSchema,
 } from './schemas';
 
 // Track which session each socket belongs to
@@ -1038,6 +1053,259 @@ export function setupSocketHandlers(io: Server): void {
       logger.info('DM updated character', { roomCode, characterId: validation.data.characterId });
 
       callback({ success: true, character: result.character });
+    });
+
+    // ============ STORE & LOOT ============
+
+    // Get store items (available to all players)
+    socket.on('get-store', async (callback: (response: any) => void) => {
+      if (!await checkLimit('get-store')) {
+        callback({ success: false, error: 'Rate limit exceeded.' });
+        return;
+      }
+
+      const sessionInfo = socketSessions.get(socket.id);
+      if (!sessionInfo) {
+        callback({ success: false, error: 'Not in a session' });
+        return;
+      }
+
+      const { roomCode } = sessionInfo;
+      const storeItems = getStoreItems(roomCode);
+
+      callback({ success: true, storeItems });
+    });
+
+    // Update store items (DM only)
+    socket.on('update-store', async (data: unknown, callback: (response: any) => void) => {
+      if (!await checkLimit('update-store')) {
+        callback({ success: false, error: 'Rate limit exceeded.' });
+        return;
+      }
+
+      const sessionInfo = socketSessions.get(socket.id);
+      if (!sessionInfo || !sessionInfo.isDm) {
+        callback({ success: false, error: 'Only the DM can update the store' });
+        return;
+      }
+
+      const validation = validateData(UpdateStoreDataSchema, data, 'update-store');
+      if (!validation.success) {
+        callback({ success: false, error: validation.error });
+        return;
+      }
+
+      const { roomCode } = sessionInfo;
+      const storeItems = setStoreItems(roomCode, validation.data.items);
+
+      if (!storeItems) {
+        callback({ success: false, error: 'Failed to update store' });
+        return;
+      }
+
+      // Broadcast to all players
+      io.to(roomCode).emit('store-updated', { storeItems });
+
+      logger.info('Store updated', { roomCode, itemCount: storeItems.length });
+
+      callback({ success: true, storeItems });
+    });
+
+    // Add store item (DM only)
+    socket.on('add-store-item', async (data: unknown, callback: (response: any) => void) => {
+      if (!await checkLimit('add-store-item')) {
+        callback({ success: false, error: 'Rate limit exceeded.' });
+        return;
+      }
+
+      const sessionInfo = socketSessions.get(socket.id);
+      if (!sessionInfo || !sessionInfo.isDm) {
+        callback({ success: false, error: 'Only the DM can add store items' });
+        return;
+      }
+
+      const validation = validateData(AddStoreItemDataSchema, data, 'add-store-item');
+      if (!validation.success) {
+        callback({ success: false, error: validation.error });
+        return;
+      }
+
+      const { roomCode } = sessionInfo;
+      const storeItems = addStoreItem(roomCode, validation.data.item);
+
+      if (!storeItems) {
+        callback({ success: false, error: 'Failed to add store item' });
+        return;
+      }
+
+      // Broadcast to all players
+      io.to(roomCode).emit('store-updated', { storeItems });
+
+      logger.info('Store item added', { roomCode, itemName: validation.data.item.name });
+
+      callback({ success: true, storeItems });
+    });
+
+    // Remove store item (DM only)
+    socket.on('remove-store-item', async (data: unknown, callback: (response: any) => void) => {
+      if (!await checkLimit('remove-store-item')) {
+        callback({ success: false, error: 'Rate limit exceeded.' });
+        return;
+      }
+
+      const sessionInfo = socketSessions.get(socket.id);
+      if (!sessionInfo || !sessionInfo.isDm) {
+        callback({ success: false, error: 'Only the DM can remove store items' });
+        return;
+      }
+
+      const validation = validateData(RemoveStoreItemDataSchema, data, 'remove-store-item');
+      if (!validation.success) {
+        callback({ success: false, error: validation.error });
+        return;
+      }
+
+      const { roomCode } = sessionInfo;
+      const storeItems = removeStoreItem(roomCode, validation.data.itemId);
+
+      if (!storeItems) {
+        callback({ success: false, error: 'Failed to remove store item' });
+        return;
+      }
+
+      // Broadcast to all players
+      io.to(roomCode).emit('store-updated', { storeItems });
+
+      callback({ success: true, storeItems });
+    });
+
+    // Add loot item (DM only)
+    socket.on('add-loot-item', async (data: unknown, callback: (response: any) => void) => {
+      if (!await checkLimit('add-loot-item')) {
+        callback({ success: false, error: 'Rate limit exceeded.' });
+        return;
+      }
+
+      const sessionInfo = socketSessions.get(socket.id);
+      if (!sessionInfo || !sessionInfo.isDm) {
+        callback({ success: false, error: 'Only the DM can add loot items' });
+        return;
+      }
+
+      const validation = validateData(AddLootItemDataSchema, data, 'add-loot-item');
+      if (!validation.success) {
+        callback({ success: false, error: validation.error });
+        return;
+      }
+
+      const { roomCode } = sessionInfo;
+      const lootItems = addLootItem(roomCode, validation.data.item);
+
+      if (!lootItems) {
+        callback({ success: false, error: 'Failed to add loot item' });
+        return;
+      }
+
+      logger.info('Loot item added', { roomCode, itemName: validation.data.item.name });
+
+      callback({ success: true, lootItems });
+    });
+
+    // Remove loot item (DM only)
+    socket.on('remove-loot-item', async (data: unknown, callback: (response: any) => void) => {
+      if (!await checkLimit('remove-loot-item')) {
+        callback({ success: false, error: 'Rate limit exceeded.' });
+        return;
+      }
+
+      const sessionInfo = socketSessions.get(socket.id);
+      if (!sessionInfo || !sessionInfo.isDm) {
+        callback({ success: false, error: 'Only the DM can remove loot items' });
+        return;
+      }
+
+      const validation = validateData(RemoveLootItemDataSchema, data, 'remove-loot-item');
+      if (!validation.success) {
+        callback({ success: false, error: validation.error });
+        return;
+      }
+
+      const { roomCode } = sessionInfo;
+      const lootItems = removeLootItem(roomCode, validation.data.itemId);
+
+      if (!lootItems) {
+        callback({ success: false, error: 'Failed to remove loot item' });
+        return;
+      }
+
+      callback({ success: true, lootItems });
+    });
+
+    // Distribute loot item to player (DM only)
+    socket.on('distribute-item', async (data: unknown, callback: (response: any) => void) => {
+      if (!await checkLimit('distribute-item')) {
+        callback({ success: false, error: 'Rate limit exceeded.' });
+        return;
+      }
+
+      const sessionInfo = socketSessions.get(socket.id);
+      if (!sessionInfo || !sessionInfo.isDm) {
+        callback({ success: false, error: 'Only the DM can distribute items' });
+        return;
+      }
+
+      const validation = validateData(DistributeItemDataSchema, data, 'distribute-item');
+      if (!validation.success) {
+        callback({ success: false, error: validation.error });
+        return;
+      }
+
+      const { roomCode } = sessionInfo;
+      const result = distributeItemToPlayer(
+        roomCode,
+        validation.data.lootItemId,
+        validation.data.playerId,
+        validation.data.playerName,
+        validation.data.quantity
+      );
+
+      if (!result) {
+        callback({ success: false, error: 'Failed to distribute item' });
+        return;
+      }
+
+      // Notify the player that they received an item
+      io.to(validation.data.playerId).emit('item-received', {
+        playerInventories: result.playerInventories.filter(i => i.playerId === validation.data.playerId),
+      });
+
+      logger.info('Item distributed', { roomCode, playerId: validation.data.playerId, playerName: validation.data.playerName });
+
+      callback({ success: true, lootItems: result.lootItems, playerInventories: result.playerInventories });
+    });
+
+    // Get player's inventory items
+    socket.on('get-inventory', async (callback: (response: any) => void) => {
+      if (!await checkLimit('get-inventory')) {
+        callback({ success: false, error: 'Rate limit exceeded.' });
+        return;
+      }
+
+      const sessionInfo = socketSessions.get(socket.id);
+      if (!sessionInfo) {
+        callback({ success: false, error: 'Not in a session' });
+        return;
+      }
+
+      const { roomCode, isDm } = sessionInfo;
+      const allInventories = getPlayerInventories(roomCode);
+
+      // Players only see their own inventory, DMs see all
+      const inventories = isDm
+        ? allInventories
+        : allInventories.filter(i => i.playerId === socket.id);
+
+      callback({ success: true, inventories });
     });
 
     // ============ DISCONNECTION ============

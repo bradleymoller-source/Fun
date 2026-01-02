@@ -16,8 +16,12 @@ export function MapLibrary({ onShowToPlayers, onHideFromPlayers }: MapLibraryPro
   const [notesMapId, setNotesMapId] = useState<string | null>(null);
   const [showingMapId, setShowingMapId] = useState<string | null>(null);
 
-  const handleDelete = (mapId: string, mapName: string) => {
+  const handleDelete = async (mapId: string, mapName: string) => {
     if (confirm(`Delete "${mapName}" from your library?`)) {
+      // If this map is currently being shown to players, hide it first
+      if (activeMapId === mapId) {
+        onHideFromPlayers();
+      }
       deleteSavedMap(mapId);
     }
   };

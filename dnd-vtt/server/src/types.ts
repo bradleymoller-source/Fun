@@ -99,6 +99,36 @@ export interface CharacterData {
   updatedAt: string;
 }
 
+// Store item available for purchase
+export interface StoreItem {
+  id: string;
+  name: string;
+  description?: string;
+  price: string;
+  quantity: number;
+  effect?: string;
+}
+
+// Loot item in the DM's loot pool
+export interface LootItem {
+  id: string;
+  name: string;
+  description?: string;
+  value?: string;
+  quantity: number;
+  source?: string;
+}
+
+// Item distributed to a player
+export interface PlayerInventoryItem {
+  id: string;
+  name: string;
+  description?: string;
+  quantity: number;
+  playerId: string;
+  playerName: string;
+}
+
 // Represents a game session
 export interface Session {
   roomCode: string;     // 6-character code players use to join
@@ -109,6 +139,9 @@ export interface Session {
   initiative: InitiativeEntry[];  // Combat initiative order
   isInCombat: boolean;  // Whether combat is active
   characters: Map<string, CharacterData>;  // Player characters (keyed by playerId)
+  storeItems: StoreItem[];  // Items in the store (visible to players)
+  lootItems: LootItem[];    // Loot pool (DM only)
+  playerInventories: PlayerInventoryItem[];  // Items distributed to players
   createdAt: Date;
   lastActivity: Date;
 }

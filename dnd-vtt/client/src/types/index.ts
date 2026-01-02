@@ -49,6 +49,34 @@ export interface FogArea {
   isRevealed: boolean;  // If true, this area is visible to players
 }
 
+// Store and Loot System
+export interface StoreItem {
+  id: string;
+  name: string;
+  description?: string;
+  price: string;  // e.g., "50gp", "10sp"
+  quantity: number;  // -1 for unlimited
+  effect?: string;  // What it does, e.g., "Restores 2d4+2 HP"
+}
+
+export interface LootItem {
+  id: string;
+  name: string;
+  description?: string;
+  value?: string;  // e.g., "50gp"
+  quantity: number;
+  source?: string;  // Where it came from, e.g., "Room 3 treasure chest"
+}
+
+export interface PlayerInventoryItem {
+  id: string;
+  name: string;
+  description?: string;
+  quantity: number;
+  playerId: string;
+  playerName: string;
+}
+
 // Saved map for the map library
 export interface SavedMap {
   id: string;
@@ -564,6 +592,11 @@ export interface SessionState {
   // Monsters (DM only)
   monsters: Monster[];  // DM's monster library
   activeMonster: Monster | null;  // Currently viewed monster stat block
+
+  // Store and Loot system
+  storeItems: StoreItem[];  // Items for sale (visible to players)
+  lootItems: LootItem[];  // DM's loot pool (DM only)
+  playerInventories: PlayerInventoryItem[];  // Items distributed to players
 
   // UI state
   view: 'landing' | 'create' | 'join' | 'dm' | 'player';

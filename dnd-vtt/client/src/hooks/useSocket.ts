@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useSessionStore } from '../stores/sessionStore';
 import { saveSession, loadSession, clearSession } from '../utils/sessionStorage';
-import type { Token, MapState, DiceRoll, ChatMessage, InitiativeEntry, Character } from '../types';
+import type { Token, MapState, DiceRoll, ChatMessage, InitiativeEntry, Character, StoreItem, LootItem, PlayerInventoryItem } from '../types';
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
 
@@ -244,6 +244,25 @@ export function useSocket() {
     socket.on('character-updated-by-dm', (data) => {
       if (data.character) {
         store.setCharacter(data.character);
+      }
+    });
+
+    // ============ STORE & LOOT EVENTS ============
+
+    // Store updated (broadcast to all players)
+    socket.on('store-updated', (data) => {
+      if (data.storeItems) {
+        store.setStoreItems(data.storeItems);
+      }
+    });
+
+    // Item received (player receives when DM gives them an item)
+    socket.on('item-received', (data) => {
+      if (data.playerInventories) {
+        // Add to player's local inventory
+        data.playerInventories.forEach((item: PlayerInventoryItem) => {
+          store.addToPlayerInventory(item);
+        });
       }
     });
 
@@ -841,6 +860,129 @@ export function useSocket() {
     });
   }, []);
 
+  // ============ STORE & LOOT FUNCTIONS ============
+
+  // Add store item (DM only)
+  const addStoreItem = useCallback((item: StoreItem) => {
+    return new Promise<void>((resolve, reject) => {
+      if (!socketRef.current) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      socketRef.current.emit('add-store-item', { item }, (response: any) => {
+        if (response.success) {
+          store.setStoreItems(response.storeItems);
+          resolve();
+        } else {
+          store.setError(response.error);
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }, []);
+
+  // Remove store item (DM only)
+  const removeStoreItem = useCallback((itemId: string) => {
+    return new Promise<void>((resolve, reject) => {
+      if (!socketRef.current) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      socketRef.current.emit('remove-store-item', { itemId }, (response: any) => {
+        if (response.success) {
+          store.setStoreItems(response.storeItems);
+          resolve();
+        } else {
+          store.setError(response.error);
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }, []);
+
+  // Add loot item (DM only)
+  const addLootItem = useCallback((item: LootItem) => {
+    return new Promise<void>((resolve, reject) => {
+      if (!socketRef.current) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      socketRef.current.emit('add-loot-item', { item }, (response: any) => {
+        if (response.success) {
+          store.setLootItems(response.lootItems);
+          resolve();
+        } else {
+          store.setError(response.error);
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }, []);
+
+  // Remove loot item (DM only)
+  const removeLootItem = useCallback((itemId: string) => {
+    return new Promise<void>((resolve, reject) => {
+      if (!socketRef.current) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      socketRef.current.emit('remove-loot-item', { itemId }, (response: any) => {
+        if (response.success) {
+          store.setLootItems(response.lootItems);
+          resolve();
+        } else {
+          store.setError(response.error);
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }, []);
+
+  // Distribute item to player (DM only)
+  const distributeItem = useCallback((lootItemId: string, playerId: string, playerName: string, quantity: number) => {
+    return new Promise<void>((resolve, reject) => {
+      if (!socketRef.current) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      socketRef.current.emit('distribute-item', { lootItemId, playerId, playerName, quantity }, (response: any) => {
+        if (response.success) {
+          store.setLootItems(response.lootItems);
+          store.setPlayerInventories(response.playerInventories);
+          resolve();
+        } else {
+          store.setError(response.error);
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }, []);
+
+  // Get store items
+  const getStore = useCallback(() => {
+    return new Promise<StoreItem[]>((resolve, reject) => {
+      if (!socketRef.current) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      socketRef.current.emit('get-store', (response: any) => {
+        if (response.success) {
+          store.setStoreItems(response.storeItems);
+          resolve(response.storeItems);
+        } else {
+          store.setError(response.error);
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }, []);
+
   return {
     socket: socketRef.current,
     isConnected: store.isConnected,
@@ -873,5 +1015,12 @@ export function useSocket() {
     loadCharacter,
     getAllCharacters,
     updatePlayerCharacter,
+    // Store & Loot
+    addStoreItem,
+    removeStoreItem,
+    addLootItem,
+    removeLootItem,
+    distributeItem,
+    getStore,
   };
 }
