@@ -30,13 +30,13 @@ export const ColorSchema = z.string()
 
 export const UrlSchema = z.string()
   .url('Must be a valid URL')
-  .max(2000, 'URL must be at most 2000 characters')
+  .max(10000, 'URL must be at most 10000 characters')
   .optional();
 
 // For map imageUrl which can be null
 export const NullableUrlSchema = z.string()
   .url('Must be a valid URL')
-  .max(2000, 'URL must be at most 2000 characters')
+  .max(10000, 'URL must be at most 10000 characters')
   .nullable();
 
 export const IdSchema = z.string()

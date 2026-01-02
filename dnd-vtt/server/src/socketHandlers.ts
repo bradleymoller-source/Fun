@@ -457,36 +457,52 @@ export function setupSocketHandlers(io: Server): void {
     });
 
     socket.on('show-map-to-players', async (data: unknown, callback: (response: any) => void) => {
-      logger.info('show-map-to-players event received', { socketId: socket.id, hasCallback: !!callback });
+      logger.info('=== SHOW MAP TO PLAYERS START ===');
+      logger.info('Event received', {
+        socketId: socket.id,
+        hasCallback: typeof callback === 'function',
+        dataType: typeof data,
+        dataKeys: data && typeof data === 'object' ? Object.keys(data as object) : 'not-object'
+      });
 
-      // Ensure callback exists
+      // Ensure callback exists - critical check
       if (typeof callback !== 'function') {
-        logger.error('No callback provided for show-map-to-players');
+        logger.error('CRITICAL: No callback function provided');
         return;
       }
 
       try {
+        logger.info('Checking rate limit...');
         if (!await checkLimit('show-map-to-players')) {
-          logger.info('Rate limited');
+          logger.info('Rate limited - calling callback');
           callback({ success: false, error: 'Rate limit exceeded.' });
           return;
         }
+        logger.info('Rate limit passed');
 
         const sessionInfo = socketSessions.get(socket.id);
-        logger.info('Session info', { sessionInfo, socketId: socket.id });
+        logger.info('Session lookup', {
+          found: !!sessionInfo,
+          isDm: sessionInfo?.isDm,
+          roomCode: sessionInfo?.roomCode,
+          socketId: socket.id
+        });
 
         if (!sessionInfo || !sessionInfo.isDm) {
-          logger.info('Not DM or no session');
+          logger.info('Not DM - calling callback with error');
           callback({ success: false, error: 'Only the DM can show maps to players. Try refreshing the page to reconnect.' });
           return;
         }
+        logger.info('DM check passed');
 
+        logger.info('Validating data...');
         const validation = validateData(ShowMapToPlayersDataSchema, data, 'show-map-to-players');
         if (!validation.success) {
-          logger.info('Validation failed', { error: validation.error });
+          logger.info('Validation failed - calling callback', { error: validation.error });
           callback({ success: false, error: validation.error });
           return;
         }
+        logger.info('Validation passed');
 
         const { roomCode } = sessionInfo;
         const { mapId, mapState } = validation.data;
@@ -524,9 +540,11 @@ export function setupSocketHandlers(io: Server): void {
 
         logger.info('Map shown to players', { roomCode, mapId, tokenCount: mergedTokens.length });
 
+        logger.info('Calling success callback...');
         callback({ success: true, map: updatedMap });
+        logger.info('=== SHOW MAP TO PLAYERS COMPLETE ===');
       } catch (error) {
-        logger.error('Error in show-map-to-players', { error });
+        logger.error('EXCEPTION in show-map-to-players', { error: String(error), stack: (error as Error)?.stack });
         callback({ success: false, error: 'Server error while showing map. Please try again.' });
       }
     });
