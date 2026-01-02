@@ -21,7 +21,7 @@ const ORIENTATION_SIZES = {
 
 export function PlayerView() {
   const { roomCode, playerName, players, isConnected, playerTab, character, setPlayerTab, setCharacter, updateCharacter } = useSessionStore();
-  const { rollDice, sendChatMessage, moveToken, saveCharacter, deleteCharacter, playerRollInitiative, socket } = useSocket();
+  const { rollDice, sendChatMessage, moveToken, saveCharacter, deleteCharacter, playerRollInitiative, leaveSession, socket } = useSocket();
   const [showParty, setShowParty] = useState(false);
   const [mapOrientation, setMapOrientation] = useState<MapOrientation>('landscape');
   const [mapDimensions, setMapDimensions] = useState(ORIENTATION_SIZES.landscape);
@@ -416,7 +416,11 @@ export function PlayerView() {
                 Welcome, {character?.name || playerName}!
               </h1>
               <p className="text-parchment/70">
-                Room: <span className="text-gold font-bold">{roomCode}</span>
+                {roomCode ? (
+                  <>Room: <span className="text-gold font-bold">{roomCode}</span></>
+                ) : (
+                  <span className="text-red-400">Not in a session - click Home to rejoin</span>
+                )}
               </p>
             </div>
             <div className="flex items-center gap-4">
@@ -445,13 +449,23 @@ export function PlayerView() {
               <div className="flex items-center gap-2">
                 <div
                   className={`w-3 h-3 rounded-full ${
-                    isConnected ? 'bg-green-500' : 'bg-red-500 animate-pulse'
+                    isConnected && roomCode ? 'bg-green-500' : 'bg-red-500 animate-pulse'
                   }`}
                 />
                 <span className="text-parchment text-sm">
-                  {isConnected ? 'Connected' : 'Reconnecting...'}
+                  {!roomCode ? 'Not in session' : isConnected ? 'Connected' : 'Reconnecting...'}
                 </span>
               </div>
+
+              {/* Leave/Rejoin Button */}
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={leaveSession}
+                title={roomCode ? 'Leave Session' : 'Go to Home'}
+              >
+                {roomCode ? '🚪 Leave' : '🏠 Home'}
+              </Button>
             </div>
           </div>
 
