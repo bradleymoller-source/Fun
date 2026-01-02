@@ -4444,12 +4444,36 @@ export const SPECIES_RESOURCES: SpeciesResourceDefinition[] = [
     maxAtLevel: () => 1,
   },
   {
+    id: 'adrenaline-rush',
+    name: 'Adrenaline Rush',
+    species: ['orc'],
+    description: 'Bonus action: Take the Dash action and gain temporary HP equal to your Proficiency Bonus. Uses equal to Proficiency Bonus per long rest.',
+    restoreOn: 'long',
+    maxAtLevel: (level) => Math.ceil(level / 4) + 1,  // Proficiency bonus
+  },
+  {
     id: 'celestial-revelation',
     name: 'Celestial Revelation',
     species: ['aasimar'],
     description: 'Bonus action: Transform for 1 minute, gaining effects based on your form. Necrotic Shroud: creatures within 10 ft must CHA save or be frightened. Radiant Consumption: deal radiant damage to nearby creatures. Radiant Soul: gain flying speed 30 ft.',
     restoreOn: 'long',
     maxAtLevel: () => 1,
+  },
+  {
+    id: 'healing-hands',
+    name: 'Healing Hands',
+    species: ['aasimar'],
+    description: 'Action: Touch a creature to restore HP equal to your Proficiency Bonus. Once per long rest.',
+    restoreOn: 'long',
+    maxAtLevel: () => 1,
+  },
+  {
+    id: 'giant-ancestry',
+    name: 'Giant Ancestry',
+    species: ['goliath'],
+    description: 'Use your chosen giant ancestry ability (Cloud: invisible, Fire: fire damage aura, Frost: cold resistance boost, Hill: knock prone, Stone: damage resistance, Storm: lightning damage). Uses equal to Proficiency Bonus per long rest.',
+    restoreOn: 'long',
+    maxAtLevel: (level) => Math.ceil(level / 4) + 1,  // Proficiency bonus
   },
 ];
 
