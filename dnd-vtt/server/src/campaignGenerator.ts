@@ -487,6 +487,17 @@ export interface DungeonRoom {
   connections: string[];
   encounter?: GeneratedEncounter;
   features?: string[];
+  // Enhanced room details for narrative generation
+  exits?: string[];           // e.g., ["North door to Room 2", "East passage to Room 3"]
+  contentFlags?: {            // What this room contains
+    hasBattle?: boolean;
+    hasTrap?: boolean;
+    hasTreasure?: boolean;
+    hasSecret?: boolean;
+    hasPuzzle?: boolean;
+    isBoss?: boolean;
+  };
+  outline?: string;           // Brief outline for narrative AI
 }
 
 export interface DungeonMap {
@@ -695,7 +706,7 @@ REQUIREMENTS:
 }
 
 // Build prompt for Act 2 (Dungeon/Encounters)
-function buildAct2Prompt(request: CampaignRequest, overviewData: any): string {
+function buildAct2Prompt(request: CampaignRequest, overviewData: any, dungeonMap?: DungeonMap): string {
   const adventureType = request.adventureType || 'dungeon_crawl';
 
   // Extract throughlines from Act 1
@@ -714,6 +725,43 @@ function buildAct2Prompt(request: CampaignRequest, overviewData: any): string {
   const npcContext = keyNpcs.slice(0, 3).map((npc: any) =>
     `- ${npc.name} (${npc.role}): mentioned ${npc.keyInformation?.[0] || 'local rumors'}`
   ).join('\n');
+
+  // Build detailed room structure from pre-generated dungeon map
+  const roomStructure = dungeonMap ? dungeonMap.rooms.map((room, index) => {
+    const roomNum = index + 1;
+    const flags = room.contentFlags || {};
+    const contentTypes: string[] = [];
+    if (flags.hasBattle) contentTypes.push('COMBAT');
+    if (flags.hasTrap) contentTypes.push('TRAP');
+    if (flags.hasTreasure) contentTypes.push('TREASURE');
+    if (flags.hasPuzzle) contentTypes.push('PUZZLE');
+    if (flags.hasSecret) contentTypes.push('SECRET');
+    if (flags.isBoss) contentTypes.push('BOSS FIGHT');
+
+    const exitsStr = room.exits?.join('; ') || 'Standard exits';
+    const contentStr = contentTypes.length > 0 ? contentTypes.join(', ') : 'Exploration/Roleplay';
+
+    return `
+ROOM ${roomNum}: "${room.name}" (${room.type})
+  - Exits: ${exitsStr}
+  - Content: ${contentStr}
+  - Outline: ${room.outline || 'Standard room encounter'}
+  - Features: ${room.features?.join(', ') || 'None specified'}`;
+  }).join('\n') : '';
+
+  const dungeonMapContext = dungeonMap ? `
+DUNGEON MAP STRUCTURE - Use these EXACT rooms in order:
+The dungeon "${dungeonMap.name}" has ${dungeonMap.rooms.length} rooms. Flesh out each room based on its outline and content flags:
+
+${roomStructure}
+
+IMPORTANT INSTRUCTIONS:
+- Your "rooms" array MUST match these room names and IDs exactly
+- Use the Exits to describe how rooms connect in your narrative
+- Use the Content flags to determine what happens in each room (add encounters for COMBAT rooms, describe traps for TRAP rooms, etc.)
+- Use the Outline as a starting point - expand it into full descriptions
+- The Features should be incorporated into your readAloud descriptions
+` : '';
 
   return `You are a master D&D 5e Dungeon Master. Create ACT 2 (the dungeon/adventure site) for this adventure:
 
@@ -736,14 +784,7 @@ NARRATIVE THROUGHLINES (these MUST appear in Act 2):
 ${throughlineContext || 'No throughlines defined'}
 
 CRITICAL: Each throughline must have its "act2Discovery" element somewhere in the dungeon - as a hidden item, NPC dialogue, room description, or treasure.
-
-ROOM DESIGN GUIDELINES:
-- Create 4-6 distinct rooms that make sense for this dungeon
-- Each room should have a clear name (e.g., "Entrance Chamber", "Guard Room", "Treasure Vault", "Boss Lair")
-- Include an entrance room and a final boss room
-- Do NOT add extra corridors or travel paths - only include actual rooms with meaningful content
-- The overview map will be generated from your room list, so make each room count
-
+${dungeonMapContext}
 Return ONLY valid JSON with this structure:
 
 \`\`\`json
@@ -1197,10 +1238,12 @@ export async function generateCampaign(req: Request, res: Response) {
       return res.status(500).json({ error: 'GOOGLE_API_KEY not configured. Add it in Render Environment Variables.' });
     }
 
-    console.log('Starting NARRATIVE-FIRST campaign generation with theme:', request.theme, 'setting:', request.setting);
+    console.log('Starting MAP-FIRST campaign generation with theme:', request.theme, 'setting:', request.setting);
 
-    // NOTE: We now generate narrative FIRST, then create dungeon map from it
-    // This ensures the overview map only contains rooms mentioned in the story
+    // FIRST: Generate detailed dungeon map with room outlines
+    // This map includes exits, content flags, and outlines for the AI to flesh out
+    const dungeonMap = generateProceduralDungeon(request.theme);
+    console.log('Pre-generated detailed dungeon map with', dungeonMap.rooms.length, 'rooms');
 
     // Part 1: Generate Overview + Act 1
     let overviewAndAct1;
@@ -1216,14 +1259,14 @@ export async function generateCampaign(req: Request, res: Response) {
     }
 
     // Part 2: Generate Act 2 (Dungeon) - CRITICAL: Contains encounters
-    // AI creates room names naturally - we'll build the map from these later
+    // Pass the detailed dungeon map so AI uses the room structure
     // Retry up to 2 times since this is the most important part
     let act2Data;
     let act2Error = null;
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
-        console.log(`Generating Act 2 narrative (attempt ${attempt}/2)...`);
-        const prompt2 = buildAct2Prompt(request, overviewAndAct1); // No dungeon map - AI creates rooms freely
+        console.log(`Generating Act 2 (attempt ${attempt}/2)...`);
+        const prompt2 = buildAct2Prompt(request, overviewAndAct1, dungeonMap);
         act2Data = await callGeminiAndParse(prompt2, 'Act 2');
         if (act2Data?.act2?.encounters?.length > 0) {
           console.log(`Act 2 generated successfully with ${act2Data.act2.encounters.length} encounters`);
@@ -1283,12 +1326,10 @@ export async function generateCampaign(req: Request, res: Response) {
         : undefined,
     };
 
-    // Generate dungeon map FROM the narrative (Act 2 rooms)
-    // This ensures the map only contains rooms actually mentioned in the story
-    if (request.includeMap && act2Data?.act2) {
-      const dungeonMap = generateDungeonFromNarrative(act2Data.act2, request.theme);
+    // Use the pre-generated detailed dungeon map
+    if (request.includeMap) {
       campaign.dungeonMap = dungeonMap;
-      console.log('Generated dungeon map from narrative with', dungeonMap.rooms.length, 'rooms');
+      console.log('Using pre-generated dungeon map with detailed room outlines');
     }
 
     console.log('Campaign generated successfully:', campaign.title);
@@ -1447,88 +1488,219 @@ Use grid coordinates (0-19 for x and y).`;
   }
 }
 
-// Fallback procedural dungeon generator
+// Procedural dungeon generator with detailed room outlines
 function generateProceduralDungeon(theme: string): DungeonMap {
   const rooms: DungeonRoom[] = [];
-  const roomCount = 8 + Math.floor(Math.random() * 8); // 8-15 rooms
+  const roomCount = 6 + Math.floor(Math.random() * 5); // 6-10 rooms (focused, not sprawling)
 
-  const roomTypes: DungeonRoom['type'][] = ['entrance', 'room', 'room', 'room', 'corridor', 'treasure', 'trap', 'boss', 'secret'];
-  const roomNames: Record<DungeonRoom['type'], string[]> = {
-    entrance: ['Grand Entrance', 'Dungeon Gate', 'Ancient Doorway', 'Cavern Mouth'],
-    corridor: ['Dark Passage', 'Winding Tunnel', 'Narrow Hall', 'Carved Corridor'],
-    room: ['Guard Room', 'Storage Chamber', 'Empty Hall', 'Ruined Study', 'Armory'],
-    boss: ['Throne Room', 'Inner Sanctum', 'Dark Heart', 'Final Chamber'],
-    treasure: ['Vault', 'Treasury', 'Hoard Room', 'Gold Chamber'],
-    trap: ['Trapped Hall', 'Danger Room', 'Pit Chamber', 'Blade Gallery'],
-    secret: ['Hidden Chamber', 'Secret Study', 'Concealed Vault', 'Mystery Room'],
-  };
+  // Room templates with content variety
+  const roomTemplates: Array<{
+    type: DungeonRoom['type'];
+    names: string[];
+    contentFlags: DungeonRoom['contentFlags'];
+    outlineTemplates: string[];
+  }> = [
+    {
+      type: 'entrance',
+      names: ['Grand Entrance', 'Dungeon Gate', 'Ancient Doorway', 'Cavern Mouth'],
+      contentFlags: {},
+      outlineTemplates: [
+        'Entry point. Signs of previous adventurers. Environmental storytelling about the dungeon.',
+        'Guarded entrance. Initial challenge or puzzle to proceed.',
+        'Ominous entrance with warnings. Sets the tone for what lies ahead.',
+      ],
+    },
+    {
+      type: 'room',
+      names: ['Guard Post', 'Barracks', 'Patrol Station', 'Watch Room'],
+      contentFlags: { hasBattle: true },
+      outlineTemplates: [
+        'Combat encounter with guards/sentries. Tactical terrain features.',
+        'Enemies on patrol. Opportunity for stealth or ambush.',
+        'Defensive position with enemies. Cover and chokepoints.',
+      ],
+    },
+    {
+      type: 'trap',
+      names: ['Trapped Hall', 'Danger Room', 'Pit Chamber', 'Blade Gallery'],
+      contentFlags: { hasTrap: true },
+      outlineTemplates: [
+        'Deadly trap requiring skill checks to bypass. Clues for observant players.',
+        'Environmental hazard. Multiple approaches to solve.',
+        'Trap with treasure bait. Risk vs reward decision.',
+      ],
+    },
+    {
+      type: 'room',
+      names: ['Puzzle Chamber', 'Riddle Room', 'Lock Room', 'Test Chamber'],
+      contentFlags: { hasPuzzle: true },
+      outlineTemplates: [
+        'Puzzle blocking progress. Multiple solutions possible.',
+        'Ancient test of wisdom. Clues scattered in previous rooms.',
+        'Mechanical puzzle with consequences for failure.',
+      ],
+    },
+    {
+      type: 'treasure',
+      names: ['Vault', 'Treasury', 'Hoard Room', 'Gold Chamber'],
+      contentFlags: { hasTreasure: true },
+      outlineTemplates: [
+        'Treasure cache with guardian or trap. Valuable loot.',
+        'Hidden riches. Requires solving puzzle or defeating guardian.',
+        'Ancient treasury. Magic items and gold.',
+      ],
+    },
+    {
+      type: 'secret',
+      names: ['Hidden Chamber', 'Secret Study', 'Concealed Vault', 'Mystery Room'],
+      contentFlags: { hasSecret: true, hasTreasure: true },
+      outlineTemplates: [
+        'Optional secret room with bonus loot. DC 15+ to find.',
+        'Hidden area with lore and treasure.',
+        'Secret passage leading to shortcut or bonus encounter.',
+      ],
+    },
+    {
+      type: 'room',
+      names: ['Ritual Chamber', 'Dark Shrine', 'Altar Room', 'Ceremony Hall'],
+      contentFlags: { hasBattle: true, hasTrap: true },
+      outlineTemplates: [
+        'Enemies performing ritual. Interrupt or face consequences.',
+        'Combat with environmental hazards. Time pressure element.',
+        'Mini-boss encounter with thematic enemies.',
+      ],
+    },
+    {
+      type: 'boss',
+      names: ['Throne Room', 'Inner Sanctum', 'Dark Heart', 'Final Chamber'],
+      contentFlags: { isBoss: true, hasBattle: true, hasTreasure: true },
+      outlineTemplates: [
+        'Boss encounter. Lair actions and legendary actions. Final treasure.',
+        'Climactic battle with dungeon master. Epic terrain.',
+        'Final confrontation. Multiple phases possible.',
+      ],
+    },
+  ];
 
-  // Place entrance
-  rooms.push({
-    id: 'room-1',
-    x: 0,
-    y: 8,
-    width: 3,
-    height: 3,
-    type: 'entrance',
-    name: 'Dungeon Entrance',
-    description: `The entrance to this ${theme} dungeon.`,
-    connections: ['room-2'],
-    features: ['Heavy stone doors', 'Warning inscriptions'],
-  });
+  const directions = ['North', 'South', 'East', 'West', 'Northeast', 'Northwest', 'Southeast', 'Southwest'];
+  const exitTypes = ['door', 'archway', 'passage', 'stairs', 'tunnel', 'gate', 'crawlway'];
 
-  // Generate remaining rooms
-  let currentX = 4;
-  let currentY = 8;
+  // Helper to get random direction for exits
+  function getExitDirection(fromRoom: number, toRoom: number, usedDirs: string[]): string {
+    const available = directions.filter(d => !usedDirs.includes(d));
+    if (available.length === 0) return directions[Math.floor(Math.random() * directions.length)];
+    return available[Math.floor(Math.random() * available.length)];
+  }
 
-  for (let i = 2; i <= roomCount; i++) {
-    const type = i === roomCount ? 'boss' : roomTypes[Math.floor(Math.random() * roomTypes.length)];
-    const names = roomNames[type];
-    const name = names[Math.floor(Math.random() * names.length)];
+  // Helper to create exit description
+  function createExit(dir: string, targetId: string, targetName: string): string {
+    const exitType = exitTypes[Math.floor(Math.random() * exitTypes.length)];
+    return `${dir} ${exitType} to ${targetName} (${targetId})`;
+  }
 
-    const width = type === 'corridor' ? 1 : 2 + Math.floor(Math.random() * 3);
-    const height = type === 'corridor' ? 3 + Math.floor(Math.random() * 4) : 2 + Math.floor(Math.random() * 3);
+  // Build room sequence - ensure variety
+  const roomSequence: typeof roomTemplates[0][] = [];
 
-    // Move position
-    if (Math.random() > 0.5) {
-      currentX += width + 1;
-      if (currentX > 17) {
-        currentX = 4;
-        currentY += 4;
+  // Always start with entrance
+  roomSequence.push(roomTemplates.find(t => t.type === 'entrance')!);
+
+  // Middle rooms - mix of combat, traps, puzzles, treasure
+  const middleTemplates = roomTemplates.filter(t => t.type !== 'entrance' && t.type !== 'boss');
+  for (let i = 1; i < roomCount - 1; i++) {
+    // Ensure variety - don't repeat same type twice in a row
+    let template;
+    do {
+      template = middleTemplates[Math.floor(Math.random() * middleTemplates.length)];
+    } while (roomSequence.length > 0 && roomSequence[roomSequence.length - 1].type === template.type);
+    roomSequence.push(template);
+  }
+
+  // Always end with boss
+  roomSequence.push(roomTemplates.find(t => t.type === 'boss')!);
+
+  // Generate room positions in a branching layout
+  const gridSize = 5;
+  const positions: Array<{x: number, y: number}> = [];
+  let currentX = 0;
+  let currentY = Math.floor(gridSize / 2);
+
+  for (let i = 0; i < roomSequence.length; i++) {
+    positions.push({ x: currentX, y: currentY });
+
+    // Move to next position - alternate between east and varying north/south
+    if (i < roomSequence.length - 1) {
+      const moveEast = Math.random() > 0.3;
+      if (moveEast) {
+        currentX++;
       }
-    } else {
-      currentY += height + 1;
-      if (currentY > 17) {
-        currentY = 2;
-        currentX += 5;
+      // Vary vertical position
+      const vertMove = Math.floor(Math.random() * 3) - 1; // -1, 0, or 1
+      currentY = Math.max(0, Math.min(gridSize - 1, currentY + vertMove));
+    }
+  }
+
+  // Create rooms with full details
+  for (let i = 0; i < roomSequence.length; i++) {
+    const template = roomSequence[i];
+    const pos = positions[i];
+    const name = template.names[Math.floor(Math.random() * template.names.length)];
+    const outline = template.outlineTemplates[Math.floor(Math.random() * template.outlineTemplates.length)];
+
+    // Calculate connections and exits
+    const connections: string[] = [];
+    const exits: string[] = [];
+    const usedDirs: string[] = [];
+
+    // Connect to next room
+    if (i < roomSequence.length - 1) {
+      const nextId = `room-${i + 2}`;
+      const nextName = roomSequence[i + 1].names[Math.floor(Math.random() * roomSequence[i + 1].names.length)];
+      connections.push(nextId);
+      const dir = getExitDirection(i, i + 1, usedDirs);
+      usedDirs.push(dir);
+      exits.push(createExit(dir, nextId, nextName));
+    }
+
+    // Sometimes add branch connection to non-adjacent room (secret passage, etc)
+    if (template.type === 'secret' && i > 2) {
+      const branchTo = Math.floor(Math.random() * (i - 1)) + 1;
+      const branchId = `room-${branchTo + 1}`;
+      if (!connections.includes(branchId)) {
+        connections.push(branchId);
+        const dir = getExitDirection(i, branchTo, usedDirs);
+        exits.push(createExit(dir, branchId, `earlier chamber`) + ' (hidden)');
       }
+    }
+
+    // Add back-reference exit from previous room
+    if (i > 0) {
+      const prevName = roomSequence[i - 1].names[0];
+      const backDir = getExitDirection(i, i - 1, usedDirs);
+      usedDirs.push(backDir);
+      exits.unshift(createExit(backDir, `room-${i}`, prevName) + ' (back)');
     }
 
     rooms.push({
-      id: `room-${i}`,
-      x: Math.min(currentX, 17),
-      y: Math.min(currentY, 17),
-      width,
-      height,
-      type,
+      id: `room-${i + 1}`,
+      x: pos.x * 4,
+      y: pos.y * 4,
+      width: template.type === 'boss' ? 4 : template.type === 'corridor' ? 1 : 3,
+      height: template.type === 'boss' ? 4 : template.type === 'corridor' ? 4 : 3,
+      type: template.type,
       name,
-      description: `A ${type} in the ${theme} dungeon.`,
-      connections: i < roomCount ? [`room-${i + 1}`] : [],
-      features: generateRoomFeatures(type),
+      description: `A ${template.type} chamber in the ${theme} dungeon.`,
+      connections,
+      features: generateRoomFeatures(template.type),
+      exits,
+      contentFlags: { ...template.contentFlags },
+      outline,
     });
-  }
-
-  // Add connections from previous rooms
-  for (let i = 1; i < rooms.length; i++) {
-    if (!rooms[i - 1].connections.includes(rooms[i].id)) {
-      rooms[i - 1].connections.push(rooms[i].id);
-    }
   }
 
   return {
     name: `${theme.charAt(0).toUpperCase() + theme.slice(1)} Dungeon`,
-    width: 20,
-    height: 20,
+    width: 24,
+    height: 24,
     rooms,
     theme,
   };
@@ -1547,79 +1719,6 @@ function generateRoomFeatures(type: DungeonRoom['type']): string[] {
 
   const options = features[type];
   return options[Math.floor(Math.random() * options.length)];
-}
-
-// Generate dungeon map from narrative rooms (Act 2 data)
-// This creates an overview map that only contains rooms actually mentioned in the story
-function generateDungeonFromNarrative(act2Data: any, theme: string): DungeonMap {
-  const rooms: DungeonRoom[] = [];
-  const narrativeRooms = act2Data?.rooms || [];
-
-  if (narrativeRooms.length === 0) {
-    // Fallback to simple procedural if no rooms in narrative
-    return generateProceduralDungeon(theme);
-  }
-
-  // Determine room type based on name keywords
-  function inferRoomType(name: string, index: number, total: number): DungeonRoom['type'] {
-    const lowerName = name.toLowerCase();
-    if (index === 0 || lowerName.includes('entrance') || lowerName.includes('entry')) return 'entrance';
-    if (index === total - 1 || lowerName.includes('boss') || lowerName.includes('throne') || lowerName.includes('sanctum') || lowerName.includes('lair')) return 'boss';
-    if (lowerName.includes('trap') || lowerName.includes('pit') || lowerName.includes('danger')) return 'trap';
-    if (lowerName.includes('treasure') || lowerName.includes('vault') || lowerName.includes('treasury') || lowerName.includes('hoard')) return 'treasure';
-    if (lowerName.includes('secret') || lowerName.includes('hidden') || lowerName.includes('concealed')) return 'secret';
-    return 'room';
-  }
-
-  // Layout rooms in a simple grid pattern - no corridors, just the rooms
-  const gridCols = Math.ceil(Math.sqrt(narrativeRooms.length));
-  const cellWidth = 5;
-  const cellHeight = 5;
-  const startX = 1;
-  const startY = 1;
-
-  narrativeRooms.forEach((narrativeRoom: any, index: number) => {
-    const col = index % gridCols;
-    const row = Math.floor(index / gridCols);
-
-    const type = inferRoomType(narrativeRoom.name || `Room ${index + 1}`, index, narrativeRooms.length);
-    const roomWidth = type === 'boss' ? 4 : 3;
-    const roomHeight = type === 'boss' ? 4 : 3;
-
-    const x = startX + (col * cellWidth);
-    const y = startY + (row * cellHeight);
-
-    // Build connections - connect to next room in sequence if exists
-    const connections: string[] = [];
-    if (index < narrativeRooms.length - 1) {
-      connections.push(`room-${index + 2}`);
-    }
-
-    rooms.push({
-      id: `room-${index + 1}`,
-      x,
-      y,
-      width: roomWidth,
-      height: roomHeight,
-      type,
-      name: narrativeRoom.name || `Room ${index + 1}`,
-      description: narrativeRoom.readAloud?.substring(0, 100) || `A ${type} in the ${theme} dungeon.`,
-      connections,
-      features: narrativeRoom.contents?.obvious || generateRoomFeatures(type),
-    });
-  });
-
-  // Calculate map dimensions based on room layout
-  const maxX = Math.max(...rooms.map(r => r.x + r.width));
-  const maxY = Math.max(...rooms.map(r => r.y + r.height));
-
-  return {
-    name: act2Data?.dungeonOverview?.name || `${theme.charAt(0).toUpperCase() + theme.slice(1)} Dungeon`,
-    width: Math.max(20, maxX + 2),
-    height: Math.max(20, maxY + 2),
-    rooms,
-    theme,
-  };
 }
 
 // Get adventure type-specific instructions

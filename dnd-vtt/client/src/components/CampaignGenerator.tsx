@@ -43,6 +43,16 @@ interface DungeonRoom {
   description: string;
   connections: string[];
   features?: string[];
+  exits?: string[];
+  contentFlags?: {
+    hasBattle?: boolean;
+    hasTrap?: boolean;
+    hasTreasure?: boolean;
+    hasSecret?: boolean;
+    hasPuzzle?: boolean;
+    isBoss?: boolean;
+  };
+  outline?: string;
 }
 
 interface DungeonMap {
