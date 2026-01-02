@@ -7,6 +7,10 @@ import { loadSessionsFromDb, cleanupExpiredSessions } from './sessionManager';
 import { generateCampaign, generateDungeonMapEndpoint, generateEncounter, generateBattleMap, generateActBattleMaps, generateSceneImage } from './campaignGenerator';
 import { logger } from './utils/logger';
 
+// Version for debugging deployments
+const SERVER_VERSION = '2.0.1-debug-show-map';
+logger.info(`Starting server version ${SERVER_VERSION}`);
+
 const app = express();
 const httpServer = createServer(app);
 

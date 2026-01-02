@@ -490,14 +490,23 @@ export function useSocket() {
   // Show a map to players (DM action)
   const showMapToPlayers = useCallback((mapId: string, mapState: { imageUrl: string; gridSize: number; gridOffsetX: number; gridOffsetY: number; tokens?: Token[] }) => {
     return new Promise<void>((resolve, reject) => {
+      const socketExists = !!socketRef.current;
+      const socketConnected = socketRef.current?.connected;
+      const socketId = socketRef.current?.id;
+
       if (!socketRef.current) {
-        reject(new Error('Not connected to server. Please refresh the page.'));
+        reject(new Error(`Not connected. Socket: ${socketExists}`));
+        return;
+      }
+
+      if (!socketRef.current.connected) {
+        reject(new Error(`Socket disconnected. ID: ${socketId}, Connected: ${socketConnected}`));
         return;
       }
 
       // Add timeout so it doesn't hang forever
       const timeout = setTimeout(() => {
-        reject(new Error('Server not responding. Please check your connection and try again.'));
+        reject(new Error(`Timeout. Socket ID: ${socketId}, URL length: ${mapState.imageUrl?.length}`));
       }, 10000); // 10 second timeout
 
       socketRef.current.emit('show-map-to-players', { mapId, mapState }, (response: any) => {
