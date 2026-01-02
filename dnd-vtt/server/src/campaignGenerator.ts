@@ -152,20 +152,44 @@ const campaignFunctionDeclarations = [
   },
   {
     name: "addNPC",
-    description: "Add a key NPC to Act 1. Add 4-6 NPCs with full dialogue.",
+    description: "Add a key NPC to Act 1. Add 4-6 NPCs with full dialogue and skill checks.",
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
         name: { type: SchemaType.STRING, description: "NPC's name" },
         role: { type: SchemaType.STRING, description: "Role (Innkeeper, Blacksmith, Merchant, Priest, Elder, Mysterious Stranger)" },
         location: { type: SchemaType.STRING, description: "Where they are found" },
-        appearance: { type: SchemaType.STRING, description: "Physical description" },
-        personality: { type: SchemaType.STRING, description: "Character traits and mannerisms" },
-        dialogueGreeting: { type: SchemaType.STRING, description: "How they greet the party" },
-        dialogueGossip: { type: SchemaType.STRING, description: "Rumors and local information they share" },
-        dialogueIfPressured: { type: SchemaType.STRING, description: "Response to intimidation or persuasion" },
+        appearance: { type: SchemaType.STRING, description: "Physical description (2-3 sentences with distinctive features)" },
+        personality: { type: SchemaType.STRING, description: "Character traits, mannerisms, speech patterns" },
+        connectionToPlot: { type: SchemaType.STRING, description: "How this NPC connects to the main story or villain" },
+        dialogueGreeting: { type: SchemaType.STRING, description: "How they greet the party (actual dialogue in quotes)" },
+        dialogueGossip: { type: SchemaType.STRING, description: "Rumors and local information they freely share (actual dialogue)" },
+        dialogueIfPressured: { type: SchemaType.STRING, description: "Response to intimidation - include what they reveal" },
         dialogueIfBribed: { type: SchemaType.STRING, description: "What they reveal for gold or favors" },
-        keyInformation: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "2-3 useful facts they know" },
+        skillChecks: {
+          type: SchemaType.OBJECT,
+          properties: {
+            persuasion: { type: SchemaType.OBJECT, properties: {
+              dc: { type: SchemaType.NUMBER, description: "DC for persuasion check" },
+              reveals: { type: SchemaType.STRING, description: "What successful persuasion reveals about the story" }
+            }},
+            intimidation: { type: SchemaType.OBJECT, properties: {
+              dc: { type: SchemaType.NUMBER, description: "DC for intimidation check" },
+              reveals: { type: SchemaType.STRING, description: "What successful intimidation reveals" }
+            }},
+            insight: { type: SchemaType.OBJECT, properties: {
+              dc: { type: SchemaType.NUMBER, description: "DC to sense if they're hiding something" },
+              reveals: { type: SchemaType.STRING, description: "What insight reveals about their true feelings/secrets" }
+            }},
+            bribe: { type: SchemaType.OBJECT, properties: {
+              cost: { type: SchemaType.STRING, description: "Amount of gold needed" },
+              reveals: { type: SchemaType.STRING, description: "What information the bribe unlocks" }
+            }}
+          },
+          description: "Skill checks for extracting information - make these story-relevant"
+        },
+        keyInformation: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "2-3 useful facts they know that connect to the dungeon or villain" },
+        secret: { type: SchemaType.STRING, description: "Something they know but won't reveal easily - ties to throughlines" },
         services: {
           type: SchemaType.ARRAY,
           items: {
@@ -179,7 +203,7 @@ const campaignFunctionDeclarations = [
           description: "Services or items they offer with prices"
         }
       },
-      required: ["name", "role", "location", "appearance", "personality", "dialogueGreeting", "dialogueGossip", "keyInformation"]
+      required: ["name", "role", "location", "appearance", "personality", "connectionToPlot", "dialogueGreeting", "dialogueGossip", "keyInformation"]
     }
   },
   {
@@ -259,32 +283,38 @@ const campaignFunctionDeclarations = [
   },
   {
     name: "addRoom",
-    description: "Add a dungeon room to Act 2. Add 5-8 rooms.",
+    description: "Add a dungeon room to Act 2. Add 5-8 rooms with rich descriptions that reference the story.",
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
         id: { type: SchemaType.NUMBER, description: "Room number (1, 2, 3, etc.)" },
-        name: { type: SchemaType.STRING, description: "Room name" },
-        readAloud: { type: SchemaType.STRING, description: "Description for players" },
+        name: { type: SchemaType.STRING, description: "Evocative room name" },
+        readAloud: { type: SchemaType.STRING, description: "2-3 paragraph atmospheric description for players with sensory details (sight, sound, smell). Reference the dungeon's history and theme." },
         dimensions: { type: SchemaType.STRING, description: "Size (e.g. 30x40 feet)" },
-        contentsObvious: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "Visible contents" },
-        contentsHidden: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "Hidden contents with DC to find" },
-        exits: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "Exits and where they lead" },
+        lighting: { type: SchemaType.STRING, description: "Light conditions (bright, dim, darkness) and light sources" },
+        atmosphere: { type: SchemaType.STRING, description: "Mood, temperature, sounds, smells" },
+        contentsObvious: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "3-5 visible things: furniture, bodies, equipment, decorations. Be specific." },
+        contentsHidden: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "2-3 hidden things with DC to find. Include story clues that reference throughlines." },
+        interactables: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "Things players can interact with: levers, books, altars, etc." },
+        storyConnection: { type: SchemaType.STRING, description: "How this room connects to the throughlines or reveals villain's plan" },
+        exits: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "All exits with descriptions: 'North: Heavy iron door (locked, DC 15) leads to Room 3'" },
         treasure: {
           type: SchemaType.ARRAY,
           items: {
             type: SchemaType.OBJECT,
             properties: {
-              item: { type: SchemaType.STRING },
-              value: { type: SchemaType.STRING },
-              type: { type: SchemaType.STRING },
-              effect: { type: SchemaType.STRING }
+              item: { type: SchemaType.STRING, description: "Item name" },
+              value: { type: SchemaType.STRING, description: "Gold value" },
+              type: { type: SchemaType.STRING, description: "weapon, armor, potion, scroll, treasure, clue" },
+              effect: { type: SchemaType.STRING, description: "Mechanical effect if any" },
+              hidden: { type: SchemaType.BOOLEAN, description: "Is it hidden?" },
+              findDC: { type: SchemaType.NUMBER, description: "DC to find if hidden" }
             }
           },
-          description: "Treasure in this room"
+          description: "Treasure and loot. Include story-relevant items that connect to NPCs or throughlines."
         }
       },
-      required: ["id", "name", "readAloud", "exits"]
+      required: ["id", "name", "readAloud", "dimensions", "lighting", "contentsObvious", "exits"]
     }
   },
   {
@@ -355,24 +385,32 @@ const campaignFunctionDeclarations = [
   },
   {
     name: "setBossEncounter",
-    description: "Set the boss encounter for Act 3.",
+    description: "Set the boss encounter for Act 3. This must reference throughlines, NPCs, and earlier discoveries.",
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
-        title: { type: SchemaType.STRING, description: "Act 3 title" },
+        title: { type: SchemaType.STRING, description: "Act 3 title (evocative, references the villain)" },
         estimatedDuration: { type: SchemaType.STRING, description: "e.g. 45-60 minutes" },
-        overview: { type: SchemaType.STRING, description: "What happens in Act 3" },
-        readAloud: { type: SchemaType.STRING, description: "Boss chamber description" },
-        villainName: { type: SchemaType.STRING, description: "Boss name" },
-        villainType: { type: SchemaType.STRING, description: "Monster type (SRD)" },
-        villainCR: { type: SchemaType.STRING, description: "Challenge rating" },
+        overview: { type: SchemaType.STRING, description: "Full summary of Act 3: approach, confrontation, resolution" },
+        chamberReadAloud: { type: SchemaType.STRING, description: "2-3 paragraph boss chamber description with atmosphere, visible threats, and the villain's presence" },
+        chamberFeatures: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "3-5 tactical features: pillars, pits, altars, etc." },
+        chamberDimensions: { type: SchemaType.STRING, description: "Size of the boss arena" },
+        villainName: { type: SchemaType.STRING, description: "Boss name (should match earlier references)" },
+        villainAppearance: { type: SchemaType.STRING, description: "Detailed physical description" },
+        villainType: { type: SchemaType.STRING, description: "Monster type from SRD" },
+        villainCR: { type: SchemaType.STRING, description: "Challenge rating balanced for party" },
         villainHP: { type: SchemaType.NUMBER, description: "Hit points" },
         villainAC: { type: SchemaType.NUMBER, description: "Armor class" },
-        villainMotivation: { type: SchemaType.STRING, description: "Why they're doing this" },
-        villainDialogue: { type: SchemaType.STRING, description: "What they say to the party" },
-        villainTactics: { type: SchemaType.STRING, description: "How they fight" },
-        villainWeakness: { type: SchemaType.STRING, description: "Exploitable weakness" },
-        phaseChanges: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "Phase changes at HP thresholds" },
+        villainMotivation: { type: SchemaType.STRING, description: "Deep motivation - what drove them to villainy? Connect to backstory." },
+        villainPersonality: { type: SchemaType.STRING, description: "How they act, speak, their demeanor" },
+        villainDialogueOpening: { type: SchemaType.STRING, description: "What they say when party enters (actual dialogue, reference what they know about the party)" },
+        villainDialogueMidFight: { type: SchemaType.STRING, description: "Taunts and threats during combat" },
+        villainDialogueDefeat: { type: SchemaType.STRING, description: "Final words or revelation when defeated" },
+        villainTactics: { type: SchemaType.STRING, description: "Detailed combat tactics: opening moves, preferred targets, use of terrain" },
+        villainAbilities: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "3-4 key abilities with effects" },
+        villainWeakness: { type: SchemaType.STRING, description: "Exploitable weakness that was foreshadowed in Act 1 or 2" },
+        legendaryActions: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "2-3 legendary actions if appropriate for CR" },
+        phaseChanges: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "What changes at 75%, 50%, 25% HP - new abilities, terrain changes, minion spawns" },
         minions: {
           type: SchemaType.ARRAY,
           items: {
@@ -380,31 +418,35 @@ const campaignFunctionDeclarations = [
             properties: {
               name: { type: SchemaType.STRING },
               count: { type: SchemaType.NUMBER },
-              role: { type: SchemaType.STRING }
+              hp: { type: SchemaType.NUMBER },
+              ac: { type: SchemaType.NUMBER },
+              role: { type: SchemaType.STRING, description: "Their tactical role: protect boss, harass casters, etc." }
             }
           },
-          description: "Minions in the fight"
+          description: "Minions in the fight with stats and roles"
         },
-        rewardXP: { type: SchemaType.NUMBER, description: "XP reward" },
-        rewardGold: { type: SchemaType.STRING, description: "Gold reward" },
+        throughlinePayoffs: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "How each throughline from Act 1 pays off in this fight" },
+        rewardXP: { type: SchemaType.NUMBER, description: "Total XP for defeating boss and minions" },
+        rewardGold: { type: SchemaType.STRING, description: "Gold and valuables in the chamber" },
         rewardItems: {
           type: SchemaType.ARRAY,
           items: {
             type: SchemaType.OBJECT,
             properties: {
-              name: { type: SchemaType.STRING },
-              type: { type: SchemaType.STRING },
-              effect: { type: SchemaType.STRING },
-              value: { type: SchemaType.STRING },
-              rarity: { type: SchemaType.STRING },
-              attunement: { type: SchemaType.BOOLEAN }
+              name: { type: SchemaType.STRING, description: "Item name" },
+              type: { type: SchemaType.STRING, description: "weapon, armor, wondrous, etc." },
+              effect: { type: SchemaType.STRING, description: "Full mechanical description" },
+              value: { type: SchemaType.STRING, description: "Gold value" },
+              rarity: { type: SchemaType.STRING, description: "common, uncommon, rare, very rare" },
+              attunement: { type: SchemaType.BOOLEAN, description: "Requires attunement?" },
+              lore: { type: SchemaType.STRING, description: "History or significance of the item" }
             }
           },
-          description: "Magic items and special loot"
+          description: "2-3 magic items or special loot with full descriptions"
         },
-        villainLoot: { type: SchemaType.STRING, description: "What's on the villain's body" }
+        villainLoot: { type: SchemaType.STRING, description: "Everything on the villain's body: equipment, notes, keys, etc." }
       },
-      required: ["title", "readAloud", "villainName", "villainType", "villainCR", "villainHP", "villainAC", "villainMotivation", "villainDialogue", "villainTactics", "rewardXP", "rewardGold"]
+      required: ["title", "overview", "chamberReadAloud", "chamberFeatures", "villainName", "villainAppearance", "villainType", "villainCR", "villainHP", "villainAC", "villainMotivation", "villainDialogueOpening", "villainDialogueDefeat", "villainTactics", "villainAbilities", "villainWeakness", "phaseChanges", "rewardXP", "rewardGold", "rewardItems"]
     }
   },
   {
@@ -512,13 +554,16 @@ function processFunctionCall(builder: CampaignBuilder, functionName: string, arg
         location: args.location,
         appearance: args.appearance,
         personality: args.personality,
+        connectionToPlot: args.connectionToPlot,
         dialogue: {
           greeting: args.dialogueGreeting,
           gossip: args.dialogueGossip,
           ifPressured: args.dialogueIfPressured,
           ifBribed: args.dialogueIfBribed
         },
+        skillChecks: args.skillChecks,
         keyInformation: args.keyInformation,
+        secret: args.secret,
         services: args.services || []
       });
       break;
@@ -578,10 +623,14 @@ function processFunctionCall(builder: CampaignBuilder, functionName: string, arg
         name: args.name,
         readAloud: args.readAloud,
         dimensions: args.dimensions,
+        lighting: args.lighting,
+        atmosphere: args.atmosphere,
         contents: {
           obvious: args.contentsObvious,
           hidden: args.contentsHidden
         },
+        interactables: args.interactables,
+        storyConnection: args.storyConnection,
         exits: args.exits,
         treasure: args.treasure
       });
@@ -629,20 +678,31 @@ function processFunctionCall(builder: CampaignBuilder, functionName: string, arg
       builder.act3.estimatedDuration = args.estimatedDuration;
       builder.act3.overview = args.overview;
       builder.act3.bossEncounter = {
-        readAloud: args.readAloud,
+        readAloud: args.chamberReadAloud,
+        chamberFeatures: args.chamberFeatures,
+        chamberDimensions: args.chamberDimensions,
         villain: {
           name: args.villainName,
+          appearance: args.villainAppearance,
           type: args.villainType,
           cr: args.villainCR,
           hp: args.villainHP,
           ac: args.villainAC,
           motivation: args.villainMotivation,
-          dialogue: args.villainDialogue,
+          personality: args.villainPersonality,
+          dialogue: {
+            opening: args.villainDialogueOpening,
+            midFight: args.villainDialogueMidFight,
+            defeat: args.villainDialogueDefeat
+          },
           tactics: args.villainTactics,
-          weakness: args.villainWeakness
+          abilities: args.villainAbilities,
+          weakness: args.villainWeakness,
+          legendaryActions: args.legendaryActions
         },
         phaseChanges: args.phaseChanges,
         minions: args.minions,
+        throughlinePayoffs: args.throughlinePayoffs,
         rewards: {
           xp: args.rewardXP,
           gold: args.rewardGold,
@@ -695,7 +755,7 @@ async function generateCampaignWithFunctions(request: CampaignRequest, dungeonMa
     return `Room ${i + 1}: ${room.name} (${room.type}) - ${types.join(', ') || 'EXPLORATION'}`;
   }).join('\n');
 
-  const prompt = `You are a master D&D 5e Dungeon Master. Generate a complete one-shot adventure by calling the provided functions.
+  const prompt = `You are a master D&D 5e Dungeon Master creating an immersive, cohesive one-shot adventure. Every element you create must connect to the larger story.
 
 PARAMETERS:
 - Theme: ${request.theme}
@@ -704,26 +764,63 @@ PARAMETERS:
 - Party Size: ${request.partySize}
 - Tone: ${request.tone || 'serious'}
 
-DUNGEON MAP (already generated - use this structure):
+DUNGEON MAP (use this room structure):
 ${roomContext}
 
-INSTRUCTIONS:
-1. Call setCampaignOverview first with title, synopsis, hook, and arc
-2. Call addThroughline 2-3 times to add narrative threads
-3. Call setAct1Setup to establish Act 1
-4. Call setQuestGiver for the main quest-giving NPC with full dialogue
-5. Call addNPC 4-6 times for key town NPCs (Innkeeper, Blacksmith, Merchant, Priest, Elder, Mysterious Stranger) - each with complete dialogue
-6. Call setInn and addShop 1-2 times for services
-7. Call setTravelToDestination for the journey
-8. Call setAct2Setup for dungeon overview
-9. Call addRoom for each room in the dungeon (5-8 rooms)
-10. Call addEncounter exactly 3 times for combat encounters
-11. Call addTrap 1-2 times for hazards
-12. Call setBossEncounter for the final battle
-13. Call setAftermath for the conclusion
-14. Call campaignComplete when done
+=== CRITICAL STORY REQUIREMENTS ===
 
-Make NPCs memorable with distinct personalities and useful dialogue. Use only SRD monsters balanced for party level ${request.partyLevel}.`;
+1. THROUGHLINES: Create 2-3 narrative threads in setCampaignOverview that weave through ALL acts:
+   - Each throughline must have hints in Act 1, discoveries in Act 2, and payoffs in Act 3
+   - NPCs should know fragments of these throughlines
+   - Dungeon rooms should contain evidence of throughlines
+   - The boss encounter must resolve all throughlines
+
+2. NPC CONNECTIONS: Every NPC must connect to the story:
+   - Each NPC knows something relevant to the dungeon or villain
+   - Give 2-3 NPCs skill checks (Persuasion DC 12-15, Intimidation DC 13-16, Insight DC 10-14)
+   - Skill checks should reveal story-relevant information, not just rumors
+   - Some NPCs should have secrets that connect to throughlines
+
+3. ROOM DESCRIPTIONS: Every room needs FULL details:
+   - 2-3 paragraph read-aloud text with sensory details (sight, sound, smell, temperature)
+   - 3-5 obvious contents (furniture, bodies, equipment, decorations)
+   - 2-3 hidden things with Investigation/Perception DCs
+   - Clear exits with descriptions ("North: Iron door, locked DC 15, leads to Room 3")
+   - Story connections: clues about the villain, evidence of throughlines
+   - Treasure that makes sense (guards have weapons, scribes have scrolls)
+
+4. BOSS ENCOUNTER: The villain must be fully realized:
+   - Reference the villain by name in earlier content
+   - NPCs should know rumors about the villain
+   - Dungeon should show evidence of villain's activities
+   - Villain dialogue should reference what they know about the party's journey
+   - All throughlines resolve in this encounter
+   - Phase changes at 75%, 50%, 25% HP
+   - 2-3 magic item rewards with full mechanical descriptions
+
+=== GENERATION ORDER ===
+
+1. setCampaignOverview - Title, synopsis, hook, arc. Establish the villain's name and goal.
+2. addThroughline x2-3 - Narrative threads that will appear throughout
+3. setAct1Setup - Town arrival, DM notes about what's really happening
+4. setQuestGiver - Full dialogue including greeting, quest pitch, responses to questions
+5. addNPC x4-6 - Each with:
+   - Unique personality and appearance
+   - Connection to the plot (why do they matter?)
+   - Skill checks with story-relevant reveals
+   - Dialogue that references the villain or dungeon BY NAME
+6. setInn - Rumors that foreshadow dungeon dangers
+7. addShop x1-2 - Items useful for the specific dungeon
+8. setTravelToDestination - Journey with environmental storytelling
+9. setAct2Setup - Dungeon overview referencing its history and the villain
+10. addRoom x5-8 - FULL descriptions, contents, hidden items, story clues
+11. addEncounter x3 - Enemies with tactics, terrain, rewards
+12. addTrap x1-2 - Traps that fit the dungeon theme
+13. setBossEncounter - Complete villain with dialogue, phases, abilities, rewards
+14. setAftermath - Resolution referencing NPCs by name, throughline resolutions
+15. campaignComplete
+
+Use only SRD monsters. Balance encounters for ${request.partySize} level ${request.partyLevel} characters.`;
 
   console.log('Starting function-calling campaign generation...');
   const builder: CampaignBuilder = {};
