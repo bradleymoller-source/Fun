@@ -283,12 +283,13 @@ const campaignFunctionDeclarations = [
   },
   {
     name: "addRoom",
-    description: "Add a dungeon room to Act 2. Add 5-8 rooms with rich descriptions that reference the story.",
+    description: "Add a dungeon room to Act 2 (NOT the boss room). Match room types from the dungeon structure above.",
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
-        id: { type: SchemaType.NUMBER, description: "Room number (1, 2, 3, etc.)" },
-        name: { type: SchemaType.STRING, description: "Evocative room name" },
+        id: { type: SchemaType.NUMBER, description: "Room number (1, 2, 3, etc.) - match the room numbers from DUNGEON STRUCTURE" },
+        name: { type: SchemaType.STRING, description: "Evocative room name matching the dungeon structure" },
+        roomType: { type: SchemaType.STRING, description: "Type from structure: entrance, corridor, treasure, trap, secret, ritual, or standard" },
         readAloud: { type: SchemaType.STRING, description: "2-3 paragraph atmospheric description for players with sensory details (sight, sound, smell). Reference the dungeon's history and theme." },
         dimensions: { type: SchemaType.STRING, description: "Size (e.g. 30x40 feet)" },
         lighting: { type: SchemaType.STRING, description: "Light conditions (bright, dim, darkness) and light sources" },
@@ -298,6 +299,22 @@ const campaignFunctionDeclarations = [
         interactables: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "Things players can interact with: levers, books, altars, etc." },
         storyConnection: { type: SchemaType.STRING, description: "How this room connects to the throughlines or reveals villain's plan" },
         exits: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "All exits with descriptions: 'North: Heavy iron door (locked, DC 15) leads to Room 3'" },
+        trap: {
+          type: SchemaType.OBJECT,
+          properties: {
+            hasTrap: { type: SchemaType.BOOLEAN, description: "Does this room have a hidden trap?" },
+            name: { type: SchemaType.STRING, description: "Trap name" },
+            trigger: { type: SchemaType.STRING, description: "What triggers it (pressure plate, tripwire, opening chest, etc.)" },
+            effect: { type: SchemaType.STRING, description: "What happens when triggered" },
+            damage: { type: SchemaType.STRING, description: "Damage dealt (e.g. 2d6 piercing)" },
+            saveDC: { type: SchemaType.NUMBER, description: "DC to avoid (usually DEX save)" },
+            saveType: { type: SchemaType.STRING, description: "Save type: DEX, CON, WIS, etc." },
+            detectDC: { type: SchemaType.NUMBER, description: "Perception/Investigation DC to notice" },
+            disarmDC: { type: SchemaType.NUMBER, description: "Thieves' tools DC to disarm" },
+            hint: { type: SchemaType.STRING, description: "Clue observant players might notice" }
+          },
+          description: "Hidden trap in this room. Include in 30-40% of rooms!"
+        },
         treasure: {
           type: SchemaType.ARRAY,
           items: {
@@ -314,7 +331,7 @@ const campaignFunctionDeclarations = [
           description: "Treasure and loot. Include story-relevant items that connect to NPCs or throughlines."
         }
       },
-      required: ["id", "name", "readAloud", "dimensions", "lighting", "contentsObvious", "exits"]
+      required: ["id", "name", "roomType", "readAloud", "dimensions", "lighting", "contentsObvious", "exits"]
     }
   },
   {
@@ -621,6 +638,7 @@ function processFunctionCall(builder: CampaignBuilder, functionName: string, arg
       builder.act2.rooms.push({
         id: args.id,
         name: args.name,
+        roomType: args.roomType,
         readAloud: args.readAloud,
         dimensions: args.dimensions,
         lighting: args.lighting,
@@ -632,6 +650,7 @@ function processFunctionCall(builder: CampaignBuilder, functionName: string, arg
         interactables: args.interactables,
         storyConnection: args.storyConnection,
         exits: args.exits,
+        trap: args.trap,
         treasure: args.treasure
       });
       break;
@@ -743,17 +762,43 @@ async function generateCampaignWithFunctions(request: CampaignRequest, dungeonMa
     tools: [{ functionDeclarations: campaignFunctionDeclarations as any }]
   });
 
-  // Build room context from dungeon map
-  const roomContext = dungeonMap.rooms.map((room, i) => {
+  // Build room context from dungeon map - separate boss room from Act 2 rooms
+  const act2Rooms: string[] = [];
+  let bossRoom: string | null = null;
+
+  dungeonMap.rooms.forEach((room, i) => {
     const flags = room.contentFlags || {};
-    const types = [];
+    const types: string[] = [];
+
+    // Room content types
     if (flags.hasBattle) types.push('COMBAT');
     if (flags.hasTrap) types.push('TRAP');
     if (flags.hasTreasure) types.push('TREASURE');
     if (flags.hasPuzzle) types.push('PUZZLE');
-    if (flags.isBoss) types.push('BOSS');
-    return `Room ${i + 1}: ${room.name} (${room.type}) - ${types.join(', ') || 'EXPLORATION'}`;
-  }).join('\n');
+    if (flags.hasSecret) types.push('SECRET');
+    if (flags.isRitual) types.push('RITUAL');
+    if (flags.isOptional) types.push('OPTIONAL/SIDE PATH');
+
+    // Room terrain type
+    const terrain = room.type === 'corridor' ? 'Corridor' :
+                    room.type === 'secret' ? 'Secret Room' :
+                    room.type === 'treasure' ? 'Treasure Chamber' :
+                    room.type === 'trap' ? 'Trapped Area' : 'Chamber';
+
+    const pathType = room.pathType ? `[${room.pathType.toUpperCase()}]` : '';
+    const accessReq = room.accessRequirement ? ` - REQUIRES: ${room.accessRequirement.description}` : '';
+    const guardian = room.guardian ? ` - GUARDIAN: ${room.guardian.type} (${room.guardian.description})` : '';
+
+    const roomDesc = `Room ${i + 1}: ${room.name} (${terrain}) ${pathType}
+   Content: ${types.join(', ') || 'EXPLORATION'}${accessReq}${guardian}
+   Outline: ${room.outline || 'Standard room'}`;
+
+    if (flags.isBoss) {
+      bossRoom = roomDesc;
+    } else {
+      act2Rooms.push(roomDesc);
+    }
+  });
 
   const prompt = `You are a master D&D 5e Dungeon Master creating an immersive, cohesive one-shot adventure. Every element you create must connect to the larger story.
 
@@ -764,8 +809,13 @@ PARAMETERS:
 - Party Size: ${request.partySize}
 - Tone: ${request.tone || 'serious'}
 
-DUNGEON MAP (use this room structure):
-${roomContext}
+=== DUNGEON STRUCTURE ===
+
+ACT 2 ROOMS (generate these with addRoom):
+${act2Rooms.join('\n\n')}
+
+ACT 3 BOSS ROOM (generate this with setBossEncounter, NOT addRoom):
+${bossRoom || 'Final chamber with boss encounter'}
 
 === CRITICAL STORY REQUIREMENTS ===
 
@@ -775,28 +825,39 @@ ${roomContext}
    - Dungeon rooms should contain evidence of throughlines
    - The boss encounter must resolve all throughlines
 
-2. NPC CONNECTIONS: Every NPC must connect to the story:
-   - Each NPC knows something relevant to the dungeon or villain
-   - Give 2-3 NPCs skill checks (Persuasion DC 12-15, Intimidation DC 13-16, Insight DC 10-14)
-   - Skill checks should reveal story-relevant information, not just rumors
-   - Some NPCs should have secrets that connect to throughlines
+2. NPC SKILL CHECKS - REQUIRED for 3-4 NPCs:
+   Each NPC with skill checks needs the skillChecks object with:
+   - persuasion: { dc: 12-15, reveals: "Story-relevant secret about villain/dungeon" }
+   - intimidation: { dc: 13-16, reveals: "What they confess under pressure" }
+   - insight: { dc: 10-14, reveals: "What you notice about their hidden motives" }
+   - bribe: { cost: "5-20gp", reveals: "Exclusive information for payment" }
+   Example: The blacksmith (DC 13 Persuasion) reveals he repaired the cultist's ritual dagger last week.
 
-3. ROOM DESCRIPTIONS: Every room needs FULL details:
-   - 2-3 paragraph read-aloud text with sensory details (sight, sound, smell, temperature)
-   - 3-5 obvious contents (furniture, bodies, equipment, decorations)
-   - 2-3 hidden things with Investigation/Perception DCs
-   - Clear exits with descriptions ("North: Iron door, locked DC 15, leads to Room 3")
-   - Story connections: clues about the villain, evidence of throughlines
-   - Treasure that makes sense (guards have weapons, scribes have scrolls)
+3. ROOM DESCRIPTIONS - Generate ALL rooms from ACT 2 ROOMS list above:
+   - Match each room number and type from the dungeon structure
+   - Include secret rooms, treasure rooms, ritual rooms, corridors - ALL of them
+   - 2-3 paragraph read-aloud with sensory details
+   - 3-5 obvious contents, 2-3 hidden contents with DCs
+   - Story connections to throughlines
 
-4. BOSS ENCOUNTER: The villain must be fully realized:
-   - Reference the villain by name in earlier content
-   - NPCs should know rumors about the villain
-   - Dungeon should show evidence of villain's activities
-   - Villain dialogue should reference what they know about the party's journey
-   - All throughlines resolve in this encounter
-   - Phase changes at 75%, 50%, 25% HP
-   - 2-3 magic item rewards with full mechanical descriptions
+4. TRAPS - Include 2-4 hidden traps spread across different rooms:
+   Use the trap field in addRoom (NOT separate addTrap calls):
+   - trap.hasTrap: true
+   - trap.name: "Poison Dart Trap"
+   - trap.trigger: "Pressure plate in front of chest"
+   - trap.effect: "Darts shoot from the wall"
+   - trap.damage: "2d6 piercing + DC 12 CON save or poisoned"
+   - trap.detectDC: 14 (Perception to notice)
+   - trap.disarmDC: 13 (Thieves' tools)
+   - trap.hint: "Tiny holes visible in the wall"
+
+5. BOSS ENCOUNTER - setBossEncounter for Act 3 (NOT addRoom):
+   - The boss room is listed under "ACT 3 BOSS ROOM" above - do NOT use addRoom for it
+   - villainTactics REQUIRED: "Opens with X, focuses Y, uses Z when bloodied"
+   - villainAbilities REQUIRED: Array of 3-4 abilities with effects
+   - phaseChanges REQUIRED: What happens at 75%, 50%, 25% HP
+   - villainDialogueOpening, villainDialogueMidFight, villainDialogueDefeat - all required
+   - throughlinePayoffs: How each Act 1 throughline resolves here
 
 === GENERATION ORDER ===
 
@@ -804,21 +865,25 @@ ${roomContext}
 2. addThroughline x2-3 - Narrative threads that will appear throughout
 3. setAct1Setup - Town arrival, DM notes about what's really happening
 4. setQuestGiver - Full dialogue including greeting, quest pitch, responses to questions
-5. addNPC x4-6 - Each with:
-   - Unique personality and appearance
-   - Connection to the plot (why do they matter?)
-   - Skill checks with story-relevant reveals
-   - Dialogue that references the villain or dungeon BY NAME
+5. addNPC x4-6 - IMPORTANT: 3-4 NPCs MUST have skillChecks with DC and reveals
+   - Innkeeper: insight check reveals nervousness about recent visitors
+   - Blacksmith: persuasion reveals he sold weapons to suspicious figures
+   - Elder: no check needed, freely shares legends
+   - Merchant: bribe unlocks map showing secret entrance
 6. setInn - Rumors that foreshadow dungeon dangers
 7. addShop x1-2 - Items useful for the specific dungeon
 8. setTravelToDestination - Journey with environmental storytelling
 9. setAct2Setup - Dungeon overview referencing its history and the villain
-10. addRoom x5-8 - FULL descriptions, contents, hidden items, story clues
-11. addEncounter x3 - Enemies with tactics, terrain, rewards
-12. addTrap x1-2 - Traps that fit the dungeon theme
-13. setBossEncounter - Complete villain with dialogue, phases, abilities, rewards
-14. setAftermath - Resolution referencing NPCs by name, throughline resolutions
-15. campaignComplete
+10. addRoom for EACH room in ACT 2 ROOMS - include ALL rooms (corridors, secrets, treasures, rituals)
+    - 2-4 rooms should have trap field populated with full trap details
+11. addEncounter x3 - Enemies with detailed tactics, terrain features, loot with effects
+12. setBossEncounter - This covers the Act 3 boss room. Include:
+    - chamberReadAloud (2-3 paragraphs), chamberFeatures (tactical terrain)
+    - Full villain with appearance, abilities, tactics, ALL dialogue fields
+    - phaseChanges array, throughlinePayoffs array
+    - rewardItems with mechanical effects
+13. setAftermath - Resolution referencing NPCs by name, throughline resolutions
+14. campaignComplete
 
 Use only SRD monsters. Balance encounters for ${request.partySize} level ${request.partyLevel} characters.`;
 
