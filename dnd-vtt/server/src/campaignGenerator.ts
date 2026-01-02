@@ -1751,7 +1751,7 @@ Create an immersive adventure following these guidelines. Return ONLY valid JSON
           "gossip": "Local rumors they share freely",
           "ifBribed": "Juicier information for DC 12 Persuasion or 5gp"
         },
-        "keyInformation": ["Rumor about the quest", "Warning about dangers"],
+        "keyInformation": ["SPECIFIC rumor about the villain or dungeon BY NAME", "SPECIFIC warning about a monster TYPE that appears in Act 2"],
         "services": [{"item": "Room", "cost": "5sp/night"}, {"item": "Meal", "cost": "2sp"}, {"item": "Ale", "cost": "4cp"}]
       },
       {
@@ -1766,8 +1766,8 @@ Create an immersive adventure following these guidelines. Return ONLY valid JSON
           "gossip": "Talk of recent attacks, monster sightings",
           "ifBribed": "Knows weak points of local creatures (grants advantage info)"
         },
-        "keyInformation": ["Practical advice about local threats", "Knows the terrain"],
-        "services": [{"item": "Weapon repair", "cost": "varies"}, {"item": "Silvered weapon", "cost": "+100gp"}, {"item": "Custom armor fitting", "cost": "50gp"}]
+        "keyInformation": ["SPECIFIC advice about fighting a monster type FROM Act 2 (e.g., 'Aim for the eyes' grants +1 to hit)", "Knows a shortcut or danger in the journey to the dungeon"],
+        "services": [{"item": "Weapon repair", "cost": "5gp"}, {"item": "Silvered weapon coating", "cost": "100gp", "effect": "Weapon counts as silvered for 24 hours"}, {"item": "Armor fitting", "cost": "50gp", "effect": "+1 AC for 1 day"}]
       },
       {
         "name": "Merchant Name",
@@ -1781,8 +1781,8 @@ Create an immersive adventure following these guidelines. Return ONLY valid JSON
           "gossip": "Trade route news, economic gossip",
           "ifBribed": "Knows black market contacts or rare item locations"
         },
-        "keyInformation": ["Sells useful adventuring gear", "May buy unusual loot"],
-        "services": [{"item": "Adventuring gear", "cost": "PHB prices"}, {"item": "Potions", "cost": "50gp each"}, {"item": "Maps", "cost": "25gp"}]
+        "keyInformation": ["Has a SPECIFIC item useful against the dungeon's hazards (name it)", "Heard traders talk about the dungeon's history (SPECIFIC detail)"],
+        "services": [{"item": "Potion of Healing", "cost": "50gp", "effect": "Restores 2d4+2 HP"}, {"item": "Antitoxin", "cost": "50gp", "effect": "Advantage on poison saves for 1 hour"}, {"item": "Rope (50ft)", "cost": "1gp"}, {"item": "Torch (10)", "cost": "1gp"}]
       },
       {
         "name": "Priest/Healer Name",
@@ -1796,8 +1796,8 @@ Create an immersive adventure following these guidelines. Return ONLY valid JSON
           "gossip": "Spiritual concerns, omens, dreams",
           "ifBribed": "Donations unlock blessings or prophecies"
         },
-        "keyInformation": ["Knows about undead/fiends/celestials involved", "Can identify curses"],
-        "services": [{"item": "Cure Wounds", "cost": "10gp donation"}, {"item": "Lesser Restoration", "cost": "40gp donation"}, {"item": "Bless (1 hour)", "cost": "25gp donation"}]
+        "keyInformation": ["SPECIFIC spiritual insight about the villain's nature or weakness", "Had a dream/vision about a SPECIFIC room or trap in the dungeon"],
+        "services": [{"item": "Cure Wounds spell", "cost": "10gp donation", "effect": "Restores 1d8+3 HP"}, {"item": "Lesser Restoration spell", "cost": "40gp donation", "effect": "Cures one condition"}, {"item": "Bless scroll", "cost": "25gp donation", "effect": "1 hour of Bless spell"}]
       },
       {
         "name": "Old Timer Name",
@@ -1811,7 +1811,7 @@ Create an immersive adventure following these guidelines. Return ONLY valid JSON
           "gossip": "Ancient history of the area, old legends",
           "ifBribed": "Buy them a drink and they'll share detailed knowledge (no gold needed, just time)"
         },
-        "keyInformation": ["Knows the dungeon's history", "Remembers previous adventurers who tried", "Secret entrance or weakness"],
+        "keyInformation": ["Knows the dungeon's REAL NAME and who built it", "Remembers what killed the last adventurers (SPECIFIC monster from Act 2)", "Knows about a secret door or alternate path (SPECIFIC room number)"],
         "services": []
       },
       {
@@ -1826,7 +1826,7 @@ Create an immersive adventure following these guidelines. Return ONLY valid JSON
           "gossip": "Cryptic hints about what lies ahead",
           "ifBribed": "Cannot be bribed - has own mysterious motives"
         },
-        "keyInformation": ["Knows something crucial but shares it cryptically", "May appear again later"],
+        "keyInformation": ["Cryptically hints at the villain's TRUE motivation (be specific)", "Knows about a hidden treasure in a SPECIFIC room number"],
         "services": []
       }
     ],
@@ -1887,15 +1887,17 @@ Create an immersive adventure following these guidelines. Return ONLY valid JSON
     "rooms": [
       {
         "id": "1",
-        "name": "Room Name",
-        "readAloud": "Detailed room description (2-3 paragraphs with sensory details). What do players see, hear, smell? What's immediately obvious vs. hidden?",
+        "name": "Room Name (be descriptive: 'Flooded Entry Hall' not just 'Room 1')",
+        "type": "entrance/corridor/combat/trap/puzzle/treasure/boss-antechamber",
+        "readAloud": "Detailed room description (2-3 paragraphs). IMPORTANT: If this room has a trap or puzzle, describe the visible elements here (pressure plates, strange symbols, etc). If combat, describe signs of enemies.",
         "dimensions": "30ft x 40ft",
         "lighting": "Dim light from...",
-        "exits": ["North: wooden door to Room 2", "East: collapsed tunnel"],
+        "exits": ["North: wooden door to Room 2", "East: collapsed tunnel (leads to Room 3)"],
         "contents": {
-          "obvious": ["What's immediately visible"],
+          "obvious": ["What's immediately visible - include trap/puzzle visual elements if applicable"],
           "hidden": ["What DC 15 Perception reveals", "What DC 12 Investigation finds"]
         },
+        "trapOrPuzzle": "If this room has a trap or puzzle, describe it HERE and make sure readAloud mentions the visual clues. Otherwise set to null.",
         "encounter": {
           "type": "combat/trap/puzzle/roleplay/none",
           "description": "What happens here"
@@ -1947,7 +1949,8 @@ Create an immersive adventure following these guidelines. Return ONLY valid JSON
     "traps": [
       {
         "name": "Trap Name",
-        "location": "Where it is",
+        "roomId": "MUST match a room id from the rooms array above",
+        "location": "Specific location within that room (e.g., 'the third flagstone from the door')",
         "trigger": "What sets it off",
         "detection": "DC 14 Perception to notice",
         "effect": "What it does (damage, condition, alarm)",
@@ -1959,7 +1962,7 @@ Create an immersive adventure following these guidelines. Return ONLY valid JSON
     "puzzles": [
       {
         "name": "Puzzle Name",
-        "location": "Room number",
+        "roomId": "MUST match a room id from the rooms array above",
         "readAloud": "What players see (the puzzle elements, any inscriptions, the locked door/chest it guards)",
         "mechanics": "How it actually works",
         "hints": [
@@ -2149,7 +2152,25 @@ CRITICAL REQUIREMENTS:
 9. Balance total XP for a party of ${request.partySize} level ${request.partyLevel} characters
 10. Include specific gold values and item names for all treasure
 11. Boss needs phases, dialogue, and a weakness clever players can exploit
-12. Ensure the adventure can be completed in approximately ${sessionHours} hours`;
+12. Ensure the adventure can be completed in approximately ${sessionHours} hours
+
+CONSISTENCY REQUIREMENTS (VERY IMPORTANT):
+13. **NPC INFORMATION MUST BE REAL**: Every piece of "keyInformation" or "gossip" an NPC shares MUST reference actual elements from this adventure:
+    - Mention the villain by name
+    - Reference the dungeon/location by name
+    - Describe threats that actually appear in Act 2
+    - Share rumors that are TRUE within this adventure
+    - If an NPC says "I know about X", you MUST include what X actually is
+14. **ITEMS FOR SALE MUST BE SPECIFIC**: When an NPC offers items, potions, or gear:
+    - Include the exact item name (e.g., "Potion of Healing" not "rare potion")
+    - Include the price in gold pieces
+    - Include what it does (e.g., "restores 2d4+2 HP")
+    - If magical, describe the effect briefly
+15. **ACT 2 ROOMS MUST BE SEQUENTIAL**: Number rooms 1, 2, 3, 4, 5, etc. in the order players encounter them. The first room is the entrance, the last is before the boss.
+16. **ENCOUNTERS MATCH ROOMS**: Each encounter's "location" field must match an actual room id/number. Room 1 = Entry encounter, Room 3-4 = Mid-dungeon, Room 5+ = Pre-boss.
+17. **TRAPS/PUZZLES IN ROOMS**: When a room contains a trap or puzzle, the room's "readAloud" description MUST describe the trap/puzzle elements. Don't have a "trap room" with a description of "empty corridor".
+18. **ROOM TYPES MATCH CONTENT**: If you define a room as containing a trap, the trap details must be in that room's description. Same for puzzles and treasure.
+19. **NO EMPTY PROMISES**: If an NPC says "I can help you with X" or "I have something that might aid you", you MUST specify exactly what that help/item is.`;
 }
 
 // Generate just a dungeon map
