@@ -1455,10 +1455,12 @@ Use grid coordinates (0-19 for x and y).`;
   }
 }
 
-// Fallback procedural dungeon generator with linear/tree layout
+// Fallback procedural dungeon generator
 function generateProceduralDungeon(theme: string): DungeonMap {
   const rooms: DungeonRoom[] = [];
+  const roomCount = 8 + Math.floor(Math.random() * 8); // 8-15 rooms
 
+  const roomTypes: DungeonRoom['type'][] = ['entrance', 'room', 'room', 'room', 'corridor', 'treasure', 'trap', 'boss', 'secret'];
   const roomNames: Record<DungeonRoom['type'], string[]> = {
     entrance: ['Grand Entrance', 'Dungeon Gate', 'Ancient Doorway', 'Cavern Mouth'],
     corridor: ['Dark Passage', 'Winding Tunnel', 'Narrow Hall', 'Carved Corridor'],
@@ -1469,119 +1471,72 @@ function generateProceduralDungeon(theme: string): DungeonMap {
     secret: ['Hidden Chamber', 'Secret Study', 'Concealed Vault', 'Mystery Room'],
   };
 
-  // Grid-based layout constants
-  const GRID_COLS = 3;       // Max rooms per row
-  const ROOM_WIDTH = 3;      // Standard room width
-  const ROOM_HEIGHT = 2;     // Standard room height
-  const H_SPACING = 5;       // Horizontal spacing between rooms
-  const V_SPACING = 4;       // Vertical spacing between rows
-  const START_X = 1;         // Left margin
-  const START_Y = 1;         // Top margin
+  // Place entrance
+  rooms.push({
+    id: 'room-1',
+    x: 0,
+    y: 8,
+    width: 3,
+    height: 3,
+    type: 'entrance',
+    name: 'Dungeon Entrance',
+    description: `The entrance to this ${theme} dungeon.`,
+    connections: ['room-2'],
+    features: ['Heavy stone doors', 'Warning inscriptions'],
+  });
 
-  // Define the dungeon structure: array of rows, each row has 1-3 rooms
-  // Pattern: entrance -> early rooms -> mid rooms -> late rooms -> boss
-  const rowStructure = [
-    { count: 1, types: ['entrance'] as DungeonRoom['type'][] },                    // Row 0: Entrance
-    { count: 2, types: ['room', 'corridor'] as DungeonRoom['type'][] },            // Row 1: Early exploration
-    { count: 3, types: ['room', 'trap', 'corridor'] as DungeonRoom['type'][] },    // Row 2: Main area
-    { count: 2, types: ['room', 'treasure', 'trap'] as DungeonRoom['type'][] },    // Row 3: Mid dungeon
-    { count: 2, types: ['room', 'secret', 'trap'] as DungeonRoom['type'][] },      // Row 4: Late area
-    { count: 1, types: ['boss'] as DungeonRoom['type'][] },                        // Row 5: Boss
-  ];
+  // Generate remaining rooms
+  let currentX = 4;
+  let currentY = 8;
 
-  let roomId = 1;
-  const rowRoomIds: string[][] = []; // Track room IDs per row for connections
+  for (let i = 2; i <= roomCount; i++) {
+    const type = i === roomCount ? 'boss' : roomTypes[Math.floor(Math.random() * roomTypes.length)];
+    const names = roomNames[type];
+    const name = names[Math.floor(Math.random() * names.length)];
 
-  // Generate rooms row by row
-  for (let rowIndex = 0; rowIndex < rowStructure.length; rowIndex++) {
-    const row = rowStructure[rowIndex];
-    const roomsInRow: string[] = [];
+    const width = type === 'corridor' ? 1 : 2 + Math.floor(Math.random() * 3);
+    const height = type === 'corridor' ? 3 + Math.floor(Math.random() * 4) : 2 + Math.floor(Math.random() * 3);
 
-    // Calculate horizontal positions to center rooms in the row
-    const totalWidth = row.count * ROOM_WIDTH + (row.count - 1) * H_SPACING;
-    const rowStartX = START_X + Math.floor((GRID_COLS * (ROOM_WIDTH + H_SPACING) - H_SPACING - totalWidth) / 2);
-    const rowY = START_Y + rowIndex * V_SPACING;
-
-    for (let colIndex = 0; colIndex < row.count; colIndex++) {
-      const roomX = rowStartX + colIndex * (ROOM_WIDTH + H_SPACING);
-
-      // Determine room type
-      let type: DungeonRoom['type'];
-      if (row.types.length === 1) {
-        type = row.types[0];
-      } else {
-        type = row.types[Math.floor(Math.random() * row.types.length)];
+    // Move position
+    if (Math.random() > 0.5) {
+      currentX += width + 1;
+      if (currentX > 17) {
+        currentX = 4;
+        currentY += 4;
       }
-
-      const names = roomNames[type];
-      const name = names[Math.floor(Math.random() * names.length)];
-
-      const id = `room-${roomId}`;
-      roomsInRow.push(id);
-
-      rooms.push({
-        id,
-        x: roomX,
-        y: rowY,
-        width: ROOM_WIDTH,
-        height: ROOM_HEIGHT,
-        type,
-        name,
-        description: `A ${type} in the ${theme} dungeon.`,
-        connections: [], // Will be filled in next pass
-        features: generateRoomFeatures(type),
-      });
-
-      roomId++;
+    } else {
+      currentY += height + 1;
+      if (currentY > 17) {
+        currentY = 2;
+        currentX += 5;
+      }
     }
 
-    rowRoomIds.push(roomsInRow);
+    rooms.push({
+      id: `room-${i}`,
+      x: Math.min(currentX, 17),
+      y: Math.min(currentY, 17),
+      width,
+      height,
+      type,
+      name,
+      description: `A ${type} in the ${theme} dungeon.`,
+      connections: i < roomCount ? [`room-${i + 1}`] : [],
+      features: generateRoomFeatures(type),
+    });
   }
 
-  // Create connections: each room connects to rooms in the next row
-  for (let rowIndex = 0; rowIndex < rowRoomIds.length - 1; rowIndex++) {
-    const currentRow = rowRoomIds[rowIndex];
-    const nextRow = rowRoomIds[rowIndex + 1];
-
-    // Connect rooms in current row to rooms in next row
-    for (let i = 0; i < currentRow.length; i++) {
-      const room = rooms.find(r => r.id === currentRow[i])!;
-
-      if (nextRow.length === 1) {
-        // All rooms connect to single room in next row
-        room.connections.push(nextRow[0]);
-      } else if (currentRow.length === 1) {
-        // Single room connects to all rooms in next row
-        room.connections.push(...nextRow);
-      } else if (nextRow.length >= currentRow.length) {
-        // Connect to corresponding room(s) in next row
-        const connectTo = Math.floor(i * nextRow.length / currentRow.length);
-        room.connections.push(nextRow[connectTo]);
-        // Sometimes add a second connection for variety
-        if (Math.random() > 0.5 && connectTo + 1 < nextRow.length) {
-          room.connections.push(nextRow[connectTo + 1]);
-        }
-      } else {
-        // More rooms in current row than next - distribute connections
-        const connectTo = Math.min(i, nextRow.length - 1);
-        room.connections.push(nextRow[connectTo]);
-      }
-    }
-
-    // Also add horizontal connections within rows (for variety)
-    if (currentRow.length > 1 && Math.random() > 0.5) {
-      const idx = Math.floor(Math.random() * (currentRow.length - 1));
-      const room = rooms.find(r => r.id === currentRow[idx])!;
-      if (!room.connections.includes(currentRow[idx + 1])) {
-        room.connections.push(currentRow[idx + 1]);
-      }
+  // Add connections from previous rooms
+  for (let i = 1; i < rooms.length; i++) {
+    if (!rooms[i - 1].connections.includes(rooms[i].id)) {
+      rooms[i - 1].connections.push(rooms[i].id);
     }
   }
 
   return {
     name: `${theme.charAt(0).toUpperCase() + theme.slice(1)} Dungeon`,
     width: 20,
-    height: 25,
+    height: 20,
     rooms,
     theme,
   };
