@@ -704,66 +704,26 @@ Return ONLY valid JSON with this structure:
     },
     "keyNpcs": [
       {
-        "name": "Innkeeper Name",
-        "role": "Innkeeper",
-        "location": "The local tavern",
-        "appearance": "Physical description",
+        "name": "NPC Name",
+        "role": "Role (Innkeeper/Blacksmith/Merchant/Priest/etc.)",
+        "location": "Where found",
         "personality": "Character traits",
-        "dialogue": {"greeting": "Welcome!", "gossip": "Local rumors"},
-        "keyInformation": ["Rumor 1", "Warning"],
-        "services": [{"item": "Room", "cost": "5sp"}, {"item": "Meal", "cost": "2sp"}]
-      },
-      {
-        "name": "Blacksmith Name",
-        "role": "Blacksmith",
-        "location": "The forge",
-        "appearance": "Physical description",
-        "personality": "Gruff but fair",
-        "dialogue": {"greeting": "Looking to buy?", "gossip": "Monster sightings"},
-        "keyInformation": ["Practical advice", "Terrain knowledge"],
-        "services": [{"item": "Weapon repair", "cost": "varies"}]
-      },
-      {
-        "name": "Merchant Name",
-        "role": "Merchant",
-        "location": "Market",
-        "appearance": "Well-dressed",
-        "personality": "Shrewd negotiator",
-        "dialogue": {"greeting": "Need supplies?", "gossip": "Trade news"},
-        "keyInformation": ["Sells gear", "Buys loot"],
-        "services": [{"item": "Potions", "cost": "50gp"}]
-      },
-      {
-        "name": "Priest Name",
-        "role": "Temple Priest",
-        "location": "Local temple",
-        "appearance": "Robed, holy symbol",
-        "personality": "Compassionate",
-        "dialogue": {"greeting": "Blessings, travelers", "gossip": "Omens and dreams"},
-        "keyInformation": ["Spiritual insight", "Can identify curses"],
-        "services": [{"item": "Cure Wounds", "cost": "10gp donation"}]
-      },
-      {
-        "name": "Elder Name",
-        "role": "Local Historian",
-        "location": "Tavern corner",
-        "appearance": "Weathered, old scars",
-        "personality": "Loves to tell stories",
-        "dialogue": {"greeting": "Sit down, young one...", "gossip": "Ancient legends"},
-        "keyInformation": ["Dungeon history", "Secret weakness"],
-        "services": []
-      },
-      {
-        "name": "Stranger Name",
-        "role": "Mysterious Figure",
-        "location": "Shadows",
-        "appearance": "Hooded, watching",
-        "personality": "Cryptic",
-        "dialogue": {"greeting": "You seek [objective]. Interesting.", "gossip": "Cryptic hints"},
-        "keyInformation": ["Knows something crucial"],
-        "services": []
+        "gossip": "What they know about the adventure"
       }
     ],
+    "services": {
+      "inn": {"name": "Inn Name", "roomCost": "5sp/night", "mealCost": "2sp", "rumors": ["Rumor 1", "Rumor 2"]},
+      "shops": [
+        {
+          "name": "Shop Name",
+          "keeper": "Shopkeeper Name",
+          "shopType": "general|blacksmith|apothecary|magic",
+          "inventory": [
+            {"item": "Item Name", "cost": "Price", "type": "weapon|armor|potion|gear", "effect": "Mechanical effect"}
+          ]
+        }
+      ]
+    },
     "travelToDestination": {
       "readAloud": "Travel narration (1-2 paragraphs)",
       "duration": "Travel time"
@@ -774,9 +734,11 @@ Return ONLY valid JSON with this structure:
 \`\`\`
 
 REQUIREMENTS:
-- Create 6 distinct NPCs with unique personalities and useful information
-- Include specific dialogue lines for each NPC
-- Make the quest giver compelling with clear motivation`;
+- Create 3-5 distinct NPCs with unique personalities and useful information (one entry per NPC in keyNpcs array)
+- Include at least: Innkeeper, Merchant/Blacksmith, and one mysterious/knowledgeable figure
+- Create 1-2 shops with 3-5 items each (include weapons, armor, potions, and gear with prices and effects)
+- Make the quest giver compelling with clear motivation
+- CRITICAL: Ensure the complete JSON structure is returned, especially the full act1 object with all sections`;
 }
 
 // Build prompt for Act 2 (Dungeon/Encounters)
@@ -1399,15 +1361,36 @@ export async function generateCampaign(req: Request, res: Response) {
     console.log('Pre-generated detailed dungeon map with', dungeonMap.rooms.length, 'rooms');
 
     // Part 1: Generate Overview + Act 1
+    // Retry up to 2 times if act1 is missing (sometimes gets truncated)
     let overviewAndAct1;
-    try {
-      const prompt1 = buildOverviewAndAct1Prompt(request);
-      overviewAndAct1 = await callGeminiAndParse(prompt1, 'Overview + Act 1');
-    } catch (error) {
-      console.error('Failed to generate Overview + Act 1:', error);
+    let act1Error = null;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        console.log(`Generating Overview + Act 1 (attempt ${attempt}/2)...`);
+        const prompt1 = buildOverviewAndAct1Prompt(request);
+        overviewAndAct1 = await callGeminiAndParse(prompt1, 'Overview + Act 1');
+
+        // Check if act1 was properly generated
+        if (overviewAndAct1?.act1) {
+          console.log('Overview + Act 1 generated successfully');
+          break;
+        } else {
+          console.log('Warning: act1 missing from response, retrying...');
+          act1Error = 'act1 was truncated or missing from response';
+        }
+      } catch (error) {
+        console.error(`Failed to generate Overview + Act 1 (attempt ${attempt}):`, error);
+        act1Error = error instanceof Error ? error.message : String(error);
+        if (attempt < 2) {
+          console.log('Retrying Overview + Act 1 generation...');
+        }
+      }
+    }
+
+    if (!overviewAndAct1) {
       return res.status(500).json({
         error: 'Failed to generate campaign overview',
-        details: error instanceof Error ? error.message : String(error)
+        details: act1Error || 'Unknown error'
       });
     }
 
@@ -1452,6 +1435,7 @@ export async function generateCampaign(req: Request, res: Response) {
 
     // Track what failed to generate
     const missingParts: string[] = [];
+    if (!overviewAndAct1.act1) missingParts.push('Act 1 (quest/town)');
     if (!act2Data.act2) missingParts.push('Act 2 (dungeon/encounters)');
     if (!act3Data.act3) missingParts.push('Act 3 (boss fight)');
     if (!act3Data.epilogue) missingParts.push('Epilogue');
