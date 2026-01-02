@@ -52,14 +52,24 @@ export function MapLibrary({ onShowToPlayers, onHideFromPlayers }: MapLibraryPro
 
       {/* Save Current Map */}
       {!showSaveDialog ? (
-        <Button
-          size="sm"
-          onClick={() => setShowSaveDialog(true)}
-          disabled={!canSave}
-          className="w-full mb-3"
-        >
-          Save Current Map
-        </Button>
+        <div className="flex gap-2 mb-3">
+          <Button
+            size="sm"
+            onClick={() => setShowSaveDialog(true)}
+            disabled={!canSave}
+            className="flex-1"
+          >
+            Save Current Map
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={onHideFromPlayers}
+            title="Clear the player view"
+          >
+            Clear View
+          </Button>
+        </div>
       ) : (
         <div className="mb-3 p-2 bg-leather/30 rounded">
           <Input
