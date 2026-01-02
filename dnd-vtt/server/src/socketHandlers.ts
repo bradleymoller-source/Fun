@@ -457,60 +457,65 @@ export function setupSocketHandlers(io: Server): void {
     });
 
     socket.on('show-map-to-players', async (data: unknown, callback: (response: any) => void) => {
-      if (!await checkLimit('show-map-to-players')) {
-        callback({ success: false, error: 'Rate limit exceeded.' });
-        return;
-      }
+      try {
+        if (!await checkLimit('show-map-to-players')) {
+          callback({ success: false, error: 'Rate limit exceeded.' });
+          return;
+        }
 
-      const sessionInfo = socketSessions.get(socket.id);
-      if (!sessionInfo || !sessionInfo.isDm) {
-        callback({ success: false, error: 'Only the DM can show maps to players' });
-        return;
-      }
+        const sessionInfo = socketSessions.get(socket.id);
+        if (!sessionInfo || !sessionInfo.isDm) {
+          callback({ success: false, error: 'Only the DM can show maps to players' });
+          return;
+        }
 
-      const validation = validateData(ShowMapToPlayersDataSchema, data, 'show-map-to-players');
-      if (!validation.success) {
-        callback({ success: false, error: validation.error });
-        return;
-      }
+        const validation = validateData(ShowMapToPlayersDataSchema, data, 'show-map-to-players');
+        if (!validation.success) {
+          callback({ success: false, error: validation.error });
+          return;
+        }
 
-      const { roomCode } = sessionInfo;
-      const { mapId, mapState } = validation.data;
+        const { roomCode } = sessionInfo;
+        const { mapId, mapState } = validation.data;
 
-      const currentMap = getMapState(roomCode);
-      const livePlayerTokens = (currentMap?.tokens || []).filter(t => t.ownerId);
-      const savedMapTokens = (mapState.tokens || []).filter(t => !t.isHidden);
+        const currentMap = getMapState(roomCode);
+        const livePlayerTokens = (currentMap?.tokens || []).filter(t => t.ownerId);
+        const savedMapTokens = (mapState.tokens || []).filter(t => !t.isHidden);
 
-      const mergedTokens = [
-        ...savedMapTokens,
-        ...livePlayerTokens.filter(pt => !pt.isHidden),
-      ];
+        const mergedTokens = [
+          ...savedMapTokens,
+          ...livePlayerTokens.filter(pt => !pt.isHidden),
+        ];
 
-      const updatedMap = updateMapState(roomCode, {
-        imageUrl: mapState.imageUrl,
-        gridSize: mapState.gridSize,
-        gridOffsetX: mapState.gridOffsetX,
-        gridOffsetY: mapState.gridOffsetY,
-        showGrid: true,
-        tokens: mergedTokens,
-      });
-
-      socket.to(roomCode).emit('map-shown', {
-        mapId,
-        map: {
+        const updatedMap = updateMapState(roomCode, {
           imageUrl: mapState.imageUrl,
           gridSize: mapState.gridSize,
           gridOffsetX: mapState.gridOffsetX,
           gridOffsetY: mapState.gridOffsetY,
           showGrid: true,
-          tokens: mergedTokens.filter(t => !t.isHidden),
-          fogOfWar: [],
-        },
-      });
+          tokens: mergedTokens,
+        });
 
-      logger.info('Map shown to players', { roomCode, mapId, tokenCount: mergedTokens.length });
+        socket.to(roomCode).emit('map-shown', {
+          mapId,
+          map: {
+            imageUrl: mapState.imageUrl,
+            gridSize: mapState.gridSize,
+            gridOffsetX: mapState.gridOffsetX,
+            gridOffsetY: mapState.gridOffsetY,
+            showGrid: true,
+            tokens: mergedTokens.filter(t => !t.isHidden),
+            fogOfWar: [],
+          },
+        });
 
-      callback({ success: true, map: updatedMap });
+        logger.info('Map shown to players', { roomCode, mapId, tokenCount: mergedTokens.length });
+
+        callback({ success: true, map: updatedMap });
+      } catch (error) {
+        logger.error('Error in show-map-to-players', { error });
+        callback({ success: false, error: 'Server error while showing map. Please try again.' });
+      }
     });
 
     socket.on('hide-map-from-players', async (_data: Record<string, never>, callback: (response: any) => void) => {

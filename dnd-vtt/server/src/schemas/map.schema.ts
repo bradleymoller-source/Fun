@@ -69,7 +69,7 @@ export const RemoveTokenDataSchema = z.object({
 export const ShowMapToPlayersDataSchema = z.object({
   mapId: IdSchema,
   mapState: z.object({
-    imageUrl: z.string().max(2000),
+    imageUrl: z.string().max(10000), // Increased to handle longer URLs from image services
     gridSize: z.number().min(10).max(500),
     gridOffsetX: z.number().min(-1000).max(1000),
     gridOffsetY: z.number().min(-1000).max(1000),
