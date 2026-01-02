@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { useSessionStore } from '../stores/sessionStore';
+import { useSocket } from '../hooks/useSocket';
+import type { Condition } from '../types';
 
 interface GeneratedNPC {
   name: string;
@@ -226,8 +228,11 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
   // Track which maps were added to the game library
   const [addedToLibrary, setAddedToLibrary] = useState<Set<string>>(new Set());
 
-  // Get session store for adding maps to the game's Map Library
-  const { addMapToLibrary, addToken, addInitiativeEntry, startCombat, isInCombat } = useSessionStore();
+  // Get session store for adding maps to the game's Map Library and local state
+  const { addMapToLibrary, addToken, isInCombat } = useSessionStore();
+
+  // Get socket functions for server-synced initiative (so players can see entries)
+  const { addInitiativeEntry, startCombat } = useSocket();
 
   // Monster colors for token differentiation
   const MONSTER_COLORS = [
@@ -269,7 +274,7 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
   };
 
   // Start an encounter - add monsters to tokens and combat tracker
-  const handleStartEncounter = (encounter: any) => {
+  const handleStartEncounter = async (encounter: any) => {
     const monsters = encounter.enemies || encounter.monsters || [];
     if (monsters.length === 0) {
       alert('No monsters found in this encounter');
@@ -283,6 +288,20 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
 
     // Build summary of added monsters with their stats
     const addedMonsters: string[] = [];
+
+    // Collect all initiative entries to add
+    const initiativeEntries: Array<{
+      id: string;
+      name: string;
+      initiative: number;
+      isNpc: boolean;
+      isActive: boolean;
+      tokenId: string;
+      maxHp: number;
+      currentHp: number;
+      conditions: Condition[];
+      monsterStats: any;
+    }> = [];
 
     monsters.forEach((monster: any, monsterTypeIndex: number) => {
       const count = monster.count || 1;
@@ -359,7 +378,7 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
 
         // Roll initiative using the monster's initiative modifier
         const initiativeRoll = rollD20() + initMod;
-        addInitiativeEntry({
+        initiativeEntries.push({
           id: initiativeId,
           name,
           initiative: initiativeRoll,
@@ -376,17 +395,27 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
       }
     });
 
-    // Start combat if not already in combat
-    if (!isInCombat) {
-      startCombat();
-    }
+    // Add all initiative entries to server (sequentially to preserve order)
+    try {
+      for (const entry of initiativeEntries) {
+        await addInitiativeEntry(entry);
+      }
 
-    // Show summary alert with stats
-    alert(
-      `⚔️ Encounter Started!\n\n` +
-      `Added ${tokenIndex} enemies to map and combat tracker:\n\n` +
-      addedMonsters.join('\n\n')
-    );
+      // Start combat if not already in combat
+      if (!isInCombat) {
+        await startCombat();
+      }
+
+      // Show summary alert with stats
+      alert(
+        `⚔️ Encounter Started!\n\n` +
+        `Added ${tokenIndex} enemies to map and combat tracker:\n\n` +
+        addedMonsters.join('\n\n')
+      );
+    } catch (error) {
+      console.error('Failed to start encounter:', error);
+      alert('Failed to start encounter. Make sure you are connected to a session.');
+    }
   };
 
   // Save a battle map to the list

@@ -1036,6 +1036,9 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
           </div>
         </div>
       </div>
+
+      {/* Class Resources (Lay on Hands, Ki, Rage, etc.) - shown in Combat tab for easy access */}
+      {renderClassResources()}
     </div>
   );
 
