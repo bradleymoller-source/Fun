@@ -498,6 +498,8 @@ export interface DungeonRoom {
     isBoss?: boolean;
     isRitual?: boolean;       // Ritual that affects boss if stopped
     isOptional?: boolean;     // Not on critical path
+    isSecretEntrance?: boolean; // Alternative entrance to dungeon
+    isCave?: boolean;         // Natural cavern terrain
   };
   outline?: string;           // Brief outline for narrative AI
   // Access requirements - what's needed to enter this room
@@ -519,7 +521,16 @@ export interface DungeonRoom {
     bossDebuff: string;       // e.g., "Boss loses legendary resistance", "Boss starts at half HP"
   };
   // Path classification
-  pathType?: 'critical' | 'optional' | 'secret' | 'shortcut';
+  pathType?: 'critical' | 'optional' | 'secret' | 'shortcut' | 'secret_entrance';
+  // Terrain type
+  terrain?: 'constructed' | 'cave' | 'mixed';
+  // Environmental storytelling
+  storyElement?: {
+    type: 'dead_adventurer' | 'ancient_battle' | 'warning_signs' | 'previous_expedition' | 'natural_disaster' | 'ritual_aftermath';
+    description: string;
+    loot?: string[];
+    clues?: string[];
+  };
 }
 
 export interface DungeonMap {
@@ -537,9 +548,38 @@ export interface DungeonMap {
     unlocksRoomId: string;
     unlockType: string;       // 'key' | 'passphrase' | 'scroll' | 'medallion' | etc.
   }>;
-  ritualCount?: number;       // How many rituals can be stopped
-  secretCount?: number;       // How many secret areas exist
-  shortcutCount?: number;     // How many shortcuts exist
+  // Secret entrances (alternative ways into the dungeon)
+  secretEntrances?: Array<{
+    id: string;
+    name: string;
+    description: string;
+    leadsToRoomId: string;    // Which room this entrance connects to
+    discoveryMethods: Array<{
+      type: 'tracks' | 'npc_info' | 'map' | 'research' | 'exploration';
+      description: string;
+      dcCheck?: number;        // DC for skill check if applicable
+      skillCheck?: string;     // e.g., "Investigation", "Perception", "Persuasion"
+      npcName?: string;        // NPC who knows about it
+      cost?: string;           // Cost to buy map or info
+    }>;
+    advantages: string[];      // What benefits this entrance provides
+  }>;
+  // Environmental storytelling elements
+  storyElements?: Array<{
+    id: string;
+    name: string;
+    description: string;
+    roomId: string;           // Which room contains this
+    type: 'dead_adventurer' | 'ancient_battle' | 'warning_signs' | 'previous_expedition' | 'natural_disaster' | 'ritual_aftermath';
+    loot?: string[];          // Items that can be found
+    clues?: string[];         // Information revealed
+    dcToNotice?: number;      // DC to spot if hidden
+  }>;
+  // Terrain features
+  hasCaveSections?: boolean;   // Whether dungeon has organic cave areas
+  ritualCount?: number;        // How many rituals can be stopped
+  secretCount?: number;        // How many secret areas exist
+  shortcutCount?: number;      // How many shortcuts exist
 }
 
 // Helper to extract JSON from AI response
@@ -818,12 +858,37 @@ DUNGEON SUMMARY:
 - Secret areas: ${dungeonMap.secretCount || 0}
 - Shortcuts/loops: ${dungeonMap.shortcutCount || 0}
 - Rituals that weaken boss: ${dungeonMap.ritualCount || 0}
+- Secret entrances: ${dungeonMap.secretEntrances?.length || 0}
+- Environmental story elements: ${dungeonMap.storyElements?.length || 0}
+- Has cave sections: ${dungeonMap.hasCaveSections ? 'Yes' : 'No'}
+` : '';
+
+  // Secret entrances info for Act 1 hints
+  const secretEntrancesInfo = dungeonMap?.secretEntrances?.length ? `
+SECRET ENTRANCES (for Act 1 foreshadowing and Act 2 discovery):
+${dungeonMap.secretEntrances.map(se => `
+${se.name}: ${se.description}
+  - Leads to: ${se.leadsToRoomId}
+  - Advantages: ${se.advantages.join(', ')}
+  - Discovery methods:
+${se.discoveryMethods.map(dm => `    * ${dm.type.toUpperCase()}: ${dm.description}`).join('\n')}
+`).join('\n')}
+` : '';
+
+  // Story elements info
+  const storyElementsInfo = dungeonMap?.storyElements?.length ? `
+ENVIRONMENTAL STORYTELLING (describe these in the rooms):
+${dungeonMap.storyElements.map(se => `
+${se.name} (${se.roomId}): ${se.description}
+  - Loot: ${se.loot?.join(', ') || 'None'}
+  - Clues revealed: ${se.clues?.join('; ') || 'None'}
+`).join('\n')}
 ` : '';
 
   const dungeonMapContext = dungeonMap ? `
 DUNGEON MAP STRUCTURE - JAQUAYS-STYLE NON-LINEAR DUNGEON:
 The dungeon "${dungeonMap.name}" has ${dungeonMap.rooms.length} rooms with branching paths, secrets, and meaningful choices.
-${dungeonSummary}${keysInfo}
+${dungeonSummary}${keysInfo}${secretEntrancesInfo}${storyElementsInfo}
 ROOM DETAILS:
 ${roomStructure}
 
@@ -837,6 +902,18 @@ IMPORTANT NARRATIVE INSTRUCTIONS:
 - RITUAL rooms: If players stop the ritual, note the boss debuff they earn
 - Create a sense of exploration and meaningful choice
 - Shortcuts should feel rewarding to discover but come with trade-offs
+
+SECRET ENTRANCE NARRATIVE REQUIREMENTS:
+- In Act 1, NPCs should hint at alternative ways into the dungeon (rumors, old maps, etc.)
+- Secret entrances should feel rewarding to discover - players who investigate get advantages
+- Each entrance has specific discovery methods - incorporate these into your narrative
+- Describe the cave/tunnel terrain for secret entrance passages
+
+ENVIRONMENTAL STORYTELLING REQUIREMENTS:
+- Include the story elements in your room descriptions
+- Dead adventurers, old campsites, etc. should provide clues and loot
+- These elements should make the dungeon feel like it has history
+- Clues can hint at boss weaknesses, secret entrances, or treasure locations
 ` : '';
 
   return `You are a master D&D 5e Dungeon Master. Create ACT 2 (the dungeon/adventure site) for this adventure:
@@ -1623,6 +1700,105 @@ function generateProceduralDungeon(theme: string): DungeonMap {
     { desc: 'Ward stones protect the inner sanctum', bossDebuff: 'Boss loses damage resistance' },
   ];
 
+  // Secret entrance templates with discovery methods
+  const secretEntranceTemplates = [
+    {
+      name: 'Collapsed Sewer Grate',
+      desc: 'A forgotten sewer tunnel leads into the dungeon basement',
+      leadsTo: 'hub', // connects to central hub area
+      advantages: ['Bypasses main entrance guards', 'Surprise attack opportunity'],
+      discoveryMethods: [
+        { type: 'tracks' as const, desc: 'DC 14 Survival check near the dungeon reveals boot prints leading to a drainage ditch', dcCheck: 14, skillCheck: 'Survival' },
+        { type: 'npc_info' as const, desc: 'A homeless beggar near the dungeon noticed cultists using a sewer grate - DC 12 Persuasion or 5gp', dcCheck: 12, skillCheck: 'Persuasion', cost: '5gp' },
+        { type: 'map' as const, desc: 'Old city sewer maps can be found in the town archives or purchased from a shady dealer for 25gp', cost: '25gp' },
+      ],
+    },
+    {
+      name: 'Hidden Cave Entrance',
+      desc: 'A natural cave system connects to the dungeon\'s lower levels',
+      leadsTo: 'antechamber', // connects near boss area
+      advantages: ['Skips most of dungeon', 'Natural cover', 'Element of surprise on boss'],
+      discoveryMethods: [
+        { type: 'tracks' as const, desc: 'DC 16 Perception check while circling the dungeon exterior reveals disturbed vegetation hiding a cave mouth', dcCheck: 16, skillCheck: 'Perception' },
+        { type: 'npc_info' as const, desc: 'An old ranger/hunter knows of caves in the area - DC 15 Persuasion or doing them a favor', dcCheck: 15, skillCheck: 'Persuasion', npcName: 'Old Hunter' },
+        { type: 'research' as const, desc: 'DC 14 Investigation in local library reveals geological surveys mentioning cave systems', dcCheck: 14, skillCheck: 'Investigation' },
+      ],
+    },
+    {
+      name: 'Thieves\' Tunnel',
+      desc: 'A secret passage used by rogues and smugglers',
+      leadsTo: 'treasure', // connects to treasure room
+      advantages: ['Direct access to treasure', 'Avoids most combat', 'Known escape route'],
+      discoveryMethods: [
+        { type: 'npc_info' as const, desc: 'The local thieves\' guild knows the tunnel - DC 16 Persuasion, 50gp bribe, or completing a job for them', dcCheck: 16, skillCheck: 'Persuasion', cost: '50gp', npcName: 'Guild Contact' },
+        { type: 'map' as const, desc: 'A treasure map/smuggler\'s chart can be pickpocketed (DC 15) or bought from a fence for 40gp', dcCheck: 15, skillCheck: 'Sleight of Hand', cost: '40gp' },
+        { type: 'exploration' as const, desc: 'DC 18 Investigation in the slums reveals a hidden door in an abandoned building', dcCheck: 18, skillCheck: 'Investigation' },
+      ],
+    },
+  ];
+
+  // Environmental storytelling templates
+  const storyElementTemplates = [
+    {
+      type: 'dead_adventurer' as const,
+      name: 'Fallen Hero',
+      desc: 'The skeletal remains of an adventurer slumped against the wall, hand still clutching a journal',
+      loot: ['Tattered journal with dungeon notes', 'Potion of Healing', '15gp in a belt pouch'],
+      clues: ['Journal describes trap in next room', 'Mentions "the ritual weakens him"', 'Drew partial map before dying'],
+    },
+    {
+      type: 'dead_adventurer' as const,
+      name: 'Trapped Explorer',
+      desc: 'A body impaled by spikes, still wearing scorched adventuring gear',
+      loot: ['Singed spellbook (1d4 random spells)', 'Ring of Protection (cracked, +1 AC until next long rest)'],
+      clues: ['Burn marks suggest fire trap', 'Footprints show they were running from something'],
+    },
+    {
+      type: 'previous_expedition' as const,
+      name: 'Abandoned Camp',
+      desc: 'A hastily abandoned campsite with scattered supplies and signs of struggle',
+      loot: ['Rations (3 days)', 'Rope (50ft)', 'Lantern with oil'],
+      clues: ['Camp log mentions "too many guards for a frontal assault"', 'Map fragment showing secret entrance', 'Note: "Meet Garrett at the Rusty Nail tavern if we fail"'],
+    },
+    {
+      type: 'ancient_battle' as const,
+      name: 'Old Battlefield',
+      desc: 'Scorch marks, weapon gouges, and ancient bloodstains tell of a battle long past',
+      loot: ['Ancient weapon (functional but worn)', 'Tarnished medal of valor'],
+      clues: ['Carvings show this was once a holy site', 'The defenders made their last stand here against the current occupants'],
+    },
+    {
+      type: 'warning_signs' as const,
+      name: 'Desperate Warning',
+      desc: 'Words scratched into the wall: "TURN BACK" and "IT KNOWS YOU\'RE HERE"',
+      loot: [],
+      clues: ['The boss has some form of awareness/scrying', 'Previous victims tried to warn others'],
+    },
+    {
+      type: 'ritual_aftermath' as const,
+      name: 'Failed Ritual Site',
+      desc: 'A broken summoning circle with charred remains and shattered crystals',
+      loot: ['Intact crystal worth 25gp', 'Ritual components (arcana check reveals purpose)'],
+      clues: ['Someone tried to summon something and failed', 'The current ritual is a second attempt', 'Notes suggest the ritual needs to be stopped before midnight'],
+    },
+    {
+      type: 'natural_disaster' as const,
+      name: 'Cave-In Zone',
+      desc: 'Collapsed ceiling with rubble, dust, and unstable rocks overhead',
+      loot: ['Crushed supply crate with salvageable gear'],
+      clues: ['Recent collapse suggests structural weakness', 'Could be used tactically in combat', 'Alternate route may be safer'],
+    },
+  ];
+
+  // Cave room templates for natural sections
+  const caveRoomTemplates = [
+    { name: 'Fungal Grotto', features: ['Bioluminescent mushrooms', 'Spore clouds (DC 12 Con or poisoned)', 'Soft earth floor'] },
+    { name: 'Underground Stream', features: ['Flowing water (difficult terrain)', 'Slippery rocks', 'Echo carries sound'] },
+    { name: 'Crystal Cavern', features: ['Reflective crystals', 'Light sources create dazzling effect', 'Valuable gems (DC 15 to harvest)'] },
+    { name: 'Bat Colony', features: ['Thousands of bats (can be startled)', 'Guano-covered floor (slippery)', 'High ceiling with stalactites'] },
+    { name: 'Subterranean Lake', features: ['Dark still water', 'Unknown depth', 'Something moves beneath the surface'] },
+  ];
+
   // === DUNGEON STRUCTURE ===
   // We'll build: Critical Path + Side Branches + Secret Areas + Shortcuts
 
@@ -2053,6 +2229,130 @@ function generateProceduralDungeon(theme: string): DungeonMap {
     });
   });
 
+  // === ADD SECRET ENTRANCES ===
+  // Pick 1-2 secret entrances based on dungeon size
+  const numSecretEntrances = chance(60) ? 2 : 1;
+  const selectedEntrances = [...secretEntranceTemplates]
+    .sort(() => Math.random() - 0.5)
+    .slice(0, numSecretEntrances);
+
+  const secretEntrances: DungeonMap['secretEntrances'] = selectedEntrances.map((template, i) => {
+    // Determine which room this entrance leads to
+    let leadsToRoomId = 'room-3'; // Default to hub
+    if (template.leadsTo === 'antechamber') {
+      leadsToRoomId = 'room-4';
+    } else if (template.leadsTo === 'treasure') {
+      leadsToRoomId = 'room-6'; // Treasure room
+    }
+
+    // Add the secret entrance as a room
+    const entranceRoomId = `room-${rooms.length + 1}`;
+    const targetRoom = rooms.find(r => r.id === leadsToRoomId);
+
+    // Create a cave passage room for this entrance
+    const caveTemplate = pick(caveRoomTemplates);
+    rooms.push({
+      id: entranceRoomId,
+      x: -4 - (i * 5), // Position off to the left
+      y: 10 + (i * 3),
+      width: 3,
+      height: 3,
+      type: 'secret',
+      name: template.name,
+      description: template.desc,
+      connections: [leadsToRoomId],
+      features: caveTemplate.features,
+      exits: [`East passage to ${targetRoom?.name || 'dungeon interior'} (${leadsToRoomId})`],
+      contentFlags: { isSecretEntrance: true, isCave: true, isOptional: true },
+      outline: `SECRET ENTRANCE: ${template.desc}. ADVANTAGES: ${template.advantages.join(', ')}. This is a natural cave passage with ${caveTemplate.name.toLowerCase()} features.`,
+      pathType: 'secret_entrance',
+      terrain: 'cave',
+    });
+
+    // Add connection from target room back to this entrance
+    if (targetRoom) {
+      targetRoom.connections.push(entranceRoomId);
+      targetRoom.exits = targetRoom.exits || [];
+      targetRoom.exits.push(`West hidden passage to ${template.name} (${entranceRoomId}) [SECRET EXIT - DC 14 Perception]`);
+    }
+
+    return {
+      id: `secret-entrance-${i + 1}`,
+      name: template.name,
+      description: template.desc,
+      leadsToRoomId,
+      discoveryMethods: template.discoveryMethods.map(dm => ({
+        type: dm.type,
+        description: dm.desc,
+        dcCheck: (dm as { dcCheck?: number }).dcCheck,
+        skillCheck: (dm as { skillCheck?: string }).skillCheck,
+        npcName: (dm as { npcName?: string }).npcName,
+        cost: (dm as { cost?: string }).cost,
+      })),
+      advantages: template.advantages,
+    };
+  });
+
+  // === ADD ENVIRONMENTAL STORYTELLING ===
+  // Add 2-3 story elements to existing rooms
+  const numStoryElements = 2 + (chance(50) ? 1 : 0);
+  const shuffledStoryElements = [...storyElementTemplates].sort(() => Math.random() - 0.5);
+  const storyElements: DungeonMap['storyElements'] = [];
+
+  // Rooms that can have story elements (not entrance or boss)
+  const eligibleRooms = rooms.filter(r =>
+    r.pathType === 'critical' &&
+    r.type !== 'entrance' &&
+    r.type !== 'boss' &&
+    !r.storyElement
+  );
+
+  for (let i = 0; i < Math.min(numStoryElements, eligibleRooms.length, shuffledStoryElements.length); i++) {
+    const storyTemplate = shuffledStoryElements[i];
+    const targetRoom = eligibleRooms[i];
+
+    // Add story element to the room
+    targetRoom.storyElement = {
+      type: storyTemplate.type,
+      description: storyTemplate.desc,
+      loot: storyTemplate.loot,
+      clues: storyTemplate.clues,
+    };
+
+    // Update room outline
+    targetRoom.outline += ` STORY ELEMENT: ${storyTemplate.name} - ${storyTemplate.desc}`;
+    if (storyTemplate.clues.length > 0) {
+      targetRoom.outline += ` CLUES: ${storyTemplate.clues.join('; ')}`;
+    }
+
+    storyElements.push({
+      id: `story-${i + 1}`,
+      name: storyTemplate.name,
+      description: storyTemplate.desc,
+      roomId: targetRoom.id,
+      type: storyTemplate.type,
+      loot: storyTemplate.loot,
+      clues: storyTemplate.clues,
+    });
+  }
+
+  // === ADD CAVE SECTION ===
+  // 50% chance to have a natural cave area (if secret entrance with cave exists, guaranteed)
+  const hasCaveSections = secretEntrances.length > 0 || chance(50);
+
+  if (hasCaveSections) {
+    // Mark the shortcut passage as a cave
+    const shortcutRoom = rooms.find(r => r.pathType === 'shortcut');
+    if (shortcutRoom) {
+      const caveTemplate = pick(caveRoomTemplates);
+      shortcutRoom.terrain = 'cave';
+      shortcutRoom.contentFlags = { ...shortcutRoom.contentFlags, isCave: true };
+      shortcutRoom.features = caveTemplate.features;
+      shortcutRoom.name = caveTemplate.name;
+      shortcutRoom.outline += ` TERRAIN: Natural cave with ${caveTemplate.features.join(', ')}.`;
+    }
+  }
+
   return {
     name: `${theme.charAt(0).toUpperCase() + theme.slice(1)} Dungeon`,
     width: 30,
@@ -2060,6 +2360,9 @@ function generateProceduralDungeon(theme: string): DungeonMap {
     rooms,
     theme,
     keys,
+    secretEntrances,
+    storyElements,
+    hasCaveSections,
     ritualCount: rooms.filter(r => r.ritualEffect).length,
     secretCount: rooms.filter(r => r.pathType === 'secret').length,
     shortcutCount: rooms.filter(r => r.pathType === 'shortcut').length,

@@ -53,6 +53,8 @@ interface DungeonRoom {
     isBoss?: boolean;
     isRitual?: boolean;
     isOptional?: boolean;
+    isSecretEntrance?: boolean;
+    isCave?: boolean;
   };
   outline?: string;
   accessRequirement?: {
@@ -70,7 +72,14 @@ interface DungeonRoom {
     description: string;
     bossDebuff: string;
   };
-  pathType?: 'critical' | 'optional' | 'secret' | 'shortcut';
+  pathType?: 'critical' | 'optional' | 'secret' | 'shortcut' | 'secret_entrance';
+  terrain?: 'constructed' | 'cave' | 'mixed';
+  storyElement?: {
+    type: 'dead_adventurer' | 'ancient_battle' | 'warning_signs' | 'previous_expedition' | 'natural_disaster' | 'ritual_aftermath';
+    description: string;
+    loot?: string[];
+    clues?: string[];
+  };
 }
 
 interface DungeonMap {
@@ -90,6 +99,32 @@ interface DungeonMap {
   ritualCount?: number;
   secretCount?: number;
   shortcutCount?: number;
+  secretEntrances?: Array<{
+    id: string;
+    name: string;
+    description: string;
+    leadsToRoomId: string;
+    discoveryMethods: Array<{
+      type: 'tracks' | 'npc_info' | 'map' | 'research' | 'exploration';
+      description: string;
+      dcCheck?: number;
+      skillCheck?: string;
+      npcName?: string;
+      cost?: string;
+    }>;
+    advantages: string[];
+  }>;
+  storyElements?: Array<{
+    id: string;
+    name: string;
+    description: string;
+    roomId: string;
+    type: 'dead_adventurer' | 'ancient_battle' | 'warning_signs' | 'previous_expedition' | 'natural_disaster' | 'ritual_aftermath';
+    loot?: string[];
+    clues?: string[];
+    dcToNotice?: number;
+  }>;
+  hasCaveSections?: boolean;
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
