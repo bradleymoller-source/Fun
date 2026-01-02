@@ -300,6 +300,9 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
   // Get origin feat from background
   const originFeat = background2024 ? ORIGIN_FEATS[background2024.originFeat] : null;
 
+  // Debug: Log origin feat data to help diagnose selection issues
+  console.log('[CharacterCreator] Background:', background, 'Background2024:', background2024?.name, 'OriginFeat:', originFeat?.name, 'ProficiencyChoices:', originFeat?.proficiencyChoices);
+
   // Get background ability score options (for restricted ASI)
   const backgroundAbilities = background2024?.abilityScores || [];
 
@@ -1995,6 +1998,11 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
               )}
 
               {/* Origin Feat Proficiency Choices (Crafter, Musician, Skilled) */}
+              {(() => {
+                // Debug: Log proficiency UI state
+                console.log('[CharacterCreator UI] Checking proficiencyChoices:', originFeat?.proficiencyChoices, 'Type:', originFeat?.proficiencyChoices?.type);
+                return null;
+              })()}
               {originFeat?.proficiencyChoices && (
                 <div className="mt-2 p-2 bg-amber-900/20 border border-amber-500/30 rounded">
                   <div className="flex items-center gap-2 mb-1">
