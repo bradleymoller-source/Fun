@@ -5,7 +5,7 @@ import { Input } from '../ui/Input';
 import { DMNotes } from '../DMNotes';
 
 interface MapLibraryProps {
-  onShowToPlayers: (mapId: string) => void;
+  onShowToPlayers: (mapId: string) => Promise<void> | void;
   onHideFromPlayers: () => void;
 }
 
@@ -14,17 +14,23 @@ export function MapLibrary({ onShowToPlayers, onHideFromPlayers }: MapLibraryPro
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [mapName, setMapName] = useState('');
   const [notesMapId, setNotesMapId] = useState<string | null>(null);
+  const [showingMapId, setShowingMapId] = useState<string | null>(null);
 
-  const handleDelete = (mapId: string) => {
-    console.log('Deleting map:', mapId);
-    console.log('Current savedMaps:', savedMaps.map(m => ({ id: m.id, name: m.name })));
-    deleteSavedMap(mapId);
-    console.log('Delete called');
+  const handleDelete = (mapId: string, mapName: string) => {
+    if (confirm(`Delete "${mapName}" from your library?`)) {
+      deleteSavedMap(mapId);
+    }
   };
 
-  const handleShow = (mapId: string) => {
-    console.log('Showing map to players:', mapId);
-    onShowToPlayers(mapId);
+  const handleShow = async (mapId: string) => {
+    setShowingMapId(mapId);
+    try {
+      await onShowToPlayers(mapId);
+    } catch (error) {
+      // Error is already shown via alert in DMView
+    } finally {
+      setShowingMapId(null);
+    }
   };
 
   const handleSave = () => {
@@ -121,14 +127,17 @@ export function MapLibrary({ onShowToPlayers, onHideFromPlayers }: MapLibraryPro
                 </button>
                 <button
                   onClick={() => handleShow(savedMap.id)}
+                  disabled={showingMapId === savedMap.id}
                   className={`text-xs px-2 py-1 rounded ${
                     activeMapId === savedMap.id
                       ? 'bg-green-600 text-white'
-                      : 'bg-leather text-parchment hover:bg-green-600 hover:text-white'
+                      : showingMapId === savedMap.id
+                        ? 'bg-blue-600 text-white animate-pulse'
+                        : 'bg-leather text-parchment hover:bg-green-600 hover:text-white'
                   }`}
                   title="Show this map to players"
                 >
-                  {activeMapId === savedMap.id ? 'Showing' : 'Show'}
+                  {showingMapId === savedMap.id ? 'Sending...' : activeMapId === savedMap.id ? 'Showing' : 'Show'}
                 </button>
                 <button
                   onClick={() => setNotesMapId(notesMapId === savedMap.id ? null : savedMap.id)}
@@ -142,7 +151,7 @@ export function MapLibrary({ onShowToPlayers, onHideFromPlayers }: MapLibraryPro
                   {savedMap.notes ? 'Notes' : '+Notes'}
                 </button>
                 <button
-                  onClick={() => handleDelete(savedMap.id)}
+                  onClick={() => handleDelete(savedMap.id, savedMap.name)}
                   className="text-xs bg-red-800 px-2 py-1 rounded text-white hover:bg-red-600"
                   title="Delete this map"
                 >
