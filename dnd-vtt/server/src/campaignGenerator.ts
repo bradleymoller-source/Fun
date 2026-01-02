@@ -1,8 +1,831 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
 import type { Request, Response } from 'express';
 
 // Initialize Google Generative AI client - uses GOOGLE_API_KEY env variable
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '');
+
+// ============================================================================
+// FUNCTION CALLING CAMPAIGN GENERATOR
+// Instead of asking AI for one giant JSON blob, we have it call functions
+// to build the campaign piece by piece - much more reliable!
+// ============================================================================
+
+// Campaign builder state - accumulates function calls
+interface CampaignBuilder {
+  title?: string;
+  synopsis?: string;
+  hook?: string;
+  arc?: { beginning: string; middle: string; climax: string; resolution: string };
+  overview?: {
+    readAloud?: string;
+    backstory?: string;
+    themes?: string[];
+    throughlines?: Array<{
+      name: string;
+      type: string;
+      description: string;
+      act1Hint: string;
+      act2Discovery: string;
+      act3Payoff: string;
+    }>;
+  };
+  act1?: {
+    title?: string;
+    estimatedDuration?: string;
+    overview?: string;
+    settingTheScene?: { readAloud?: string; dmNotes?: string };
+    questGiver?: any;
+    keyNpcs?: any[];
+    locations?: any[];
+    services?: { inn?: any; shops?: any[]; temple?: any };
+    potentialConflicts?: any[];
+    travelToDestination?: { readAloud?: string; duration?: string };
+    transitionToAct2?: string;
+  };
+  act2?: {
+    title?: string;
+    estimatedDuration?: string;
+    overview?: string;
+    dungeonOverview?: any;
+    rooms?: any[];
+    encounters?: any[];
+    traps?: any[];
+    puzzles?: any[];
+    transitionToAct3?: string;
+  };
+  act3?: {
+    title?: string;
+    estimatedDuration?: string;
+    overview?: string;
+    bossEncounter?: any;
+    aftermath?: any;
+  };
+  epilogue?: {
+    immediateAftermath?: string;
+    rewards?: any;
+    futureHooks?: string[];
+    characterMoments?: string[];
+  };
+}
+
+// Function declarations for Gemini function calling
+const campaignFunctionDeclarations = [
+  {
+    name: "setCampaignOverview",
+    description: "Set the campaign title, synopsis, hook, and story arc. Call this first.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        title: { type: SchemaType.STRING, description: "Evocative adventure title" },
+        synopsis: { type: SchemaType.STRING, description: "3-4 sentence dramatic overview" },
+        hook: { type: SchemaType.STRING, description: "The inciting incident with specific details" },
+        arc: {
+          type: SchemaType.OBJECT,
+          properties: {
+            beginning: { type: SchemaType.STRING, description: "Act 1 summary" },
+            middle: { type: SchemaType.STRING, description: "Act 2 summary" },
+            climax: { type: SchemaType.STRING, description: "Act 3 summary" },
+            resolution: { type: SchemaType.STRING, description: "Epilogue summary" }
+          },
+          required: ["beginning", "middle", "climax", "resolution"]
+        },
+        readAloud: { type: SchemaType.STRING, description: "Opening narration (2 paragraphs)" },
+        backstory: { type: SchemaType.STRING, description: "True history and villain motivation" },
+        themes: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "2-3 thematic elements" }
+      },
+      required: ["title", "synopsis", "hook", "arc", "readAloud", "backstory", "themes"]
+    }
+  },
+  {
+    name: "addThroughline",
+    description: "Add a narrative throughline that connects all three acts. Add 2-3 throughlines.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        name: { type: SchemaType.STRING, description: "Name of the throughline" },
+        type: { type: SchemaType.STRING, description: "Type: secret, treasure, weakness, ally, or mystery" },
+        description: { type: SchemaType.STRING, description: "What this throughline represents" },
+        act1Hint: { type: SchemaType.STRING, description: "Clue or foreshadowing in Act 1" },
+        act2Discovery: { type: SchemaType.STRING, description: "Evidence or partial reveal in Act 2" },
+        act3Payoff: { type: SchemaType.STRING, description: "Full revelation in Act 3" }
+      },
+      required: ["name", "type", "description", "act1Hint", "act2Discovery", "act3Payoff"]
+    }
+  },
+  {
+    name: "setAct1Setup",
+    description: "Set Act 1 title and setting the scene. Call after setCampaignOverview.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        title: { type: SchemaType.STRING, description: "Act 1 title" },
+        estimatedDuration: { type: SchemaType.STRING, description: "e.g. 45-60 minutes" },
+        overview: { type: SchemaType.STRING, description: "What happens in Act 1" },
+        settingReadAloud: { type: SchemaType.STRING, description: "Arrival description (2 paragraphs with sensory details)" },
+        settingDmNotes: { type: SchemaType.STRING, description: "What's really happening behind the scenes" },
+        transitionToAct2: { type: SchemaType.STRING, description: "Read-aloud text as party arrives at dungeon" }
+      },
+      required: ["title", "estimatedDuration", "overview", "settingReadAloud", "settingDmNotes", "transitionToAct2"]
+    }
+  },
+  {
+    name: "setQuestGiver",
+    description: "Set the main quest giver NPC with full dialogue.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        name: { type: SchemaType.STRING, description: "Quest giver's name" },
+        role: { type: SchemaType.STRING, description: "Position (Elder, Mayor, etc.)" },
+        appearance: { type: SchemaType.STRING, description: "Physical description" },
+        personality: { type: SchemaType.STRING, description: "How they speak and act" },
+        dialogueGreeting: { type: SchemaType.STRING, description: "Initial dialogue when meeting" },
+        dialogueQuestPitch: { type: SchemaType.STRING, description: "How they explain the problem" },
+        dialogueIfQuestioned: { type: SchemaType.STRING, description: "Responses to player questions" },
+        dialogueIfRefused: { type: SchemaType.STRING, description: "Response if players initially refuse" },
+        rewardOffered: { type: SchemaType.STRING, description: "Initial reward offered" },
+        rewardNegotiated: { type: SchemaType.STRING, description: "Better reward if negotiated" },
+        keyInformation: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "3-5 key facts they share" },
+        secret: { type: SchemaType.STRING, description: "Something they're hiding (optional)" }
+      },
+      required: ["name", "role", "appearance", "personality", "dialogueGreeting", "dialogueQuestPitch", "dialogueIfQuestioned", "rewardOffered", "keyInformation"]
+    }
+  },
+  {
+    name: "addNPC",
+    description: "Add a key NPC to Act 1. Add 4-6 NPCs with full dialogue.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        name: { type: SchemaType.STRING, description: "NPC's name" },
+        role: { type: SchemaType.STRING, description: "Role (Innkeeper, Blacksmith, Merchant, Priest, Elder, Mysterious Stranger)" },
+        location: { type: SchemaType.STRING, description: "Where they are found" },
+        appearance: { type: SchemaType.STRING, description: "Physical description" },
+        personality: { type: SchemaType.STRING, description: "Character traits and mannerisms" },
+        dialogueGreeting: { type: SchemaType.STRING, description: "How they greet the party" },
+        dialogueGossip: { type: SchemaType.STRING, description: "Rumors and local information they share" },
+        dialogueIfPressured: { type: SchemaType.STRING, description: "Response to intimidation or persuasion" },
+        dialogueIfBribed: { type: SchemaType.STRING, description: "What they reveal for gold or favors" },
+        keyInformation: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "2-3 useful facts they know" },
+        services: {
+          type: SchemaType.ARRAY,
+          items: {
+            type: SchemaType.OBJECT,
+            properties: {
+              item: { type: SchemaType.STRING },
+              cost: { type: SchemaType.STRING },
+              effect: { type: SchemaType.STRING }
+            }
+          },
+          description: "Services or items they offer with prices"
+        }
+      },
+      required: ["name", "role", "location", "appearance", "personality", "dialogueGreeting", "dialogueGossip", "keyInformation"]
+    }
+  },
+  {
+    name: "addShop",
+    description: "Add a shop to Act 1 with inventory. Add 1-2 shops.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        name: { type: SchemaType.STRING, description: "Shop name" },
+        keeper: { type: SchemaType.STRING, description: "Shopkeeper name" },
+        shopType: { type: SchemaType.STRING, description: "general, blacksmith, apothecary, or magic" },
+        inventory: {
+          type: SchemaType.ARRAY,
+          items: {
+            type: SchemaType.OBJECT,
+            properties: {
+              item: { type: SchemaType.STRING, description: "Item name" },
+              cost: { type: SchemaType.STRING, description: "Price (e.g. 50gp)" },
+              type: { type: SchemaType.STRING, description: "weapon, armor, potion, scroll, gear" },
+              effect: { type: SchemaType.STRING, description: "Mechanical effect" },
+              rarity: { type: SchemaType.STRING, description: "common, uncommon, rare" }
+            },
+            required: ["item", "cost", "type", "effect"]
+          },
+          description: "3-6 items for sale"
+        }
+      },
+      required: ["name", "keeper", "shopType", "inventory"]
+    }
+  },
+  {
+    name: "setInn",
+    description: "Set the inn/tavern details for Act 1.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        name: { type: SchemaType.STRING, description: "Inn name" },
+        roomCost: { type: SchemaType.STRING, description: "Cost per night" },
+        mealCost: { type: SchemaType.STRING, description: "Cost per meal" },
+        rumors: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "2-3 rumors heard at the inn" }
+      },
+      required: ["name", "roomCost", "mealCost", "rumors"]
+    }
+  },
+  {
+    name: "setTravelToDestination",
+    description: "Set the travel sequence from town to dungeon.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        readAloud: { type: SchemaType.STRING, description: "Travel narration (1-2 paragraphs)" },
+        duration: { type: SchemaType.STRING, description: "Travel time (e.g. 2 hours)" },
+        encounters: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "Potential travel encounters" }
+      },
+      required: ["readAloud", "duration"]
+    }
+  },
+  {
+    name: "setAct2Setup",
+    description: "Set Act 2 title and dungeon overview.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        title: { type: SchemaType.STRING, description: "Act 2 title" },
+        estimatedDuration: { type: SchemaType.STRING, description: "e.g. 60-90 minutes" },
+        overview: { type: SchemaType.STRING, description: "What happens in Act 2" },
+        dungeonName: { type: SchemaType.STRING, description: "Dungeon name" },
+        dungeonHistory: { type: SchemaType.STRING, description: "Brief history" },
+        dungeonReadAloud: { type: SchemaType.STRING, description: "Entrance description" },
+        dungeonAtmosphere: { type: SchemaType.STRING, description: "Overall mood" },
+        lightingConditions: { type: SchemaType.STRING, description: "Bright, dim, or dark" },
+        environmentalHazards: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "Environmental dangers" },
+        transitionToAct3: { type: SchemaType.STRING, description: "Read-aloud text approaching boss chamber" }
+      },
+      required: ["title", "estimatedDuration", "overview", "dungeonName", "dungeonHistory", "dungeonReadAloud", "dungeonAtmosphere", "transitionToAct3"]
+    }
+  },
+  {
+    name: "addRoom",
+    description: "Add a dungeon room to Act 2. Add 5-8 rooms.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        id: { type: SchemaType.NUMBER, description: "Room number (1, 2, 3, etc.)" },
+        name: { type: SchemaType.STRING, description: "Room name" },
+        readAloud: { type: SchemaType.STRING, description: "Description for players" },
+        dimensions: { type: SchemaType.STRING, description: "Size (e.g. 30x40 feet)" },
+        contentsObvious: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "Visible contents" },
+        contentsHidden: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "Hidden contents with DC to find" },
+        exits: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "Exits and where they lead" },
+        treasure: {
+          type: SchemaType.ARRAY,
+          items: {
+            type: SchemaType.OBJECT,
+            properties: {
+              item: { type: SchemaType.STRING },
+              value: { type: SchemaType.STRING },
+              type: { type: SchemaType.STRING },
+              effect: { type: SchemaType.STRING }
+            }
+          },
+          description: "Treasure in this room"
+        }
+      },
+      required: ["id", "name", "readAloud", "exits"]
+    }
+  },
+  {
+    name: "addEncounter",
+    description: "Add a combat encounter to Act 2. Add exactly 3 encounters.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        name: { type: SchemaType.STRING, description: "Encounter name" },
+        location: { type: SchemaType.STRING, description: "Room number where it occurs" },
+        readAloud: { type: SchemaType.STRING, description: "Scene description for players" },
+        enemies: {
+          type: SchemaType.ARRAY,
+          items: {
+            type: SchemaType.OBJECT,
+            properties: {
+              name: { type: SchemaType.STRING, description: "Monster name (SRD)" },
+              count: { type: SchemaType.NUMBER, description: "How many" },
+              cr: { type: SchemaType.STRING, description: "Challenge rating" },
+              hp: { type: SchemaType.NUMBER, description: "Hit points each" },
+              ac: { type: SchemaType.NUMBER, description: "Armor class" }
+            },
+            required: ["name", "count", "cr", "hp", "ac"]
+          },
+          description: "Enemies in this encounter"
+        },
+        tactics: { type: SchemaType.STRING, description: "How enemies fight" },
+        terrain: { type: SchemaType.STRING, description: "Combat-relevant terrain" },
+        dynamicElements: { type: SchemaType.STRING, description: "What changes mid-fight" },
+        difficulty: { type: SchemaType.STRING, description: "easy, medium, or hard" },
+        rewardXP: { type: SchemaType.NUMBER, description: "XP reward" },
+        rewardLoot: {
+          type: SchemaType.ARRAY,
+          items: {
+            type: SchemaType.OBJECT,
+            properties: {
+              item: { type: SchemaType.STRING },
+              value: { type: SchemaType.STRING },
+              type: { type: SchemaType.STRING },
+              effect: { type: SchemaType.STRING }
+            }
+          },
+          description: "Loot from this encounter"
+        }
+      },
+      required: ["name", "location", "readAloud", "enemies", "tactics", "difficulty", "rewardXP"]
+    }
+  },
+  {
+    name: "addTrap",
+    description: "Add a trap to Act 2. Add 1-2 traps.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        name: { type: SchemaType.STRING, description: "Trap name" },
+        location: { type: SchemaType.STRING, description: "Room number" },
+        trigger: { type: SchemaType.STRING, description: "What triggers it" },
+        effect: { type: SchemaType.STRING, description: "What it does" },
+        damage: { type: SchemaType.STRING, description: "Damage dealt" },
+        saveType: { type: SchemaType.STRING, description: "Save type (DEX, CON, etc.)" },
+        saveDC: { type: SchemaType.NUMBER, description: "DC to avoid" },
+        detectDC: { type: SchemaType.NUMBER, description: "DC to spot" },
+        disarmDC: { type: SchemaType.NUMBER, description: "DC to disarm" },
+        countermeasures: { type: SchemaType.STRING, description: "Ways to avoid or disable" }
+      },
+      required: ["name", "location", "trigger", "effect", "damage", "saveDC", "detectDC", "disarmDC"]
+    }
+  },
+  {
+    name: "setBossEncounter",
+    description: "Set the boss encounter for Act 3.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        title: { type: SchemaType.STRING, description: "Act 3 title" },
+        estimatedDuration: { type: SchemaType.STRING, description: "e.g. 45-60 minutes" },
+        overview: { type: SchemaType.STRING, description: "What happens in Act 3" },
+        readAloud: { type: SchemaType.STRING, description: "Boss chamber description" },
+        villainName: { type: SchemaType.STRING, description: "Boss name" },
+        villainType: { type: SchemaType.STRING, description: "Monster type (SRD)" },
+        villainCR: { type: SchemaType.STRING, description: "Challenge rating" },
+        villainHP: { type: SchemaType.NUMBER, description: "Hit points" },
+        villainAC: { type: SchemaType.NUMBER, description: "Armor class" },
+        villainMotivation: { type: SchemaType.STRING, description: "Why they're doing this" },
+        villainDialogue: { type: SchemaType.STRING, description: "What they say to the party" },
+        villainTactics: { type: SchemaType.STRING, description: "How they fight" },
+        villainWeakness: { type: SchemaType.STRING, description: "Exploitable weakness" },
+        phaseChanges: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "Phase changes at HP thresholds" },
+        minions: {
+          type: SchemaType.ARRAY,
+          items: {
+            type: SchemaType.OBJECT,
+            properties: {
+              name: { type: SchemaType.STRING },
+              count: { type: SchemaType.NUMBER },
+              role: { type: SchemaType.STRING }
+            }
+          },
+          description: "Minions in the fight"
+        },
+        rewardXP: { type: SchemaType.NUMBER, description: "XP reward" },
+        rewardGold: { type: SchemaType.STRING, description: "Gold reward" },
+        rewardItems: {
+          type: SchemaType.ARRAY,
+          items: {
+            type: SchemaType.OBJECT,
+            properties: {
+              name: { type: SchemaType.STRING },
+              type: { type: SchemaType.STRING },
+              effect: { type: SchemaType.STRING },
+              value: { type: SchemaType.STRING },
+              rarity: { type: SchemaType.STRING },
+              attunement: { type: SchemaType.BOOLEAN }
+            }
+          },
+          description: "Magic items and special loot"
+        },
+        villainLoot: { type: SchemaType.STRING, description: "What's on the villain's body" }
+      },
+      required: ["title", "readAloud", "villainName", "villainType", "villainCR", "villainHP", "villainAC", "villainMotivation", "villainDialogue", "villainTactics", "rewardXP", "rewardGold"]
+    }
+  },
+  {
+    name: "setAftermath",
+    description: "Set the aftermath and epilogue.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        aftermathReadAloud: { type: SchemaType.STRING, description: "Immediate aftermath description" },
+        discoveries: { type: SchemaType.STRING, description: "What players discover" },
+        immediateEffects: { type: SchemaType.STRING, description: "Immediate effects of victory" },
+        epilogueNarration: { type: SchemaType.STRING, description: "Return to town narration" },
+        townReaction: { type: SchemaType.STRING, description: "How the town reacts" },
+        questGiverReward: { type: SchemaType.STRING, description: "Quest giver's reward scene" },
+        futureHooks: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "2-3 hooks for future adventures" },
+        characterMoments: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "Prompts for character moments" }
+      },
+      required: ["aftermathReadAloud", "epilogueNarration", "townReaction", "questGiverReward", "futureHooks"]
+    }
+  },
+  {
+    name: "campaignComplete",
+    description: "Signal that the campaign generation is complete. Call this last.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        summary: { type: SchemaType.STRING, description: "Brief summary of the generated campaign" }
+      },
+      required: ["summary"]
+    }
+  }
+];
+
+// Process a function call and update the campaign builder
+function processFunctionCall(builder: CampaignBuilder, functionName: string, args: any): void {
+  console.log(`  -> ${functionName}(${args.name || args.title || args.id || ''})`);
+
+  switch (functionName) {
+    case 'setCampaignOverview':
+      builder.title = args.title;
+      builder.synopsis = args.synopsis;
+      builder.hook = args.hook;
+      builder.arc = args.arc;
+      builder.overview = {
+        readAloud: args.readAloud,
+        backstory: args.backstory,
+        themes: args.themes,
+        throughlines: []
+      };
+      break;
+
+    case 'addThroughline':
+      if (!builder.overview) builder.overview = { throughlines: [] };
+      if (!builder.overview.throughlines) builder.overview.throughlines = [];
+      builder.overview.throughlines.push({
+        name: args.name,
+        type: args.type,
+        description: args.description,
+        act1Hint: args.act1Hint,
+        act2Discovery: args.act2Discovery,
+        act3Payoff: args.act3Payoff
+      });
+      break;
+
+    case 'setAct1Setup':
+      if (!builder.act1) builder.act1 = {};
+      builder.act1.title = args.title;
+      builder.act1.estimatedDuration = args.estimatedDuration;
+      builder.act1.overview = args.overview;
+      builder.act1.settingTheScene = {
+        readAloud: args.settingReadAloud,
+        dmNotes: args.settingDmNotes
+      };
+      builder.act1.transitionToAct2 = args.transitionToAct2;
+      break;
+
+    case 'setQuestGiver':
+      if (!builder.act1) builder.act1 = {};
+      builder.act1.questGiver = {
+        name: args.name,
+        role: args.role,
+        appearance: args.appearance,
+        personality: args.personality,
+        dialogue: {
+          greeting: args.dialogueGreeting,
+          questPitch: args.dialogueQuestPitch,
+          ifQuestioned: args.dialogueIfQuestioned,
+          ifRefused: args.dialogueIfRefused
+        },
+        reward: {
+          offered: args.rewardOffered,
+          negotiated: args.rewardNegotiated
+        },
+        keyInformation: args.keyInformation,
+        secret: args.secret
+      };
+      break;
+
+    case 'addNPC':
+      if (!builder.act1) builder.act1 = {};
+      if (!builder.act1.keyNpcs) builder.act1.keyNpcs = [];
+      builder.act1.keyNpcs.push({
+        name: args.name,
+        role: args.role,
+        location: args.location,
+        appearance: args.appearance,
+        personality: args.personality,
+        dialogue: {
+          greeting: args.dialogueGreeting,
+          gossip: args.dialogueGossip,
+          ifPressured: args.dialogueIfPressured,
+          ifBribed: args.dialogueIfBribed
+        },
+        keyInformation: args.keyInformation,
+        services: args.services || []
+      });
+      break;
+
+    case 'addShop':
+      if (!builder.act1) builder.act1 = {};
+      if (!builder.act1.services) builder.act1.services = {};
+      if (!builder.act1.services.shops) builder.act1.services.shops = [];
+      builder.act1.services.shops.push({
+        name: args.name,
+        keeper: args.keeper,
+        shopType: args.shopType,
+        inventory: args.inventory
+      });
+      break;
+
+    case 'setInn':
+      if (!builder.act1) builder.act1 = {};
+      if (!builder.act1.services) builder.act1.services = {};
+      builder.act1.services.inn = {
+        name: args.name,
+        roomCost: args.roomCost,
+        mealCost: args.mealCost,
+        rumors: args.rumors
+      };
+      break;
+
+    case 'setTravelToDestination':
+      if (!builder.act1) builder.act1 = {};
+      builder.act1.travelToDestination = {
+        readAloud: args.readAloud,
+        duration: args.duration
+      };
+      break;
+
+    case 'setAct2Setup':
+      if (!builder.act2) builder.act2 = {};
+      builder.act2.title = args.title;
+      builder.act2.estimatedDuration = args.estimatedDuration;
+      builder.act2.overview = args.overview;
+      builder.act2.dungeonOverview = {
+        name: args.dungeonName,
+        history: args.dungeonHistory,
+        readAloud: args.dungeonReadAloud,
+        atmosphere: args.dungeonAtmosphere,
+        lightingConditions: args.lightingConditions,
+        environmentalHazards: args.environmentalHazards
+      };
+      builder.act2.transitionToAct3 = args.transitionToAct3;
+      break;
+
+    case 'addRoom':
+      if (!builder.act2) builder.act2 = {};
+      if (!builder.act2.rooms) builder.act2.rooms = [];
+      builder.act2.rooms.push({
+        id: args.id,
+        name: args.name,
+        readAloud: args.readAloud,
+        dimensions: args.dimensions,
+        contents: {
+          obvious: args.contentsObvious,
+          hidden: args.contentsHidden
+        },
+        exits: args.exits,
+        treasure: args.treasure
+      });
+      break;
+
+    case 'addEncounter':
+      if (!builder.act2) builder.act2 = {};
+      if (!builder.act2.encounters) builder.act2.encounters = [];
+      builder.act2.encounters.push({
+        name: args.name,
+        location: args.location,
+        readAloud: args.readAloud,
+        type: 'combat',
+        enemies: args.enemies,
+        tactics: args.tactics,
+        terrain: args.terrain,
+        dynamicElements: args.dynamicElements,
+        difficulty: args.difficulty,
+        rewards: {
+          xp: args.rewardXP,
+          loot: args.rewardLoot || []
+        }
+      });
+      break;
+
+    case 'addTrap':
+      if (!builder.act2) builder.act2 = {};
+      if (!builder.act2.traps) builder.act2.traps = [];
+      builder.act2.traps.push({
+        name: args.name,
+        location: args.location,
+        trigger: args.trigger,
+        effect: args.effect,
+        damage: args.damage,
+        save: { type: args.saveType, dc: args.saveDC },
+        detectDC: args.detectDC,
+        disarmDC: args.disarmDC,
+        countermeasures: args.countermeasures
+      });
+      break;
+
+    case 'setBossEncounter':
+      if (!builder.act3) builder.act3 = {};
+      builder.act3.title = args.title;
+      builder.act3.estimatedDuration = args.estimatedDuration;
+      builder.act3.overview = args.overview;
+      builder.act3.bossEncounter = {
+        readAloud: args.readAloud,
+        villain: {
+          name: args.villainName,
+          type: args.villainType,
+          cr: args.villainCR,
+          hp: args.villainHP,
+          ac: args.villainAC,
+          motivation: args.villainMotivation,
+          dialogue: args.villainDialogue,
+          tactics: args.villainTactics,
+          weakness: args.villainWeakness
+        },
+        phaseChanges: args.phaseChanges,
+        minions: args.minions,
+        rewards: {
+          xp: args.rewardXP,
+          gold: args.rewardGold,
+          items: args.rewardItems,
+          villainLoot: args.villainLoot
+        }
+      };
+      break;
+
+    case 'setAftermath':
+      if (!builder.act3) builder.act3 = {};
+      builder.act3.aftermath = {
+        readAloud: args.aftermathReadAloud,
+        discoveries: args.discoveries,
+        immediateEffects: args.immediateEffects
+      };
+      builder.epilogue = {
+        immediateAftermath: args.epilogueNarration,
+        rewards: { townReaction: args.townReaction, questGiverScene: args.questGiverReward },
+        futureHooks: args.futureHooks,
+        characterMoments: args.characterMoments
+      };
+      break;
+
+    case 'campaignComplete':
+      console.log(`Campaign generation complete: ${args.summary}`);
+      break;
+
+    default:
+      console.log(`Unknown function: ${functionName}`);
+  }
+}
+
+// Generate campaign using function calling
+async function generateCampaignWithFunctions(request: CampaignRequest, dungeonMap: DungeonMap): Promise<GeneratedCampaign> {
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-2.0-flash-exp',
+    tools: [{ functionDeclarations: campaignFunctionDeclarations as any }]
+  });
+
+  // Build room context from dungeon map
+  const roomContext = dungeonMap.rooms.map((room, i) => {
+    const flags = room.contentFlags || {};
+    const types = [];
+    if (flags.hasBattle) types.push('COMBAT');
+    if (flags.hasTrap) types.push('TRAP');
+    if (flags.hasTreasure) types.push('TREASURE');
+    if (flags.hasPuzzle) types.push('PUZZLE');
+    if (flags.isBoss) types.push('BOSS');
+    return `Room ${i + 1}: ${room.name} (${room.type}) - ${types.join(', ') || 'EXPLORATION'}`;
+  }).join('\n');
+
+  const prompt = `You are a master D&D 5e Dungeon Master. Generate a complete one-shot adventure by calling the provided functions.
+
+PARAMETERS:
+- Theme: ${request.theme}
+- Setting: ${request.setting}
+- Party Level: ${request.partyLevel}
+- Party Size: ${request.partySize}
+- Tone: ${request.tone || 'serious'}
+
+DUNGEON MAP (already generated - use this structure):
+${roomContext}
+
+INSTRUCTIONS:
+1. Call setCampaignOverview first with title, synopsis, hook, and arc
+2. Call addThroughline 2-3 times to add narrative threads
+3. Call setAct1Setup to establish Act 1
+4. Call setQuestGiver for the main quest-giving NPC with full dialogue
+5. Call addNPC 4-6 times for key town NPCs (Innkeeper, Blacksmith, Merchant, Priest, Elder, Mysterious Stranger) - each with complete dialogue
+6. Call setInn and addShop 1-2 times for services
+7. Call setTravelToDestination for the journey
+8. Call setAct2Setup for dungeon overview
+9. Call addRoom for each room in the dungeon (5-8 rooms)
+10. Call addEncounter exactly 3 times for combat encounters
+11. Call addTrap 1-2 times for hazards
+12. Call setBossEncounter for the final battle
+13. Call setAftermath for the conclusion
+14. Call campaignComplete when done
+
+Make NPCs memorable with distinct personalities and useful dialogue. Use only SRD monsters balanced for party level ${request.partyLevel}.`;
+
+  console.log('Starting function-calling campaign generation...');
+  const builder: CampaignBuilder = {};
+
+  // Start the conversation
+  const chat = model.startChat();
+  let response = await chat.sendMessage(prompt);
+  let iterationCount = 0;
+  const maxIterations = 50; // Safety limit
+
+  // Process function calls until the model stops calling functions
+  while (iterationCount < maxIterations) {
+    iterationCount++;
+    const candidate = response.response.candidates?.[0];
+
+    if (!candidate?.content?.parts) {
+      console.log('No more content from model');
+      break;
+    }
+
+    // Check for function calls
+    const functionCalls = candidate.content.parts.filter(part => part.functionCall);
+
+    if (functionCalls.length === 0) {
+      console.log('No more function calls');
+      break;
+    }
+
+    // Process each function call
+    const functionResponses: any[] = [];
+    for (const part of functionCalls) {
+      const fc = part.functionCall;
+      if (fc) {
+        try {
+          processFunctionCall(builder, fc.name, fc.args);
+          functionResponses.push({
+            functionResponse: {
+              name: fc.name,
+              response: { success: true }
+            }
+          });
+        } catch (error) {
+          console.error(`Error in ${fc.name}:`, error);
+          functionResponses.push({
+            functionResponse: {
+              name: fc.name,
+              response: { success: false, error: String(error) }
+            }
+          });
+        }
+      }
+    }
+
+    // Check if we're done
+    if (functionCalls.some(p => p.functionCall?.name === 'campaignComplete')) {
+      console.log('Campaign marked as complete');
+      break;
+    }
+
+    // Send function responses back to continue the conversation
+    response = await chat.sendMessage(functionResponses);
+  }
+
+  console.log(`Function calling completed after ${iterationCount} iterations`);
+
+  // Build the final campaign object
+  const campaign: GeneratedCampaign = {
+    title: builder.title || 'Untitled Adventure',
+    synopsis: builder.synopsis || '',
+    hook: builder.hook || '',
+    arc: builder.arc || { beginning: '', middle: '', climax: '', resolution: '' },
+    overview: builder.overview,
+    act1: builder.act1,
+    act2: builder.act2,
+    act3: builder.act3,
+    epilogue: builder.epilogue,
+    npcs: [],
+    locations: [],
+    encounters: builder.act2?.encounters || [],
+    sessionOutlines: [{
+      number: 1,
+      title: builder.title || 'Adventure',
+      summary: builder.synopsis || '',
+      objectives: ['Complete Act 1', 'Complete Act 2', 'Defeat the boss', 'Return victorious']
+    }],
+    dungeonMap: dungeonMap,
+    _partial: false
+  };
+
+  // Check for missing parts
+  const missingParts: string[] = [];
+  if (!builder.act1?.questGiver) missingParts.push('Quest Giver');
+  if (!builder.act2?.encounters?.length) missingParts.push('Encounters');
+  if (!builder.act3?.bossEncounter) missingParts.push('Boss Encounter');
+
+  if (missingParts.length > 0) {
+    campaign._partial = true;
+    campaign._error = `Some sections may be incomplete: ${missingParts.join(', ')}`;
+  }
+
+  return campaign;
+}
 
 // Find the position of a JSON parse error
 function findJsonErrorPosition(jsonStr: string): number {
@@ -468,11 +1291,18 @@ export interface GeneratedCampaign {
     climax: string;
     resolution: string;
   };
+  overview?: any;
+  act1?: any;
+  act2?: any;
+  act3?: any;
+  epilogue?: any;
   npcs: GeneratedNPC[];
   locations: GeneratedLocation[];
   encounters: GeneratedEncounter[];
   sessionOutlines: { number: number; title: string; summary: string; objectives: string[] }[];
   dungeonMap?: DungeonMap;
+  _partial?: boolean;
+  _error?: string;
 }
 
 export interface DungeonRoom {
@@ -1353,123 +2183,22 @@ export async function generateCampaign(req: Request, res: Response) {
       return res.status(500).json({ error: 'GOOGLE_API_KEY not configured. Add it in Render Environment Variables.' });
     }
 
-    console.log('Starting MAP-FIRST campaign generation with theme:', request.theme, 'setting:', request.setting);
+    console.log('Starting FUNCTION-CALLING campaign generation with theme:', request.theme, 'setting:', request.setting);
 
     // FIRST: Generate detailed dungeon map with room outlines
-    // This map includes exits, content flags, and outlines for the AI to flesh out
     const dungeonMap = generateProceduralDungeon(request.theme);
     console.log('Pre-generated detailed dungeon map with', dungeonMap.rooms.length, 'rooms');
 
-    // Part 1: Generate Overview + Act 1
-    // Retry up to 2 times if act1 is missing (sometimes gets truncated)
-    let overviewAndAct1;
-    let act1Error = null;
-    for (let attempt = 1; attempt <= 2; attempt++) {
-      try {
-        console.log(`Generating Overview + Act 1 (attempt ${attempt}/2)...`);
-        const prompt1 = buildOverviewAndAct1Prompt(request);
-        overviewAndAct1 = await callGeminiAndParse(prompt1, 'Overview + Act 1');
-
-        // Check if act1 was properly generated
-        if (overviewAndAct1?.act1) {
-          console.log('Overview + Act 1 generated successfully');
-          break;
-        } else {
-          console.log('Warning: act1 missing from response, retrying...');
-          act1Error = 'act1 was truncated or missing from response';
-        }
-      } catch (error) {
-        console.error(`Failed to generate Overview + Act 1 (attempt ${attempt}):`, error);
-        act1Error = error instanceof Error ? error.message : String(error);
-        if (attempt < 2) {
-          console.log('Retrying Overview + Act 1 generation...');
-        }
-      }
-    }
-
-    if (!overviewAndAct1) {
-      return res.status(500).json({
-        error: 'Failed to generate campaign overview',
-        details: act1Error || 'Unknown error'
-      });
-    }
-
-    // Part 2: Generate Act 2 (Dungeon) - CRITICAL: Contains encounters
-    // Pass the detailed dungeon map so AI uses the room structure
-    // Retry up to 2 times since this is the most important part
-    let act2Data;
-    let act2Error = null;
-    for (let attempt = 1; attempt <= 2; attempt++) {
-      try {
-        console.log(`Generating Act 2 (attempt ${attempt}/2)...`);
-        const prompt2 = buildAct2Prompt(request, overviewAndAct1, dungeonMap);
-        act2Data = await callGeminiAndParse(prompt2, 'Act 2');
-        if (act2Data?.act2?.encounters?.length > 0) {
-          console.log(`Act 2 generated successfully with ${act2Data.act2.encounters.length} encounters`);
-          break;
-        } else {
-          console.log('Act 2 generated but no encounters found, retrying...');
-        }
-      } catch (error) {
-        console.error(`Failed to generate Act 2 (attempt ${attempt}):`, error);
-        act2Error = error instanceof Error ? error.message : String(error);
-        if (attempt < 2) {
-          console.log('Retrying Act 2 generation...');
-        }
-      }
-    }
-    if (!act2Data?.act2) {
-      act2Data = { act2: null };
-    }
-
-    // Part 3: Generate Act 3 + Epilogue (with Act 2 context for continuity)
-    let act3Data;
-    try {
-      const prompt3 = buildAct3AndEpiloguePrompt(request, overviewAndAct1, act2Data);
-      act3Data = await callGeminiAndParse(prompt3, 'Act 3 + Epilogue');
-    } catch (error) {
-      console.error('Failed to generate Act 3:', error);
-      // Continue with partial data
-      act3Data = { act3: null, epilogue: null };
-    }
-
-    // Track what failed to generate
-    const missingParts: string[] = [];
-    if (!overviewAndAct1.act1) missingParts.push('Act 1 (quest/town)');
-    if (!act2Data.act2) missingParts.push('Act 2 (dungeon/encounters)');
-    if (!act3Data.act3) missingParts.push('Act 3 (boss fight)');
-    if (!act3Data.epilogue) missingParts.push('Epilogue');
-
-    // Merge all parts into complete campaign
-    const campaign: GeneratedCampaign = {
-      ...overviewAndAct1,
-      act2: act2Data.act2 || null,
-      act3: act3Data.act3 || null,
-      epilogue: act3Data.epilogue || null,
-      // Legacy fields for backward compatibility
-      npcs: [],
-      locations: [],
-      encounters: act2Data.act2?.encounters || [],
-      sessionOutlines: [{
-        number: 1,
-        title: overviewAndAct1.title || 'Adventure',
-        summary: overviewAndAct1.synopsis || '',
-        objectives: ['Complete Act 1', 'Complete Act 2', 'Defeat the boss', 'Return victorious']
-      }],
-      // Indicate if campaign is incomplete
-      _partial: missingParts.length > 0,
-      _error: missingParts.length > 0
-        ? `Some sections failed to generate: ${missingParts.join(', ')}. Try regenerating the campaign.`
-        : undefined,
-    };
-
-    // Use the pre-generated detailed dungeon map
-    if (request.includeMap) {
-      campaign.dungeonMap = dungeonMap;
-      console.log('Using pre-generated dungeon map with detailed room outlines');
-    }
+    // Use function calling to generate the campaign piece by piece
+    // This is more reliable than asking for one giant JSON blob
+    const campaign = await generateCampaignWithFunctions(request, dungeonMap);
 
     console.log('Campaign generated successfully:', campaign.title);
+    console.log(`  - NPCs: ${campaign.act1?.keyNpcs?.length || 0}`);
+    console.log(`  - Shops: ${campaign.act1?.services?.shops?.length || 0}`);
+    console.log(`  - Rooms: ${campaign.act2?.rooms?.length || 0}`);
+    console.log(`  - Encounters: ${campaign.act2?.encounters?.length || 0}`);
+
     return res.json(campaign);
 
   } catch (error) {
