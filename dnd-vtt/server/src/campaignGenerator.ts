@@ -1045,7 +1045,7 @@ Return ONLY valid JSON with this structure:
         "tactics": "Guards raise alarm, fight defensively near door",
         "terrain": "Tables for cover",
         "difficulty": "easy",
-        "rewards": {"xp": 75, "loot": ["3 spears", "15gp"]}
+        "rewards": {"xp": 75, "loot": [{"item": "Spear", "value": "1gp", "type": "weapon", "effect": "1d6 piercing, thrown (20/60)"}]}
       },
       {
         "name": "Ambush",
@@ -1117,7 +1117,7 @@ Return ONLY valid JSON with this structure:
         "tactics": "Fanatic casts Hold Person on armored target, then cultists swarm. Fanatic uses Inflict Wounds on restrained enemies.",
         "terrain": "Pillars for cover, raised platform gives +2 to hit for ranged",
         "difficulty": "medium",
-        "rewards": {"xp": 250, "loot": ["Ritual dagger (25gp)", "Spell scroll of Shield"]}
+        "rewards": {"xp": 250, "loot": [{"item": "Ritual Dagger", "value": "25gp", "type": "weapon", "effect": "1d4 piercing, light, finesse"}, {"item": "Spell Scroll of Shield", "value": "50gp", "type": "scroll", "effect": "Cast Shield as reaction (+5 AC until start of next turn)"}]}
       },
       {
         "name": "Elite Guard",
@@ -1157,7 +1157,7 @@ Return ONLY valid JSON with this structure:
         "tactics": "One holds the chokepoint with longsword while other flanks or uses crossbow. They fight to the death.",
         "terrain": "Narrow doorway, weapon racks (improvised weapons)",
         "difficulty": "hard",
-        "rewards": {"xp": 400, "loot": ["2 longswords (30gp)", "Splint armor (200gp)", "Boss chamber key"]}
+        "rewards": {"xp": 400, "loot": [{"item": "Longsword", "value": "15gp", "type": "weapon", "effect": "1d8 slashing, versatile (1d10)"}, {"item": "Splint Armor", "value": "200gp", "type": "armor", "effect": "AC 17, Disadvantage on Stealth"}, {"item": "Boss Chamber Key", "value": "-", "type": "gear", "effect": "Unlocks boss chamber door"}]}
       }
     ],
     "traps": [
@@ -1335,7 +1335,7 @@ Return ONLY valid JSON with this structure:
       "rewards": {
         "xp": 1100,
         "gold": "200gp",
-        "items": [{"name": "Magic Item Name", "description": "What it does, requires attunement?", "rarity": "uncommon"}],
+        "items": [{"name": "Magic Item Name", "type": "weapon|armor|wondrous", "effect": "Mechanical effect (e.g., +1 to attack and damage)", "value": "Worth", "rarity": "uncommon", "attunement": false}],
         "villainLoot": "What's found on the villain's body"
       }
     },
@@ -2688,7 +2688,21 @@ Create an immersive adventure following these guidelines. Return ONLY valid JSON
     "services": {
       "inn": {"name": "Inn Name", "roomCost": "5sp/night", "mealCost": "2sp", "rumors": ["Rumor 1", "Rumor 2"]},
       "shops": [
-        {"name": "Shop Name", "keeper": "Shopkeeper Name", "inventory": [{"item": "Item", "cost": "Price"}]}
+        {
+          "name": "Shop Name",
+          "keeper": "Shopkeeper Name",
+          "shopType": "general|blacksmith|apothecary|magic|weaponsmith|armorsmith",
+          "inventory": [
+            {
+              "item": "Item Name",
+              "cost": "Price (e.g., 50gp)",
+              "type": "weapon|armor|potion|scroll|gear|tool|consumable|magic",
+              "effect": "Mechanical effect if applicable (e.g., '1d8 slashing, versatile (1d10)' for weapon, '+2 AC' for armor, 'Restores 2d4+2 HP' for potion)",
+              "rarity": "common|uncommon|rare",
+              "description": "Brief description"
+            }
+          ]
+        }
       ],
       "temple": {"name": "Temple Name", "deity": "God served", "services": [{"service": "Healing", "cost": "Donation"}]}
     },
@@ -2762,7 +2776,7 @@ Create an immersive adventure following these guidelines. Return ONLY valid JSON
         "terrain": "Combat-relevant terrain features",
         "dynamicElements": "What changes mid-fight (reinforcements, environmental shifts)",
         "difficulty": "easy",
-        "rewards": {"xp": 100, "loot": ["Item (value)"]}
+        "rewards": {"xp": 100, "loot": [{"item": "Item Name", "value": "Price", "type": "weapon|armor|consumable|treasure|gear", "effect": "Mechanical effect if any"}]}
       },
       {
         "name": "Combat Encounter 2 - Mid-Dungeon Challenge",
@@ -2774,7 +2788,7 @@ Create an immersive adventure following these guidelines. Return ONLY valid JSON
         "terrain": "Terrain that affects tactics",
         "dynamicElements": "Environmental hazards or reinforcements",
         "difficulty": "medium",
-        "rewards": {"xp": 200, "loot": ["Better loot"]}
+        "rewards": {"xp": 200, "loot": [{"item": "Item Name", "value": "Price", "type": "weapon|armor|consumable|treasure|gear", "effect": "Mechanical effect if any"}]}
       },
       {
         "name": "Combat Encounter 3 - Pre-Boss Minions",
@@ -2786,7 +2800,7 @@ Create an immersive adventure following these guidelines. Return ONLY valid JSON
         "terrain": "Tactical terrain features",
         "dynamicElements": "May trigger alarm or boss awareness",
         "difficulty": "hard",
-        "rewards": {"xp": 300, "loot": ["Valuable items", "Key or clue"]}
+        "rewards": {"xp": 300, "loot": [{"item": "Item Name", "value": "Price", "type": "weapon|armor|consumable|treasure|gear", "effect": "Mechanical effect if any"}]}
       }
     ],
 
@@ -2883,7 +2897,7 @@ Create an immersive adventure following these guidelines. Return ONLY valid JSON
       "rewards": {
         "xp": 0,
         "gold": "Amount",
-        "items": [{"name": "Item", "description": "What it is", "value": "Worth or magical properties"}],
+        "items": [{"name": "Item Name", "type": "weapon|armor|consumable|magic|treasure", "effect": "Mechanical effect (e.g., +1 to hit, 1d8+1 damage, restores 4d4+4 HP)", "value": "Worth", "rarity": "common|uncommon|rare", "attunement": false}],
         "villainLoot": "What's on the villain's body"
       }
     },

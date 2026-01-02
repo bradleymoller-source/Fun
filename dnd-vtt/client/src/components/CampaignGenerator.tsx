@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { useSessionStore } from '../stores/sessionStore';
-import type { Condition, InitiativeEntry } from '../types';
+import { useSocket } from '../hooks/useSocket';
+import type { Condition, InitiativeEntry, StoreItem, LootItem } from '../types';
 
 interface GeneratedNPC {
   name: string;
@@ -307,6 +308,41 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
 
   // Get session store for adding maps to the game's Map Library and local state
   const { addMapToLibrary, isInCombat } = useSessionStore();
+
+  // Socket functions for store/loot
+  const { addStoreItem, addLootItem } = useSocket();
+
+  // Add shop inventory to store
+  const handleAddShopToStore = async (shop: { name: string; inventory?: { item: string; cost: string; type?: string; effect?: string; rarity?: string; description?: string }[] }) => {
+    if (!shop.inventory) return;
+
+    for (const inventoryItem of shop.inventory) {
+      const storeItem: StoreItem = {
+        id: `store-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        name: inventoryItem.item,
+        price: inventoryItem.cost,
+        quantity: -1, // Unlimited for shops
+        effect: inventoryItem.effect,
+        description: inventoryItem.description || (inventoryItem.type ? `${inventoryItem.rarity || 'Common'} ${inventoryItem.type}` : undefined),
+      };
+      await addStoreItem(storeItem);
+    }
+  };
+
+  // Add encounter/room loot to loot pool
+  const handleAddToLoot = async (items: { item: string; value: string; type?: string; effect?: string }[], source: string) => {
+    for (const lootEntry of items) {
+      const lootItem: LootItem = {
+        id: `loot-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        name: lootEntry.item,
+        value: lootEntry.value,
+        quantity: 1,
+        source: source,
+        description: lootEntry.effect,
+      };
+      await addLootItem(lootItem);
+    }
+  };
 
   // Monster colors for token differentiation
   const MONSTER_COLORS = [
@@ -966,7 +1002,35 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
       )}
       {room.exits && <p className="text-xs text-blue-300 mt-1"><strong>Exits:</strong> {room.exits.join(' | ')}</p>}
       {room.treasure && room.treasure.length > 0 && (
-        <p className="text-xs text-yellow-400 mt-1"><strong>Treasure:</strong> {room.treasure.map((t: any) => `${t.item} (${t.value})`).join(', ')}</p>
+        <div className="mt-2 bg-yellow-900/20 p-2 rounded border border-yellow-500/30">
+          <div className="flex justify-between items-center">
+            <strong className="text-yellow-400 text-xs">Treasure:</strong>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                const lootItems = room.treasure.map((t: any) => ({
+                  item: t.item,
+                  value: t.value || '0gp',
+                  type: t.type,
+                  effect: t.effect,
+                }));
+                handleAddToLoot(lootItems, `Room ${room.id}: ${room.name}`);
+              }}
+              className="text-xs py-0.5 px-2"
+            >
+              Add to Loot
+            </Button>
+          </div>
+          {room.treasure.map((t: any, i: number) => (
+            <div key={i} className="text-yellow-300 text-xs pl-2 border-l border-yellow-500/30 mt-1">
+              <span className="font-medium">{t.item}</span>
+              {t.value && <span className="text-parchment/50"> - {t.value}</span>}
+              {t.type && <span className="text-blue-300 ml-1">({t.type})</span>}
+              {t.effect && <p className="text-green-300/80 text-xs">{t.effect}</p>}
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
@@ -1189,11 +1253,33 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
                   </div>
                 )}
                 {campaign.act1.services.shops?.map((shop: any, i: number) => (
-                  <div key={i} className="mb-2">
-                    <p className="text-blue-400 text-xs font-bold">{shop.name} ({shop.keeper})</p>
-                    <div className="text-parchment/70 text-xs">
+                  <div key={i} className="mb-3 bg-dark-wood/30 p-2 rounded">
+                    <div className="flex justify-between items-center mb-1">
+                      <p className="text-blue-400 text-xs font-bold">{shop.name} ({shop.keeper})</p>
+                      {shop.inventory && shop.inventory.length > 0 && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => handleAddShopToStore(shop)}
+                          className="text-xs py-0.5 px-2"
+                        >
+                          Add to Store
+                        </Button>
+                      )}
+                    </div>
+                    <div className="space-y-1">
                       {shop.inventory?.map((item: any, j: number) => (
-                        <span key={j} className="mr-2">{item.item}: {item.cost}</span>
+                        <div key={j} className="text-parchment/70 text-xs pl-2 border-l border-gold/30">
+                          <span className="text-amber-300 font-medium">{item.item}</span>
+                          <span className="text-parchment/50"> - {item.cost}</span>
+                          {item.type && <span className="text-blue-300 ml-1">({item.type})</span>}
+                          {item.effect && <p className="text-green-300/80 text-xs ml-2">{item.effect}</p>}
+                          {item.rarity && item.rarity !== 'common' && (
+                            <span className={`ml-1 text-xs ${item.rarity === 'rare' ? 'text-purple-400' : 'text-green-400'}`}>
+                              [{item.rarity}]
+                            </span>
+                          )}
+                        </div>
                       ))}
                     </div>
                   </div>
@@ -1362,12 +1448,48 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
                 )}
 
                 {campaign.act3.bossEncounter.rewards && (
-                  <div className="mt-2">
-                    <strong className="text-yellow-400 text-xs">Rewards:</strong>
-                    <p className="text-parchment/70 text-xs">XP: {campaign.act3.bossEncounter.rewards.xp} | Gold: {campaign.act3.bossEncounter.rewards.gold}</p>
+                  <div className="mt-2 bg-yellow-900/20 p-2 rounded border border-yellow-500/30">
+                    <div className="flex justify-between items-center">
+                      <strong className="text-yellow-400 text-xs">Boss Rewards:</strong>
+                      {campaign.act3.bossEncounter.rewards.items && campaign.act3.bossEncounter.rewards.items.length > 0 && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => {
+                            const lootItems = campaign.act3.bossEncounter.rewards.items.map((item: any) => ({
+                              item: item.name,
+                              value: item.value || '0gp',
+                              type: item.type,
+                              effect: item.effect || item.description,
+                            }));
+                            handleAddToLoot(lootItems, 'Boss Encounter');
+                          }}
+                          className="text-xs py-0.5 px-2"
+                        >
+                          Add to Loot
+                        </Button>
+                      )}
+                    </div>
+                    <p className="text-parchment/70 text-xs">{campaign.act3.bossEncounter.rewards.xp} XP | {campaign.act3.bossEncounter.rewards.gold}</p>
                     {campaign.act3.bossEncounter.rewards.items?.map((item: any, i: number) => (
-                      <p key={i} className="text-yellow-300 text-xs">{item.name}: {item.description}</p>
+                      <div key={i} className="text-yellow-300 text-xs pl-2 border-l border-yellow-500/30 mt-1">
+                        <span className="font-medium">{item.name}</span>
+                        {item.value && <span className="text-parchment/50"> - {item.value}</span>}
+                        {item.type && <span className="text-blue-300 ml-1">({item.type})</span>}
+                        {item.rarity && item.rarity !== 'common' && (
+                          <span className={`ml-1 ${item.rarity === 'rare' ? 'text-purple-400' : 'text-green-400'}`}>
+                            [{item.rarity}]
+                          </span>
+                        )}
+                        {(item.effect || item.description) && (
+                          <p className="text-green-300/80 text-xs">{item.effect || item.description}</p>
+                        )}
+                        {item.attunement && <span className="text-red-400 text-xs ml-1">(Requires Attunement)</span>}
+                      </div>
                     ))}
+                    {campaign.act3.bossEncounter.rewards.villainLoot && (
+                      <p className="text-amber-300/70 text-xs mt-1 italic">Villain: {campaign.act3.bossEncounter.rewards.villainLoot}</p>
+                    )}
                   </div>
                 )}
               </div>
@@ -1662,11 +1784,49 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
                   {enc.tactics && <p className="text-parchment/60 text-xs mt-1"><strong>Tactics:</strong> {enc.tactics}</p>}
                   {enc.terrain && <p className="text-parchment/60 text-xs mt-1"><strong>Terrain:</strong> {enc.terrain}</p>}
                   {enc.rewards && (
-                    <p className="text-yellow-400 text-xs mt-1">
-                      <strong>Rewards:</strong> {typeof enc.rewards === 'object' ?
-                        `${enc.rewards.xp} XP, ${enc.rewards.loot?.join(', ') || ''}` :
-                        enc.rewards}
-                    </p>
+                    <div className="mt-2 bg-yellow-900/20 p-2 rounded border border-yellow-500/30">
+                      <div className="flex justify-between items-center">
+                        <strong className="text-yellow-400 text-xs">Rewards:</strong>
+                        {typeof enc.rewards === 'object' && enc.rewards.loot && enc.rewards.loot.length > 0 && (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => {
+                              const lootItems = enc.rewards.loot.map((l: any) =>
+                                typeof l === 'string'
+                                  ? { item: l, value: '0gp' }
+                                  : { item: l.item, value: l.value || '0gp', type: l.type, effect: l.effect }
+                              );
+                              handleAddToLoot(lootItems, enc.name || 'Encounter');
+                            }}
+                            className="text-xs py-0.5 px-2"
+                          >
+                            Add to Loot
+                          </Button>
+                        )}
+                      </div>
+                      {typeof enc.rewards === 'object' ? (
+                        <>
+                          <p className="text-parchment/70 text-xs">{enc.rewards.xp} XP</p>
+                          {enc.rewards.loot?.map((l: any, i: number) => (
+                            <div key={i} className="text-yellow-300 text-xs pl-2 border-l border-yellow-500/30 mt-1">
+                              {typeof l === 'string' ? (
+                                <span>{l}</span>
+                              ) : (
+                                <>
+                                  <span className="font-medium">{l.item}</span>
+                                  {l.value && <span className="text-parchment/50"> - {l.value}</span>}
+                                  {l.type && <span className="text-blue-300 ml-1">({l.type})</span>}
+                                  {l.effect && <p className="text-green-300/80 text-xs">{l.effect}</p>}
+                                </>
+                              )}
+                            </div>
+                          ))}
+                        </>
+                      ) : (
+                        <p className="text-parchment/70 text-xs">{enc.rewards}</p>
+                      )}
+                    </div>
                   )}
 
                   {/* Start Encounter Button - only show if there are monsters */}
