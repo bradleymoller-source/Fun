@@ -85,6 +85,7 @@ interface CampaignGeneratorProps {
   // Socket functions passed from parent (DMView) to ensure same connection
   addInitiativeEntry: (entry: InitiativeEntry) => Promise<void>;
   startCombat: () => Promise<void>;
+  addToken: (token: any) => Promise<void>;
 }
 
 // Adventure Types - the core structure of the adventure
@@ -190,7 +191,7 @@ const ROOM_COLORS: Record<DungeonRoom['type'], string> = {
   secret: '#9C27B0',
 };
 
-export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, addInitiativeEntry, startCombat }: CampaignGeneratorProps) {
+export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, addInitiativeEntry, startCombat, addToken }: CampaignGeneratorProps) {
   // Form state
   const [adventureType, setAdventureType] = useState(ADVENTURE_TYPES[0].value);
   const [theme, setTheme] = useState(THEMES[0]);
@@ -231,7 +232,7 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
   const [addedToLibrary, setAddedToLibrary] = useState<Set<string>>(new Set());
 
   // Get session store for adding maps to the game's Map Library and local state
-  const { addMapToLibrary, addToken, isInCombat } = useSessionStore();
+  const { addMapToLibrary, isInCombat } = useSessionStore();
 
   // Monster colors for token differentiation
   const MONSTER_COLORS = [
@@ -288,7 +289,8 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
     // Build summary of added monsters with their stats
     const addedMonsters: string[] = [];
 
-    // Collect all initiative entries to add
+    // Collect all tokens and initiative entries to add
+    const tokensToAdd: Array<any> = [];
     const initiativeEntries: Array<{
       id: string;
       name: string;
@@ -339,8 +341,8 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
         const row = Math.floor(tokenIndex / tokensPerRow);
         const col = (tokenIndex % tokensPerRow) * sizeMultiplier;
 
-        // Add token to the map
-        addToken({
+        // Collect token to add later
+        tokensToAdd.push({
           id: tokenId,
           name,
           x: gridStartX + col,
@@ -394,8 +396,14 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
       }
     });
 
-    // Add all initiative entries to server (sequentially to preserve order)
+    // Add all tokens and initiative entries to server
     try {
+      // Add tokens first
+      for (const token of tokensToAdd) {
+        await addToken(token);
+      }
+
+      // Add initiative entries
       for (const entry of initiativeEntries) {
         await addInitiativeEntry(entry);
       }
@@ -1648,7 +1656,7 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
             {campaign?.act2?.rooms && campaign.act2.rooms.length > 0 && (
               <div>
                 <h4 className="text-gold text-sm font-bold mb-2">Dungeon Rooms</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="flex flex-col gap-3">
                   {campaign.act2.rooms.map((room: any, index: number) => {
                     const mapId = `room-${room.id}`;
                     const hasMap = battleMaps[mapId];

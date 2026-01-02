@@ -200,10 +200,19 @@ export function DMView() {
 
   const handleShowMapToPlayers = async (mapId: string) => {
     const savedMap = savedMaps.find(m => m.id === mapId);
-    if (!savedMap) return;
+    if (!savedMap) {
+      console.error('Map not found in library:', mapId);
+      alert('Map not found in library. Try saving it again.');
+      return;
+    }
 
     // Filter hidden tokens when showing to players
-    const visibleTokens = (savedMap.tokens || []).filter(t => !t.isHidden);
+    // Also include current live tokens from the active map to preserve monsters
+    const savedTokens = (savedMap.tokens || []).filter(t => !t.isHidden);
+    const liveTokens = map.tokens.filter(t => !t.isHidden);
+
+    // Merge tokens: use saved tokens if available, otherwise use live tokens
+    const visibleTokens = savedTokens.length > 0 ? savedTokens : liveTokens;
 
     try {
       await showMapToPlayers(mapId, {
@@ -215,6 +224,7 @@ export function DMView() {
       });
     } catch (error) {
       console.error('Failed to show map to players:', error);
+      alert(`Failed to show map: ${error instanceof Error ? error.message : 'Unknown error'}. Make sure you are connected to a session.`);
     }
   };
 
@@ -607,6 +617,7 @@ export function DMView() {
               <CampaignGenerator
                 addInitiativeEntry={addInitiativeEntry}
                 startCombat={startCombat}
+                addToken={addToken}
               />
             </Panel>
 

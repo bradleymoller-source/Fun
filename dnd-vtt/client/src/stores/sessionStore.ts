@@ -284,6 +284,12 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     const savedMap = state.savedMaps.find((m) => m.id === mapId);
     if (!savedMap) return;
 
+    // If saved map has no tokens, preserve current tokens
+    // This allows loading a battle map background without losing current monsters/players
+    const tokensToUse = (savedMap.tokens && savedMap.tokens.length > 0)
+      ? savedMap.tokens
+      : state.map.tokens;
+
     set({
       map: {
         ...state.map,
@@ -291,7 +297,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         gridSize: savedMap.gridSize,
         gridOffsetX: savedMap.gridOffsetX,
         gridOffsetY: savedMap.gridOffsetY,
-        tokens: savedMap.tokens || [], // Load saved tokens with the map
+        tokens: tokensToUse,
       },
     });
   },

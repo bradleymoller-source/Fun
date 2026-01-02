@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { IdSchema, TokenSizeSchema, ColorSchema, UrlSchema, NullableUrlSchema } from './common.schema';
+import { IdSchema, TokenSizeSchema, ColorSchema, UrlSchema, NullableUrlSchema, ConditionSchema } from './common.schema';
 
 // Token schema
 export const TokenSchema = z.object({
@@ -12,6 +12,10 @@ export const TokenSchema = z.object({
   imageUrl: UrlSchema,
   isHidden: z.boolean(),
   ownerId: z.string().max(100).optional(),
+  // Combat stats (optional)
+  maxHp: z.number().min(0).max(10000).optional(),
+  currentHp: z.number().min(-1000).max(10000).optional(),
+  conditions: z.array(ConditionSchema).optional(),
 });
 
 // Fog of war area schema
