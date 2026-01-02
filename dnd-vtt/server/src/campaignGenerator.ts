@@ -695,7 +695,7 @@ REQUIREMENTS:
 }
 
 // Build prompt for Act 2 (Dungeon/Encounters)
-function buildAct2Prompt(request: CampaignRequest, overviewData: any, dungeonMap?: DungeonMap): string {
+function buildAct2Prompt(request: CampaignRequest, overviewData: any): string {
   const adventureType = request.adventureType || 'dungeon_crawl';
 
   // Extract throughlines from Act 1
@@ -714,22 +714,6 @@ function buildAct2Prompt(request: CampaignRequest, overviewData: any, dungeonMap
   const npcContext = keyNpcs.slice(0, 3).map((npc: any) =>
     `- ${npc.name} (${npc.role}): mentioned ${npc.keyInformation?.[0] || 'local rumors'}`
   ).join('\n');
-
-  // Build room structure from pre-generated dungeon map (if provided)
-  const roomStructure = dungeonMap ? dungeonMap.rooms.map((room, index) => {
-    const roomNum = index + 1;
-    return `Room ${roomNum}: "${room.name}" (${room.type}) - Features: ${room.features?.join(', ') || 'standard'}`;
-  }).join('\n') : '';
-
-  const dungeonMapContext = dungeonMap ? `
-IMPORTANT - DUNGEON MAP STRUCTURE:
-You MUST use these EXACT room names and numbers in your narrative. The dungeon map has already been generated with these rooms:
-
-${roomStructure}
-
-Your "rooms" array MUST match these room names EXACTLY. Do not invent new room names - use the names above.
-The dungeon name is: "${dungeonMap.name}"
-` : '';
 
   return `You are a master D&D 5e Dungeon Master. Create ACT 2 (the dungeon/adventure site) for this adventure:
 
@@ -752,7 +736,14 @@ NARRATIVE THROUGHLINES (these MUST appear in Act 2):
 ${throughlineContext || 'No throughlines defined'}
 
 CRITICAL: Each throughline must have its "act2Discovery" element somewhere in the dungeon - as a hidden item, NPC dialogue, room description, or treasure.
-${dungeonMapContext}
+
+ROOM DESIGN GUIDELINES:
+- Create 4-6 distinct rooms that make sense for this dungeon
+- Each room should have a clear name (e.g., "Entrance Chamber", "Guard Room", "Treasure Vault", "Boss Lair")
+- Include an entrance room and a final boss room
+- Do NOT add extra corridors or travel paths - only include actual rooms with meaningful content
+- The overview map will be generated from your room list, so make each room count
+
 Return ONLY valid JSON with this structure:
 
 \`\`\`json
@@ -1206,11 +1197,10 @@ export async function generateCampaign(req: Request, res: Response) {
       return res.status(500).json({ error: 'GOOGLE_API_KEY not configured. Add it in Render Environment Variables.' });
     }
 
-    console.log('Starting SPLIT campaign generation with theme:', request.theme, 'setting:', request.setting);
+    console.log('Starting NARRATIVE-FIRST campaign generation with theme:', request.theme, 'setting:', request.setting);
 
-    // FIRST: Generate the dungeon map structure so AI can reference it
-    const dungeonMap = generateProceduralDungeon(request.theme);
-    console.log('Pre-generated dungeon map with', dungeonMap.rooms.length, 'rooms');
+    // NOTE: We now generate narrative FIRST, then create dungeon map from it
+    // This ensures the overview map only contains rooms mentioned in the story
 
     // Part 1: Generate Overview + Act 1
     let overviewAndAct1;
@@ -1226,14 +1216,14 @@ export async function generateCampaign(req: Request, res: Response) {
     }
 
     // Part 2: Generate Act 2 (Dungeon) - CRITICAL: Contains encounters
-    // Pass the dungeon map so AI uses the same room names
+    // AI creates room names naturally - we'll build the map from these later
     // Retry up to 2 times since this is the most important part
     let act2Data;
     let act2Error = null;
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
-        console.log(`Generating Act 2 (attempt ${attempt}/2)...`);
-        const prompt2 = buildAct2Prompt(request, overviewAndAct1, dungeonMap);
+        console.log(`Generating Act 2 narrative (attempt ${attempt}/2)...`);
+        const prompt2 = buildAct2Prompt(request, overviewAndAct1); // No dungeon map - AI creates rooms freely
         act2Data = await callGeminiAndParse(prompt2, 'Act 2');
         if (act2Data?.act2?.encounters?.length > 0) {
           console.log(`Act 2 generated successfully with ${act2Data.act2.encounters.length} encounters`);
@@ -1293,10 +1283,12 @@ export async function generateCampaign(req: Request, res: Response) {
         : undefined,
     };
 
-    // Use the pre-generated dungeon map (which the AI narrative now matches)
-    if (request.includeMap) {
+    // Generate dungeon map FROM the narrative (Act 2 rooms)
+    // This ensures the map only contains rooms actually mentioned in the story
+    if (request.includeMap && act2Data?.act2) {
+      const dungeonMap = generateDungeonFromNarrative(act2Data.act2, request.theme);
       campaign.dungeonMap = dungeonMap;
-      console.log('Using pre-generated dungeon map that matches narrative');
+      console.log('Generated dungeon map from narrative with', dungeonMap.rooms.length, 'rooms');
     }
 
     console.log('Campaign generated successfully:', campaign.title);
@@ -1555,6 +1547,79 @@ function generateRoomFeatures(type: DungeonRoom['type']): string[] {
 
   const options = features[type];
   return options[Math.floor(Math.random() * options.length)];
+}
+
+// Generate dungeon map from narrative rooms (Act 2 data)
+// This creates an overview map that only contains rooms actually mentioned in the story
+function generateDungeonFromNarrative(act2Data: any, theme: string): DungeonMap {
+  const rooms: DungeonRoom[] = [];
+  const narrativeRooms = act2Data?.rooms || [];
+
+  if (narrativeRooms.length === 0) {
+    // Fallback to simple procedural if no rooms in narrative
+    return generateProceduralDungeon(theme);
+  }
+
+  // Determine room type based on name keywords
+  function inferRoomType(name: string, index: number, total: number): DungeonRoom['type'] {
+    const lowerName = name.toLowerCase();
+    if (index === 0 || lowerName.includes('entrance') || lowerName.includes('entry')) return 'entrance';
+    if (index === total - 1 || lowerName.includes('boss') || lowerName.includes('throne') || lowerName.includes('sanctum') || lowerName.includes('lair')) return 'boss';
+    if (lowerName.includes('trap') || lowerName.includes('pit') || lowerName.includes('danger')) return 'trap';
+    if (lowerName.includes('treasure') || lowerName.includes('vault') || lowerName.includes('treasury') || lowerName.includes('hoard')) return 'treasure';
+    if (lowerName.includes('secret') || lowerName.includes('hidden') || lowerName.includes('concealed')) return 'secret';
+    return 'room';
+  }
+
+  // Layout rooms in a simple grid pattern - no corridors, just the rooms
+  const gridCols = Math.ceil(Math.sqrt(narrativeRooms.length));
+  const cellWidth = 5;
+  const cellHeight = 5;
+  const startX = 1;
+  const startY = 1;
+
+  narrativeRooms.forEach((narrativeRoom: any, index: number) => {
+    const col = index % gridCols;
+    const row = Math.floor(index / gridCols);
+
+    const type = inferRoomType(narrativeRoom.name || `Room ${index + 1}`, index, narrativeRooms.length);
+    const roomWidth = type === 'boss' ? 4 : 3;
+    const roomHeight = type === 'boss' ? 4 : 3;
+
+    const x = startX + (col * cellWidth);
+    const y = startY + (row * cellHeight);
+
+    // Build connections - connect to next room in sequence if exists
+    const connections: string[] = [];
+    if (index < narrativeRooms.length - 1) {
+      connections.push(`room-${index + 2}`);
+    }
+
+    rooms.push({
+      id: `room-${index + 1}`,
+      x,
+      y,
+      width: roomWidth,
+      height: roomHeight,
+      type,
+      name: narrativeRoom.name || `Room ${index + 1}`,
+      description: narrativeRoom.readAloud?.substring(0, 100) || `A ${type} in the ${theme} dungeon.`,
+      connections,
+      features: narrativeRoom.contents?.obvious || generateRoomFeatures(type),
+    });
+  });
+
+  // Calculate map dimensions based on room layout
+  const maxX = Math.max(...rooms.map(r => r.x + r.width));
+  const maxY = Math.max(...rooms.map(r => r.y + r.height));
+
+  return {
+    name: act2Data?.dungeonOverview?.name || `${theme.charAt(0).toUpperCase() + theme.slice(1)} Dungeon`,
+    width: Math.max(20, maxX + 2),
+    height: Math.max(20, maxY + 2),
+    rooms,
+    theme,
+  };
 }
 
 // Get adventure type-specific instructions
