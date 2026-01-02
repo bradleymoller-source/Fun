@@ -425,11 +425,17 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
     }
   };
 
-  // Save a battle map to the list
+  // Save a battle map to the list AND add to Map Library
   const handleSaveMap = (id: string, name: string, imageUrl: string, type: string = 'dungeon') => {
-    // Check if already saved
-    if (savedMaps.some(m => m.imageUrl === imageUrl)) return;
-    setSavedMaps(prev => [...prev, { id, name, imageUrl, type }]);
+    // Check if already saved locally
+    if (!savedMaps.some(m => m.imageUrl === imageUrl)) {
+      setSavedMaps(prev => [...prev, { id, name, imageUrl, type }]);
+    }
+    // Also add to the main Map Library so it appears in Map Controls
+    if (!addedToLibrary.has(imageUrl)) {
+      addMapToLibrary(name, imageUrl);
+      setAddedToLibrary(prev => new Set(prev).add(imageUrl));
+    }
   };
 
   // Remove a saved map

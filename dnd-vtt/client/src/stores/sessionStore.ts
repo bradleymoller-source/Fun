@@ -303,10 +303,22 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   },
 
   deleteSavedMap: (mapId) =>
-    set((state) => ({
-      savedMaps: state.savedMaps.filter((m) => m.id !== mapId),
-      activeMapId: state.activeMapId === mapId ? null : state.activeMapId,
-    })),
+    set((state) => {
+      const deletedMap = state.savedMaps.find((m) => m.id === mapId);
+      const isCurrentMap = deletedMap && state.map.imageUrl === deletedMap.imageUrl;
+
+      return {
+        savedMaps: state.savedMaps.filter((m) => m.id !== mapId),
+        activeMapId: state.activeMapId === mapId ? null : state.activeMapId,
+        // Also clear the map viewer if this map was being displayed
+        ...(isCurrentMap && {
+          map: {
+            ...state.map,
+            imageUrl: null,
+          },
+        }),
+      };
+    }),
 
   setSavedMaps: (savedMaps) => set({ savedMaps }),
 

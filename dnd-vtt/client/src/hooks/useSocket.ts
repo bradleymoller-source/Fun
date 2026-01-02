@@ -491,11 +491,17 @@ export function useSocket() {
   const showMapToPlayers = useCallback((mapId: string, mapState: { imageUrl: string; gridSize: number; gridOffsetX: number; gridOffsetY: number; tokens?: Token[] }) => {
     return new Promise<void>((resolve, reject) => {
       if (!socketRef.current) {
-        reject(new Error('Not connected'));
+        reject(new Error('Not connected to server. Please refresh the page.'));
         return;
       }
 
+      // Add timeout so it doesn't hang forever
+      const timeout = setTimeout(() => {
+        reject(new Error('Server not responding. Please check your connection and try again.'));
+      }, 10000); // 10 second timeout
+
       socketRef.current.emit('show-map-to-players', { mapId, mapState }, (response: any) => {
+        clearTimeout(timeout);
         if (response.success) {
           store.setActiveMapId(mapId);
           // Update DM's map state with merged tokens (player + saved)
@@ -505,7 +511,7 @@ export function useSocket() {
           resolve();
         } else {
           store.setError(response.error);
-          reject(new Error(response.error));
+          reject(new Error(response.error || 'Failed to show map'));
         }
       });
     });
