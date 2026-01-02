@@ -15,6 +15,18 @@ export function MapLibrary({ onShowToPlayers, onHideFromPlayers }: MapLibraryPro
   const [mapName, setMapName] = useState('');
   const [notesMapId, setNotesMapId] = useState<string | null>(null);
 
+  const handleDelete = (mapId: string) => {
+    console.log('Deleting map:', mapId);
+    console.log('Current savedMaps:', savedMaps.map(m => ({ id: m.id, name: m.name })));
+    deleteSavedMap(mapId);
+    console.log('Delete called');
+  };
+
+  const handleShow = (mapId: string) => {
+    console.log('Showing map to players:', mapId);
+    onShowToPlayers(mapId);
+  };
+
   const handleSave = () => {
     if (!mapName.trim()) return;
     saveCurrentMap(mapName.trim());
@@ -108,7 +120,7 @@ export function MapLibrary({ onShowToPlayers, onHideFromPlayers }: MapLibraryPro
                   Edit
                 </button>
                 <button
-                  onClick={() => onShowToPlayers(savedMap.id)}
+                  onClick={() => handleShow(savedMap.id)}
                   className={`text-xs px-2 py-1 rounded ${
                     activeMapId === savedMap.id
                       ? 'bg-green-600 text-white'
@@ -130,7 +142,7 @@ export function MapLibrary({ onShowToPlayers, onHideFromPlayers }: MapLibraryPro
                   {savedMap.notes ? 'Notes' : '+Notes'}
                 </button>
                 <button
-                  onClick={() => deleteSavedMap(savedMap.id)}
+                  onClick={() => handleDelete(savedMap.id)}
                   className="text-xs bg-red-800 px-2 py-1 rounded text-white hover:bg-red-600"
                   title="Delete this map"
                 >

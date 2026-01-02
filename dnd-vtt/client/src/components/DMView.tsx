@@ -199,12 +199,17 @@ export function DMView() {
   };
 
   const handleShowMapToPlayers = async (mapId: string) => {
+    console.log('handleShowMapToPlayers called with mapId:', mapId);
+    console.log('Available savedMaps:', savedMaps.map(m => ({ id: m.id, name: m.name })));
+
     const savedMap = savedMaps.find(m => m.id === mapId);
     if (!savedMap) {
       console.error('Map not found in library:', mapId);
       alert('Map not found in library. Try saving it again.');
       return;
     }
+
+    console.log('Found savedMap:', savedMap.name, 'imageUrl length:', savedMap.imageUrl?.length);
 
     // Filter hidden tokens when showing to players
     // Also include current live tokens from the active map to preserve monsters
@@ -214,7 +219,10 @@ export function DMView() {
     // Merge tokens: use saved tokens if available, otherwise use live tokens
     const visibleTokens = savedTokens.length > 0 ? savedTokens : liveTokens;
 
+    console.log('Showing map with', visibleTokens.length, 'tokens');
+
     try {
+      console.log('Calling showMapToPlayers...');
       await showMapToPlayers(mapId, {
         imageUrl: savedMap.imageUrl,
         gridSize: savedMap.gridSize,
@@ -222,6 +230,7 @@ export function DMView() {
         gridOffsetY: savedMap.gridOffsetY,
         tokens: visibleTokens,
       });
+      console.log('showMapToPlayers completed successfully');
     } catch (error) {
       console.error('Failed to show map to players:', error);
       alert(`Failed to show map: ${error instanceof Error ? error.message : 'Unknown error'}. Make sure you are connected to a session.`);

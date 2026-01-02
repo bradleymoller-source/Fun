@@ -946,19 +946,29 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3">
                       <p className="text-gold font-medieval text-lg">Opening Scene: {campaign.title}</p>
                     </div>
-                    <button
-                      onClick={() => handleGenerateSceneImage(
-                        'opening-scene',
-                        `${campaign.overview?.readAloud?.substring(0, 200) || 'fantasy adventure beginning scene'}, ${campaign.title || 'epic quest'}, cinematic wide shot`,
-                        'dramatic and immersive, sense of adventure',
-                        'atmospheric dramatic lighting'
-                      )}
-                      disabled={generatingSceneId === 'opening-scene'}
-                      className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-gold p-1 rounded text-xs"
-                      title="Regenerate scene"
-                    >
-                      {generatingSceneId === 'opening-scene' ? '⏳' : '🔄'}
-                    </button>
+                    <div className="absolute top-2 right-2 flex gap-1">
+                      <button
+                        onClick={() => handleAddToGameLibrary(`Scene: ${campaign.title || 'Opening'}`, sceneImages['opening-scene'])}
+                        className={`text-xs px-2 py-1 rounded ${addedToLibrary.has(sceneImages['opening-scene']) ? 'bg-green-600 text-white' : 'bg-blue-600 text-white hover:bg-blue-500'}`}
+                        disabled={addedToLibrary.has(sceneImages['opening-scene'])}
+                        title="Add to Map Library to show to players"
+                      >
+                        {addedToLibrary.has(sceneImages['opening-scene']) ? '✓ Added' : '📺 Show Players'}
+                      </button>
+                      <button
+                        onClick={() => handleGenerateSceneImage(
+                          'opening-scene',
+                          `${campaign.overview?.readAloud?.substring(0, 200) || 'fantasy adventure beginning scene'}, ${campaign.title || 'epic quest'}, cinematic wide shot`,
+                          'dramatic and immersive, sense of adventure',
+                          'atmospheric dramatic lighting'
+                        )}
+                        disabled={generatingSceneId === 'opening-scene'}
+                        className="bg-black/50 hover:bg-black/70 text-gold p-1 rounded text-xs"
+                        title="Regenerate scene"
+                      >
+                        {generatingSceneId === 'opening-scene' ? '⏳' : '🔄'}
+                      </button>
+                    </div>
                   </div>
                 )}
 
@@ -1032,17 +1042,27 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3">
                   <p className="text-gold font-medieval text-lg">{campaign.act1.title}</p>
                 </div>
-                <button
-                  onClick={() => handleGenerateSceneImage(
-                    'act1-city',
-                    `fantasy medieval ${campaign.act1?.title || 'village'} town square with market stalls, cobblestone streets, timber-framed buildings, adventurers, bustling crowd`,
-                    'warm and inviting, busy marketplace atmosphere',
-                    'golden hour morning light'
-                  )}
-                  className="absolute top-2 right-2 bg-dark-wood/80 text-gold text-xs px-2 py-1 rounded hover:bg-dark-wood"
-                >
-                  Regenerate
-                </button>
+                <div className="absolute top-2 right-2 flex gap-1">
+                  <button
+                    onClick={() => handleAddToGameLibrary(`Scene: ${campaign.act1?.title || 'Act 1'}`, sceneImages['act1-city'])}
+                    className={`text-xs px-2 py-1 rounded ${addedToLibrary.has(sceneImages['act1-city']) ? 'bg-green-600 text-white' : 'bg-blue-600 text-white hover:bg-blue-500'}`}
+                    disabled={addedToLibrary.has(sceneImages['act1-city'])}
+                    title="Add to Map Library to show to players"
+                  >
+                    {addedToLibrary.has(sceneImages['act1-city']) ? '✓ Added' : '📺 Show Players'}
+                  </button>
+                  <button
+                    onClick={() => handleGenerateSceneImage(
+                      'act1-city',
+                      `fantasy medieval ${campaign.act1?.title || 'village'} town square with market stalls, cobblestone streets, timber-framed buildings, adventurers, bustling crowd`,
+                      'warm and inviting, busy marketplace atmosphere',
+                      'golden hour morning light'
+                    )}
+                    className="bg-dark-wood/80 text-gold text-xs px-2 py-1 rounded hover:bg-dark-wood"
+                  >
+                    🔄
+                  </button>
+                </div>
               </div>
             ) : generatingSceneId === 'act1-city' ? (
               <div className="h-48 bg-leather/20 rounded-lg flex items-center justify-center border-2 border-dashed border-gold/30">
