@@ -85,6 +85,7 @@ interface DungeonMap {
     description: string;
     locationRoomId: string;
     unlocksRoomId: string;
+    unlockType: string;
   }>;
   ritualCount?: number;
   secretCount?: number;

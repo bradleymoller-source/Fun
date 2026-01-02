@@ -535,6 +535,7 @@ export interface DungeonMap {
     description: string;
     locationRoomId: string;
     unlocksRoomId: string;
+    unlockType: string;       // 'key' | 'passphrase' | 'scroll' | 'medallion' | etc.
   }>;
   ritualCount?: number;       // How many rituals can be stopped
   secretCount?: number;       // How many secret areas exist
@@ -1573,14 +1574,32 @@ function generateProceduralDungeon(theme: string): DungeonMap {
   const pick = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
   const chance = (pct: number): boolean => Math.random() * 100 < pct;
 
-  // Key/lock item templates
+  // Unlock mechanism templates - variety of ways to access locked areas
   const keyTemplates = [
-    { id: 'iron_key', name: 'Iron Key', desc: 'A heavy iron key with arcane symbols' },
-    { id: 'skull_medallion', name: 'Skull Medallion', desc: 'A medallion shaped like a screaming skull' },
-    { id: 'crystal_shard', name: 'Crystal Shard', desc: 'A glowing crystal fragment' },
-    { id: 'blood_gem', name: 'Blood Gem', desc: 'A crimson gem that pulses with dark energy' },
-    { id: 'shadow_token', name: 'Shadow Token', desc: 'A coin made of solidified shadow' },
-    { id: 'bone_key', name: 'Bone Key', desc: 'A key carved from ancient bone' },
+    // Physical keys
+    { id: 'iron_key', name: 'Iron Key', desc: 'A heavy iron key with arcane symbols etched into the bow', unlockType: 'key' },
+    { id: 'bone_key', name: 'Bone Key', desc: 'A key carved from ancient bone, cold to the touch', unlockType: 'key' },
+    { id: 'crystal_key', name: 'Crystal Key', desc: 'A translucent key that hums faintly with magic', unlockType: 'key' },
+
+    // Passphrases and words of power
+    { id: 'passphrase_note', name: 'Crumpled Note', desc: 'A note with a passphrase scrawled in blood: "By shadow I enter"', unlockType: 'passphrase' },
+    { id: 'command_word', name: 'Guard\'s Orders', desc: 'A scroll listing guard rotations with the command word "Velkarn" circled', unlockType: 'passphrase' },
+    { id: 'whispered_secret', name: 'Dying Words', desc: 'The guard captain whispers "Speak \'nightfall\' to the door" as he falls', unlockType: 'passphrase' },
+
+    // Magical items
+    { id: 'dispel_scroll', name: 'Dispelling Scroll', desc: 'A scroll of Dispel Magic - the only way to bypass the arcane lock', unlockType: 'scroll' },
+    { id: 'ward_breaker', name: 'Enchanted Amulet', desc: 'An amulet that glows near magical wards and can suppress them briefly', unlockType: 'amulet' },
+    { id: 'attunement_gem', name: 'Attunement Gem', desc: 'A gem that must be pressed into a matching socket to open the vault', unlockType: 'gem' },
+
+    // Tokens and symbols
+    { id: 'skull_medallion', name: 'Skull Medallion', desc: 'A medallion that must be worn to pass through the skeletal gate', unlockType: 'medallion' },
+    { id: 'cult_sigil', name: 'Cult Signet Ring', desc: 'A ring bearing the cult\'s symbol - the door recognizes its wearer', unlockType: 'ring' },
+    { id: 'blood_vial', name: 'Vial of Blood', desc: 'A vial of the cult leader\'s blood needed to anoint the door', unlockType: 'blood' },
+
+    // Knowledge and patterns
+    { id: 'combination_clue', name: 'Torn Journal Page', desc: 'A page showing a sequence of symbols that match the lock\'s dials', unlockType: 'combination' },
+    { id: 'musical_notes', name: 'Sheet Music', desc: 'A melody that must be played on the enchanted door chimes', unlockType: 'music' },
+    { id: 'rune_sequence', name: 'Rune Rubbing', desc: 'A rubbing of runes that must be traced on the sealed door', unlockType: 'runes' },
   ];
 
   // Guardian templates for treasure rooms
@@ -1746,7 +1765,7 @@ function generateProceduralDungeon(theme: string): DungeonMap {
   const treasureRoomId = `room-${treasureIndex + 1}`;
   hubRoom.connections.push(treasureRoomId);
 
-  // Create key for treasure room (key is in guard room, index 1)
+  // Create unlock mechanism for treasure room (found in guard room, index 1)
   const keyTemplate = pick(keyTemplates.filter(k => !keys.find(existing => existing.id === k.id)));
   keys.push({
     id: keyTemplate.id,
@@ -1754,6 +1773,7 @@ function generateProceduralDungeon(theme: string): DungeonMap {
     description: keyTemplate.desc,
     locationRoomId: 'room-2', // Guard room
     unlocksRoomId: treasureRoomId,
+    unlockType: keyTemplate.unlockType,
   });
 
   // Ritual room (south of antechamber, index 3)
@@ -1837,10 +1857,35 @@ function generateProceduralDungeon(theme: string): DungeonMap {
 
       let exitDesc = `${dir} ${exitType} to ${targetDef.template.name} (${targetId})`;
 
-      // Add access requirement notes
+      // Add access requirement notes with unlock-type-specific language
       if (targetDef.template.type === 'treasure' && keys.find(k => k.unlocksRoomId === targetId)) {
         const key = keys.find(k => k.unlocksRoomId === targetId)!;
-        exitDesc += ` [LOCKED - requires ${key.name}]`;
+        switch (key.unlockType) {
+          case 'passphrase':
+            exitDesc += ` [SEALED - responds to spoken passphrase]`;
+            break;
+          case 'scroll':
+            exitDesc += ` [WARDED - arcane lock, requires dispelling]`;
+            break;
+          case 'medallion':
+          case 'ring':
+            exitDesc += ` [SEALED - requires bearing the correct symbol]`;
+            break;
+          case 'blood':
+            exitDesc += ` [BLOOD SEALED - requires blood offering]`;
+            break;
+          case 'combination':
+            exitDesc += ` [COMBINATION LOCK - needs correct sequence]`;
+            break;
+          case 'music':
+            exitDesc += ` [CHIME LOCK - requires playing correct melody]`;
+            break;
+          case 'runes':
+            exitDesc += ` [RUNE SEALED - glyphs must be traced correctly]`;
+            break;
+          default:
+            exitDesc += ` [LOCKED - requires ${key.name}]`;
+        }
       }
       if (targetDef.template.pathType === 'secret') {
         exitDesc += ` [SECRET - DC 18 Perception]`;
@@ -1866,11 +1911,46 @@ function generateProceduralDungeon(theme: string): DungeonMap {
     if (isTreasure) {
       const key = keys.find(k => k.unlocksRoomId === roomIdStr);
       if (key) {
+        const locationName = roomDefs[parseInt(key.locationRoomId.split('-')[1]) - 1].template.name;
+
+        // Generate unlock-type-specific description
+        let unlockDesc = '';
+        switch (key.unlockType) {
+          case 'passphrase':
+            unlockDesc = `Sealed by magic - speaking the correct passphrase opens the door. ${key.name} in ${locationName} contains the words.`;
+            break;
+          case 'scroll':
+            unlockDesc = `Protected by an arcane lock. ${key.name} from ${locationName} can dispel the ward.`;
+            break;
+          case 'medallion':
+          case 'ring':
+            unlockDesc = `The door only opens for those bearing the correct symbol. ${key.name} from ${locationName} grants passage.`;
+            break;
+          case 'blood':
+            unlockDesc = `A blood seal protects this entrance. ${key.name} from ${locationName} can satisfy it.`;
+            break;
+          case 'gem':
+          case 'amulet':
+            unlockDesc = `A magical socket awaits the correct focus. ${key.name} from ${locationName} fits perfectly.`;
+            break;
+          case 'combination':
+            unlockDesc = `A complex lock with multiple dials. ${key.name} from ${locationName} shows the correct sequence.`;
+            break;
+          case 'music':
+            unlockDesc = `Enchanted chimes guard the entrance. ${key.name} from ${locationName} reveals the melody to play.`;
+            break;
+          case 'runes':
+            unlockDesc = `Glowing runes seal the door. ${key.name} from ${locationName} shows how to trace them correctly.`;
+            break;
+          default: // 'key'
+            unlockDesc = `A sturdy lock bars entry. ${key.name} from ${locationName} opens it.`;
+        }
+
         accessRequirement = {
           type: 'key',
           keyId: key.id,
           keyLocation: key.locationRoomId,
-          description: `Requires ${key.name} (found in ${roomDefs[parseInt(key.locationRoomId.split('-')[1]) - 1].template.name})`,
+          description: unlockDesc,
         };
       }
     }
@@ -1923,11 +2003,32 @@ function generateProceduralDungeon(theme: string): DungeonMap {
       outline += ` ACCESS: ${accessRequirement.description}`;
     }
 
-    // Add key placement info to guard room
+    // Add unlock mechanism placement info to guard room
     if (index === 1) { // Guard room
       const placedKeys = keys.filter(k => k.locationRoomId === roomIdStr);
       if (placedKeys.length > 0) {
-        outline += ` KEY FOUND HERE: ${placedKeys.map(k => k.name).join(', ')} (carried by guard captain or hidden in locked chest)`;
+        const keyDescriptions = placedKeys.map(k => {
+          switch (k.unlockType) {
+            case 'passphrase':
+              return `${k.name} (on guard captain's body or hidden in desk)`;
+            case 'scroll':
+              return `${k.name} (in guard captain's spell pouch)`;
+            case 'medallion':
+            case 'ring':
+              return `${k.name} (worn by guard captain)`;
+            case 'blood':
+              return `${k.name} (in locked cabinet, DC 12 to pick)`;
+            case 'combination':
+              return `${k.name} (tucked in guard captain's logbook)`;
+            case 'music':
+              return `${k.name} (pinned to notice board)`;
+            case 'runes':
+              return `${k.name} (rolled up in map case)`;
+            default:
+              return `${k.name} (carried by guard captain)`;
+          }
+        });
+        outline += ` UNLOCK MECHANISM HERE: ${keyDescriptions.join('; ')}`;
       }
     }
 
