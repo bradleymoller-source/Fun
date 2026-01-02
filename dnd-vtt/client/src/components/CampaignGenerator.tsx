@@ -2100,6 +2100,14 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated }: C
       {/* Generated Campaign */}
       {campaign && (
         <div>
+          {/* Warning if campaign is partially generated */}
+          {campaign._partial && (
+            <div className="mb-4 p-3 bg-yellow-500/20 border border-yellow-500 rounded-lg">
+              <p className="text-yellow-300 text-sm font-semibold">⚠️ Partial Campaign</p>
+              <p className="text-yellow-200/80 text-xs mt-1">{campaign._error || 'Some sections may be missing. Try regenerating.'}</p>
+            </div>
+          )}
+
           <div className="flex justify-between items-center mb-4">
             <Button size="sm" variant="secondary" onClick={() => setCampaign(null)}>
               New Campaign

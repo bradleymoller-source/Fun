@@ -1205,14 +1205,30 @@ export async function generateCampaign(req: Request, res: Response) {
       });
     }
 
-    // Part 2: Generate Act 2 (Dungeon)
+    // Part 2: Generate Act 2 (Dungeon) - CRITICAL: Contains encounters
+    // Retry up to 2 times since this is the most important part
     let act2Data;
-    try {
-      const prompt2 = buildAct2Prompt(request, overviewAndAct1);
-      act2Data = await callGeminiAndParse(prompt2, 'Act 2');
-    } catch (error) {
-      console.error('Failed to generate Act 2:', error);
-      // Continue with partial data
+    let act2Error = null;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        console.log(`Generating Act 2 (attempt ${attempt}/2)...`);
+        const prompt2 = buildAct2Prompt(request, overviewAndAct1);
+        act2Data = await callGeminiAndParse(prompt2, 'Act 2');
+        if (act2Data?.act2?.encounters?.length > 0) {
+          console.log(`Act 2 generated successfully with ${act2Data.act2.encounters.length} encounters`);
+          break;
+        } else {
+          console.log('Act 2 generated but no encounters found, retrying...');
+        }
+      } catch (error) {
+        console.error(`Failed to generate Act 2 (attempt ${attempt}):`, error);
+        act2Error = error instanceof Error ? error.message : String(error);
+        if (attempt < 2) {
+          console.log('Retrying Act 2 generation...');
+        }
+      }
+    }
+    if (!act2Data?.act2) {
       act2Data = { act2: null };
     }
 
@@ -1226,6 +1242,12 @@ export async function generateCampaign(req: Request, res: Response) {
       // Continue with partial data
       act3Data = { act3: null, epilogue: null };
     }
+
+    // Track what failed to generate
+    const missingParts: string[] = [];
+    if (!act2Data.act2) missingParts.push('Act 2 (dungeon/encounters)');
+    if (!act3Data.act3) missingParts.push('Act 3 (boss fight)');
+    if (!act3Data.epilogue) missingParts.push('Epilogue');
 
     // Merge all parts into complete campaign
     const campaign: GeneratedCampaign = {
@@ -1242,7 +1264,12 @@ export async function generateCampaign(req: Request, res: Response) {
         title: overviewAndAct1.title || 'Adventure',
         summary: overviewAndAct1.synopsis || '',
         objectives: ['Complete Act 1', 'Complete Act 2', 'Defeat the boss', 'Return victorious']
-      }]
+      }],
+      // Indicate if campaign is incomplete
+      _partial: missingParts.length > 0,
+      _error: missingParts.length > 0
+        ? `Some sections failed to generate: ${missingParts.join(', ')}. Try regenerating the campaign.`
+        : undefined,
     };
 
     // Generate dungeon map if requested
