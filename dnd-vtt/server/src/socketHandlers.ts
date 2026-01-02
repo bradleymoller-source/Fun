@@ -457,20 +457,33 @@ export function setupSocketHandlers(io: Server): void {
     });
 
     socket.on('show-map-to-players', async (data: unknown, callback: (response: any) => void) => {
+      logger.info('show-map-to-players event received', { socketId: socket.id, hasCallback: !!callback });
+
+      // Ensure callback exists
+      if (typeof callback !== 'function') {
+        logger.error('No callback provided for show-map-to-players');
+        return;
+      }
+
       try {
         if (!await checkLimit('show-map-to-players')) {
+          logger.info('Rate limited');
           callback({ success: false, error: 'Rate limit exceeded.' });
           return;
         }
 
         const sessionInfo = socketSessions.get(socket.id);
+        logger.info('Session info', { sessionInfo, socketId: socket.id });
+
         if (!sessionInfo || !sessionInfo.isDm) {
-          callback({ success: false, error: 'Only the DM can show maps to players' });
+          logger.info('Not DM or no session');
+          callback({ success: false, error: 'Only the DM can show maps to players. Try refreshing the page to reconnect.' });
           return;
         }
 
         const validation = validateData(ShowMapToPlayersDataSchema, data, 'show-map-to-players');
         if (!validation.success) {
+          logger.info('Validation failed', { error: validation.error });
           callback({ success: false, error: validation.error });
           return;
         }
