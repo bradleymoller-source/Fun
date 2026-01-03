@@ -1665,6 +1665,7 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
                                 effect: item.effect || item.description,
                                 damage: item.damage,
                                 attackBonus: item.attackBonus,
+                                baseWeaponType: item.baseWeaponType,
                                 armorClass: item.armorClass,
                                 armorType: item.armorType,
                                 rarity: item.rarity,
@@ -1686,6 +1687,7 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
                                 effect: item.effect || item.description,
                                 damage: item.damage,
                                 attackBonus: item.attackBonus,
+                                baseWeaponType: item.baseWeaponType,
                                 armorClass: item.armorClass,
                                 armorType: item.armorType,
                                 rarity: item.rarity,
@@ -1733,6 +1735,7 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
                                     effect: item.description,
                                     damage: item.damage,
                                     attackBonus: item.attackBonus,
+                                    baseWeaponType: item.baseWeaponType,
                                     armorClass: item.armorClass,
                                     armorType: item.armorType,
                                   }));
@@ -1753,6 +1756,7 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
                                     effect: item.description,
                                     damage: item.damage,
                                     attackBonus: item.attackBonus,
+                                    baseWeaponType: item.baseWeaponType,
                                     armorClass: item.armorClass,
                                     armorType: item.armorType,
                                   }));

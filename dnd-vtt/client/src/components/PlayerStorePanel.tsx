@@ -206,8 +206,11 @@ export function PlayerStorePanel({ character, onAddToCharacter }: PlayerStorePan
 
   // Convert inventory item to weapon with proper modifiers
   const createWeaponFromItem = (item: PlayerInventoryItem | StoreItem): Weapon => {
-    // Get base weapon type from name
-    const baseWeaponType = getBaseWeaponType(item.name);
+    // Get base weapon type - prefer explicit baseWeaponType field, then try to parse from name
+    const itemBaseWeaponType = ('baseWeaponType' in item ? item.baseWeaponType : undefined);
+    const baseWeaponType = itemBaseWeaponType
+      ? itemBaseWeaponType.toLowerCase()
+      : getBaseWeaponType(item.name);
     const weaponData = baseWeaponType ? WEAPON_DATA[baseWeaponType] : null;
 
     // Parse magic bonus from weapon name (+1, +2, +3)

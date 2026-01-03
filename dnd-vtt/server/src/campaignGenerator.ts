@@ -350,15 +350,17 @@ const campaignFunctionDeclarations = [
               item: { type: SchemaType.STRING, description: "Item name" },
               value: { type: SchemaType.STRING, description: "Gold value" },
               type: { type: SchemaType.STRING, description: "weapon, armor, potion, scroll, treasure, clue, gear" },
+              description: { type: SchemaType.STRING, description: "REQUIRED for clue items: story-relevant description explaining what this clue reveals. For other items: brief flavor text." },
               effect: { type: SchemaType.STRING, description: "Mechanical effect if any" },
-              damage: { type: SchemaType.STRING, description: "For weapons: damage dice (e.g. '1d8+1 slashing')" },
+              damage: { type: SchemaType.STRING, description: "For weapons: FULL damage string including base weapon damage (e.g. '1d8+1 slashing' for longsword +1)" },
               attackBonus: { type: SchemaType.NUMBER, description: "For weapons: attack bonus (e.g. 5 for +5)" },
+              baseWeaponType: { type: SchemaType.STRING, description: "For weapons: the base weapon type (longsword, dagger, greataxe, etc.) so damage can be calculated correctly" },
               armorClass: { type: SchemaType.NUMBER, description: "For armor: AC value" },
               hidden: { type: SchemaType.BOOLEAN, description: "Is it hidden?" },
               findDC: { type: SchemaType.NUMBER, description: "DC to find if hidden" }
             }
           },
-          description: "Treasure and loot. Weapons MUST include damage and attackBonus. Armor MUST include armorClass."
+          description: "Treasure and loot. Weapons MUST include damage, attackBonus, and baseWeaponType. Armor MUST include armorClass. Clue items MUST include description."
         }
       },
       required: ["id", "name", "roomType", "readAloud", "dimensions", "lighting", "contentsObvious", "exits", "treasure"]
@@ -455,15 +457,17 @@ const campaignFunctionDeclarations = [
             properties: {
               item: { type: SchemaType.STRING, description: "Item name" },
               value: { type: SchemaType.STRING, description: "Gold value (e.g. '25gp')" },
-              type: { type: SchemaType.STRING, description: "Item type: weapon, armor, potion, scroll, wondrous, treasure, gear" },
+              type: { type: SchemaType.STRING, description: "Item type: weapon, armor, potion, scroll, wondrous, treasure, clue, gear" },
+              description: { type: SchemaType.STRING, description: "REQUIRED for clue items: story-relevant description. For other items: brief flavor text." },
               effect: { type: SchemaType.STRING, description: "Mechanical effect if magical" },
-              damage: { type: SchemaType.STRING, description: "For weapons: damage dice (e.g. '1d8+1 slashing')" },
+              damage: { type: SchemaType.STRING, description: "For weapons: FULL damage string with base weapon damage (e.g. '1d8+1 slashing' for longsword +1)" },
               attackBonus: { type: SchemaType.NUMBER, description: "For weapons: attack bonus (e.g. 5 for +5)" },
+              baseWeaponType: { type: SchemaType.STRING, description: "For weapons: the base weapon type (longsword, dagger, greataxe, etc.)" },
               armorClass: { type: SchemaType.NUMBER, description: "For armor: AC value" }
             },
             required: ["item", "value", "type"]
           },
-          description: "2-4 loot items. Include gold, potions, scrolls, weapons, or story items. Every encounter should have loot!"
+          description: "2-4 loot items. Weapons MUST include damage, attackBonus, baseWeaponType. Clue items MUST include description."
         }
       },
       required: ["name", "location", "readAloud", "enemies", "tactics", "difficulty", "rewardXP", "rewardLoot"]
@@ -655,12 +659,13 @@ const campaignFunctionDeclarations = [
               rarity: { type: SchemaType.STRING, description: "common, uncommon, rare, very rare" },
               attunement: { type: SchemaType.BOOLEAN, description: "Requires attunement?" },
               lore: { type: SchemaType.STRING, description: "History or significance of the item" },
-              damage: { type: SchemaType.STRING, description: "For weapons: damage dice (e.g. '1d8+1 slashing')" },
+              damage: { type: SchemaType.STRING, description: "For weapons: FULL damage string with base weapon damage (e.g. '1d8+1 slashing' for Shadowblade +1 which is a longsword-type weapon)" },
               attackBonus: { type: SchemaType.NUMBER, description: "For weapons: attack bonus (e.g. 6 for +6)" },
+              baseWeaponType: { type: SchemaType.STRING, description: "For weapons: the base weapon type (longsword, dagger, greataxe, shortsword, etc.) so damage dice can be looked up" },
               armorClass: { type: SchemaType.NUMBER, description: "For armor: AC value" }
             }
           },
-          description: "2-3 magic items. Weapons MUST include damage and attackBonus. Armor MUST include armorClass."
+          description: "2-3 magic items. Weapons MUST include damage, attackBonus, AND baseWeaponType. Armor MUST include armorClass."
         },
         villainLoot: {
           type: SchemaType.ARRAY,
@@ -1102,11 +1107,13 @@ ${bossRoom || 'Final chamber with boss encounter'}
    treasure: [
      {item: "Silver candlesticks", value: "25gp", type: "treasure", hidden: false},
      {item: "Potion of Healing", value: "50gp", type: "potion", effect: "Heals 2d4+2 HP", hidden: true, findDC: 14},
-     {item: "Longsword +1", value: "200gp", type: "weapon", damage: "1d8+1 slashing", attackBonus: 5, effect: "+1 magic weapon"},
-     {item: "Chain Mail", value: "75gp", type: "armor", armorClass: 16, effect: "AC 16, disadvantage on Stealth"}
+     {item: "Longsword +1", value: "200gp", type: "weapon", damage: "1d8+1 slashing", attackBonus: 5, baseWeaponType: "longsword", effect: "+1 magic weapon"},
+     {item: "Chain Mail", value: "75gp", type: "armor", armorClass: 16, effect: "AC 16, disadvantage on Stealth"},
+     {item: "Tattered Map Case", value: "5gp", type: "clue", description: "Contains a partial map of the dungeon with 'X' marked near the boss chamber and a note: 'The ritual must be stopped before the blood moon rises'"}
    ]
-   WEAPONS MUST include: damage (e.g. "1d8+1 slashing") and attackBonus (number)
+   WEAPONS MUST include: damage (e.g. "1d8+1 slashing"), attackBonus (number), AND baseWeaponType (e.g. "longsword", "dagger", "greataxe")
    ARMOR MUST include: armorClass (number)
+   CLUE ITEMS MUST include: description with story-relevant content explaining what the clue reveals
    Include: gold, gems, potions, scrolls, weapons, story clues, keys, maps.
    Some should be hidden (hidden: true, findDC: 12-16).
 
@@ -1136,11 +1143,13 @@ ${bossRoom || 'Final chamber with boss encounter'}
    rewardLoot: [
      {item: "50 gold pieces", value: "50gp", type: "treasure"},
      {item: "Potion of Healing", value: "50gp", type: "potion", effect: "Heals 2d4+2 HP"},
-     {item: "Longsword", value: "15gp", type: "weapon", damage: "1d8 slashing", attackBonus: 4},
-     {item: "Leather Armor", value: "10gp", type: "armor", armorClass: 11, effect: "AC 11 + DEX"}
+     {item: "Longsword", value: "15gp", type: "weapon", damage: "1d8 slashing", attackBonus: 4, baseWeaponType: "longsword"},
+     {item: "Leather Armor", value: "10gp", type: "armor", armorClass: 11, effect: "AC 11 + DEX"},
+     {item: "Captain's Orders", value: "0gp", type: "clue", description: "A crumpled note bearing the cult leader's seal, ordering troops to guard the ritual chamber at all costs"}
    ]
-   WEAPONS MUST include: damage (e.g. "1d8 slashing") and attackBonus (number)
+   WEAPONS MUST include: damage (e.g. "1d8 slashing"), attackBonus (number), AND baseWeaponType
    ARMOR MUST include: armorClass (number)
+   CLUE ITEMS MUST include: description with story-relevant content
 
 7. TRAPS - Include 2-4 hidden traps spread across different rooms:
    Use the trap field in addRoom (NOT separate addTrap calls):
@@ -1227,11 +1236,11 @@ ${bossRoom || 'Final chamber with boss encounter'}
      ]
    - rewardItems: [
        {name: "Shadowblade +1", type: "weapon", rarity: "uncommon", value: "500gp",
-        damage: "1d8+1 slashing", attackBonus: 6, effect: "+1 magic weapon, deals extra 1d6 necrotic in dim light"},
+        damage: "1d8+1 slashing", attackBonus: 6, baseWeaponType: "longsword", effect: "+1 magic weapon, deals extra 1d6 necrotic in dim light"},
        {name: "Cloak of Protection", type: "wondrous", rarity: "uncommon", value: "500gp",
         effect: "+1 to AC and saving throws", attunement: true}
      ]
-   WEAPONS MUST include: damage (e.g. "1d8+1 slashing") and attackBonus (number)
+   WEAPONS MUST include: damage (full dice like "1d8+1 slashing"), attackBonus (number), AND baseWeaponType (e.g. "longsword", "shortsword", "dagger")
    ARMOR MUST include: armorClass (number)
 
 === GENERATION ORDER ===

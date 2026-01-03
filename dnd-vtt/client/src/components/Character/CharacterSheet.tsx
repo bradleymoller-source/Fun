@@ -54,6 +54,7 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
   const [expandedResource, setExpandedResource] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [usedItems, setUsedItems] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const profBonus = getProficiencyBonus(character.level);
@@ -167,6 +168,37 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
         [resourceId]: { ...currentUse, used: newUsed, max },
       },
     });
+  };
+
+  // Mark an item as used (grayed out, can then be deleted)
+  const handleUseItem = (itemId: string) => {
+    setUsedItems(prev => new Set([...prev, itemId]));
+  };
+
+  // Delete a used item from equipment
+  const handleDeleteItem = (itemId: string) => {
+    if (!onUpdate) return;
+    const item = character.equipment.find(e => e.id === itemId);
+    if (!item) return;
+
+    // If quantity > 1, just decrease quantity
+    if (item.quantity > 1) {
+      const updatedEquipment = character.equipment.map(e =>
+        e.id === itemId ? { ...e, quantity: e.quantity - 1 } : e
+      );
+      onUpdate({ equipment: updatedEquipment });
+      // Keep item in used set if there are still items left
+    } else {
+      // Remove item entirely
+      const updatedEquipment = character.equipment.filter(e => e.id !== itemId);
+      onUpdate({ equipment: updatedEquipment });
+      // Remove from used set
+      setUsedItems(prev => {
+        const next = new Set(prev);
+        next.delete(itemId);
+        return next;
+      });
+    }
   };
 
   const handleRollAbility = (ability: keyof AbilityScores) => {
@@ -1215,19 +1247,44 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
             </p>
           ) : (
             <div className="space-y-1">
-              {otherItems.map(item => (
-                <div key={item.id} className="bg-dark-wood p-2 rounded border border-leather">
+              {otherItems.map(item => {
+                const isUsed = item.equipped === false && item.category === 'gear' && usedItems?.has(item.id);
+                return (
+                <div key={item.id} className={`bg-dark-wood p-2 rounded border ${isUsed ? 'border-gray-600 opacity-50' : 'border-leather'}`}>
                   <div className="flex justify-between items-start">
-                    <span className="text-parchment font-medium">{item.name}</span>
-                    {item.quantity > 1 && (
-                      <span className="text-parchment/70 text-sm">×{item.quantity}</span>
+                    <div className="flex-1">
+                      <span className={`font-medium ${isUsed ? 'text-gray-500 line-through' : 'text-parchment'}`}>{item.name}</span>
+                      {item.quantity > 1 && (
+                        <span className="text-parchment/70 text-sm ml-2">×{item.quantity}</span>
+                      )}
+                    </div>
+                    {isEditable && onUpdate && (
+                      <div className="flex gap-1 ml-2">
+                        {!isUsed ? (
+                          <button
+                            onClick={() => handleUseItem(item.id)}
+                            className="text-xs px-2 py-0.5 rounded bg-amber-700/50 hover:bg-amber-600/50 text-amber-300 transition-colors"
+                            title="Mark as used (can then be deleted)"
+                          >
+                            Use
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleDeleteItem(item.id)}
+                            className="text-xs px-2 py-0.5 rounded bg-red-700/50 hover:bg-red-600/50 text-red-300 transition-colors"
+                            title="Delete item permanently"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
                   {item.description && item.description !== item.name && (
-                    <p className="text-parchment/60 text-xs mt-1">{item.description}</p>
+                    <p className={`text-xs mt-1 ${isUsed ? 'text-gray-500' : 'text-parchment/60'}`}>{item.description}</p>
                   )}
                 </div>
-              ))}
+              )})}
             </div>
           )}
         </div>
