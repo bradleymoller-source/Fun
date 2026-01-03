@@ -353,7 +353,7 @@ const campaignFunctionDeclarations = [
               description: { type: SchemaType.STRING, description: "REQUIRED for clue items: story-relevant description explaining what this clue reveals. For other items: brief flavor text." },
               effect: { type: SchemaType.STRING, description: "Mechanical effect if any" },
               damage: { type: SchemaType.STRING, description: "For weapons: FULL damage string including base weapon damage (e.g. '1d8+1 slashing' for longsword +1)" },
-              attackBonus: { type: SchemaType.NUMBER, description: "For weapons: attack bonus (e.g. 5 for +5)" },
+              attackBonus: { type: SchemaType.NUMBER, description: "For weapons: ONLY the magic bonus (1 for +1, 2 for +2, 3 for +3), or 0 for non-magic weapons" },
               baseWeaponType: { type: SchemaType.STRING, description: "For weapons: the base weapon type (longsword, dagger, greataxe, etc.) so damage can be calculated correctly" },
               armorClass: { type: SchemaType.NUMBER, description: "For armor: AC value" },
               hidden: { type: SchemaType.BOOLEAN, description: "Is it hidden?" },
@@ -461,7 +461,7 @@ const campaignFunctionDeclarations = [
               description: { type: SchemaType.STRING, description: "REQUIRED for clue items: story-relevant description. For other items: brief flavor text." },
               effect: { type: SchemaType.STRING, description: "Mechanical effect if magical" },
               damage: { type: SchemaType.STRING, description: "For weapons: FULL damage string with base weapon damage (e.g. '1d8+1 slashing' for longsword +1)" },
-              attackBonus: { type: SchemaType.NUMBER, description: "For weapons: attack bonus (e.g. 5 for +5)" },
+              attackBonus: { type: SchemaType.NUMBER, description: "For weapons: ONLY the magic bonus (1 for +1, 2 for +2, 3 for +3), or 0 for non-magic weapons" },
               baseWeaponType: { type: SchemaType.STRING, description: "For weapons: the base weapon type (longsword, dagger, greataxe, etc.)" },
               armorClass: { type: SchemaType.NUMBER, description: "For armor: AC value" }
             },
@@ -659,8 +659,8 @@ const campaignFunctionDeclarations = [
               rarity: { type: SchemaType.STRING, description: "common, uncommon, rare, very rare" },
               attunement: { type: SchemaType.BOOLEAN, description: "Requires attunement?" },
               lore: { type: SchemaType.STRING, description: "History or significance of the item" },
-              damage: { type: SchemaType.STRING, description: "For weapons: FULL damage string with base weapon damage (e.g. '1d8+1 slashing' for Shadowblade +1 which is a longsword-type weapon)" },
-              attackBonus: { type: SchemaType.NUMBER, description: "For weapons: attack bonus (e.g. 6 for +6)" },
+              damage: { type: SchemaType.STRING, description: "For weapons: FULL damage string with base weapon damage (e.g. '1d8+1 slashing' for a +1 longsword)" },
+              attackBonus: { type: SchemaType.NUMBER, description: "For weapons: ONLY the magic bonus (1 for +1 weapon, 2 for +2, 3 for +3) - DO NOT include proficiency or ability modifiers" },
               baseWeaponType: { type: SchemaType.STRING, description: "For weapons: the base weapon type (longsword, dagger, greataxe, shortsword, etc.) so damage dice can be looked up" },
               armorClass: { type: SchemaType.NUMBER, description: "For armor: AC value" }
             }
@@ -992,7 +992,10 @@ function processFunctionCall(builder: CampaignBuilder, functionName: string, arg
 async function generateCampaignWithFunctions(request: CampaignRequest, dungeonMap: DungeonMap): Promise<GeneratedCampaign> {
   const model = genAI.getGenerativeModel({
     model: 'gemini-2.0-flash-exp',
-    tools: [{ functionDeclarations: campaignFunctionDeclarations as any }]
+    tools: [{ functionDeclarations: campaignFunctionDeclarations as any }],
+    generationConfig: {
+      temperature: 1.0, // Higher temperature for more creative/varied outputs
+    }
   });
 
   // Build room context from dungeon map - separate boss room from Act 2 rooms
@@ -1107,11 +1110,11 @@ ${bossRoom || 'Final chamber with boss encounter'}
    treasure: [
      {item: "Silver candlesticks", value: "25gp", type: "treasure", hidden: false},
      {item: "Potion of Healing", value: "50gp", type: "potion", effect: "Heals 2d4+2 HP", hidden: true, findDC: 14},
-     {item: "Longsword +1", value: "200gp", type: "weapon", damage: "1d8+1 slashing", attackBonus: 5, baseWeaponType: "longsword", effect: "+1 magic weapon"},
+     {item: "Longsword +1", value: "200gp", type: "weapon", damage: "1d8+1 slashing", attackBonus: 1, baseWeaponType: "longsword", effect: "+1 magic weapon"},
      {item: "Chain Mail", value: "75gp", type: "armor", armorClass: 16, effect: "AC 16, disadvantage on Stealth"},
      {item: "Tattered Map Case", value: "5gp", type: "clue", description: "Contains a partial map of the dungeon with 'X' marked near the boss chamber and a note: 'The ritual must be stopped before the blood moon rises'"}
    ]
-   WEAPONS MUST include: damage (e.g. "1d8+1 slashing"), attackBonus (number), AND baseWeaponType (e.g. "longsword", "dagger", "greataxe")
+   WEAPONS MUST include: damage (e.g. "1d8+1 slashing"), attackBonus (magic bonus only: 0 for mundane, 1 for +1, 2 for +2, 3 for +3), AND baseWeaponType (e.g. "longsword", "dagger", "greataxe")
    ARMOR MUST include: armorClass (number)
    CLUE ITEMS MUST include: description with story-relevant content explaining what the clue reveals
    Include: gold, gems, potions, scrolls, weapons, story clues, keys, maps.
@@ -1143,11 +1146,11 @@ ${bossRoom || 'Final chamber with boss encounter'}
    rewardLoot: [
      {item: "50 gold pieces", value: "50gp", type: "treasure"},
      {item: "Potion of Healing", value: "50gp", type: "potion", effect: "Heals 2d4+2 HP"},
-     {item: "Longsword", value: "15gp", type: "weapon", damage: "1d8 slashing", attackBonus: 4, baseWeaponType: "longsword"},
+     {item: "Longsword", value: "15gp", type: "weapon", damage: "1d8 slashing", attackBonus: 0, baseWeaponType: "longsword"},
      {item: "Leather Armor", value: "10gp", type: "armor", armorClass: 11, effect: "AC 11 + DEX"},
      {item: "Captain's Orders", value: "0gp", type: "clue", description: "A crumpled note bearing the cult leader's seal, ordering troops to guard the ritual chamber at all costs"}
    ]
-   WEAPONS MUST include: damage (e.g. "1d8 slashing"), attackBonus (number), AND baseWeaponType
+   WEAPONS MUST include: damage (e.g. "1d8 slashing"), attackBonus (magic bonus only: 0 for mundane, 1/2/3 for +1/+2/+3), AND baseWeaponType
    ARMOR MUST include: armorClass (number)
    CLUE ITEMS MUST include: description with story-relevant content
 
@@ -1226,21 +1229,35 @@ ${bossRoom || 'Final chamber with boss encounter'}
    - throughlinePayoffs: How story threads resolve
 
    REWARDS - ALL REQUIRED:
-   - rewardXP: 1800 (number)
-   - rewardGold: "450 gold pieces"
-   - villainLoot: [
-       {name: "Ornate Ceremonial Dagger", type: "weapon", value: "75gp", description: "A silver dagger with cult symbols"},
-       {name: "Bloodstained Journal", type: "document", value: "0gp", description: "Details the villain's plans"},
-       {name: "Key to Treasure Vault", type: "key", value: "0gp", description: "Opens the locked chest"},
-       {name: "Pouch of Gems", type: "treasure", value: "150gp", description: "3 gems worth 50gp each"}
+   - rewardXP: Calculate based on boss CR and minions (number)
+   - rewardGold: Appropriate gold reward (string like "450 gold pieces")
+   - villainLoot: 3-5 items from the villain's possessions - make these UNIQUE and THEMATIC to your villain!
+   - rewardItems: 2-3 magic items - CREATE UNIQUE ITEMS for THIS adventure!
+
+   CRITICAL: DO NOT copy the examples below! Create ORIGINAL items that fit YOUR theme/setting:
+
+   Example FORMAT only (create your own items with different names/effects):
+   villainLoot: [
+       {name: "[UNIQUE NAME]", type: "weapon", value: "75gp", description: "[STORY-RELEVANT DESC]"},
+       {name: "[VILLAIN'S JOURNAL/NOTES]", type: "document", value: "0gp", description: "[PLOT DETAILS]"}
      ]
-   - rewardItems: [
-       {name: "Shadowblade +1", type: "weapon", rarity: "uncommon", value: "500gp",
-        damage: "1d8+1 slashing", attackBonus: 6, baseWeaponType: "longsword", effect: "+1 magic weapon, deals extra 1d6 necrotic in dim light"},
-       {name: "Cloak of Protection", type: "wondrous", rarity: "uncommon", value: "500gp",
-        effect: "+1 to AC and saving throws", attunement: true}
+   rewardItems: [
+       {name: "[UNIQUE MAGIC WEAPON +1]", type: "weapon", rarity: "uncommon", value: "500gp",
+        damage: "[BASE DICE]+1 [TYPE]", attackBonus: 1, baseWeaponType: "[WEAPON TYPE]",
+        effect: "+1 magic weapon, [UNIQUE MAGICAL PROPERTY matching theme]"},
+       {name: "[UNIQUE WONDROUS ITEM]", type: "wondrous", rarity: "uncommon", value: "500gp",
+        effect: "[UNIQUE EFFECT]", attunement: true/false}
      ]
-   WEAPONS MUST include: damage (full dice like "1d8+1 slashing"), attackBonus (number), AND baseWeaponType (e.g. "longsword", "shortsword", "dagger")
+
+   Ideas for varied boss rewards based on theme:
+   - Undead theme: Gravebane weapons, Spirit-touched items, Lifedrinking blades
+   - Elemental theme: Flamebrand, Frostbite weapons, Storm-touched items
+   - Cult theme: Ritual daggers, Corrupted relics, Mind-shard crystals
+   - Nature theme: Thornweave items, Beastcaller horns, Moonblessed weapons
+   - Demon theme: Hellforged weapons, Soulcatchers, Brimstone amulets
+
+   attackBonus for weapons should be ONLY the magic bonus (1 for +1, 2 for +2, 3 for +3) - NOT proficiency or ability mods
+   WEAPONS MUST include: damage (full dice like "1d8+1 slashing"), attackBonus (magic bonus only: 1, 2, or 3), AND baseWeaponType (e.g. "longsword", "shortsword", "dagger")
    ARMOR MUST include: armorClass (number)
 
 === GENERATION ORDER ===

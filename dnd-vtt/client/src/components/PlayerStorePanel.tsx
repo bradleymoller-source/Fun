@@ -241,16 +241,9 @@ export function PlayerStorePanel({ character, onAddToCharacter, removePlayerInve
     const profBonus = character ? getProficiencyBonus(character.level) : 0;
 
     // Calculate attack bonus: proficiency + ability mod + magic bonus
-    // If item has explicit attackBonus that's non-zero, use it (it's already calculated)
-    let attackBonus = 0;
-    const itemAttackBonus = ('attackBonus' in item ? item.attackBonus : undefined);
-    if (itemAttackBonus !== undefined && itemAttackBonus !== 0) {
-      // Item already has calculated attack bonus
-      attackBonus = itemAttackBonus;
-    } else {
-      // Calculate from character stats
-      attackBonus = profBonus + abilityMod + magicBonus;
-    }
+    // ALWAYS calculate from character stats - ignore item's pre-calculated attackBonus
+    // since it was calculated for a generic character, not this specific one
+    const attackBonus = profBonus + abilityMod + magicBonus;
 
     // Calculate damage string
     let damage = '1d6'; // Default fallback
@@ -271,11 +264,24 @@ export function PlayerStorePanel({ character, onAddToCharacter, removePlayerInve
       damage = `1d6${modString}`;
     }
 
+    // Parse bonus damage from effect (e.g., "deals extra 1d6 necrotic in dim light")
+    const itemEffect = ('effect' in item ? item.effect : undefined);
+    let bonusDamage: string | undefined;
+    if (itemEffect) {
+      // Look for patterns like "1d6 necrotic", "2d6 fire", etc.
+      const bonusDamageMatch = itemEffect.match(/(\d+d\d+(?:\s*\+\s*\d+)?)\s+(necrotic|fire|cold|lightning|radiant|thunder|psychic|poison|acid|force)/i);
+      if (bonusDamageMatch) {
+        bonusDamage = `${bonusDamageMatch[1]} ${bonusDamageMatch[2].toLowerCase()}`;
+      }
+    }
+
     return {
       id: `weapon-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       name: item.name,
       attackBonus,
       damage,
+      bonusDamage,
+      effect: itemEffect,
       properties,
       equipped: false,
     };
@@ -436,7 +442,7 @@ export function PlayerStorePanel({ character, onAddToCharacter, removePlayerInve
     return weaponKeywords.some(kw => name.includes(kw) || desc.includes(kw));
   };
 
-  // Check if item is armor
+  // Check if item is armor (includes items with +AC or +saving throw bonuses)
   const isArmor = (item: PlayerInventoryItem | StoreItem): boolean => {
     const name = item.name.toLowerCase();
 
@@ -446,10 +452,15 @@ export function PlayerStorePanel({ character, onAddToCharacter, removePlayerInve
     if ('itemType' in item && item.itemType === 'armor') return true;
     if ('armorClass' in item && item.armorClass !== undefined) return true;
 
-    const desc = (('description' in item ? item.description : '') || ('effect' in item ? item.effect : '') || '').toLowerCase();
+    const effectText = ('effect' in item ? item.effect : '') || '';
+    const desc = (('description' in item ? item.description : '') || effectText || '').toLowerCase();
     const armorKeywords = ['armor', 'shield', 'mail', 'plate', 'leather armor', 'chain', 'breastplate', 'scale', 'splint', 'half plate', 'padded', 'studded', 'hide', 'ring mail'];
 
-    return armorKeywords.some(kw => name.includes(kw) || desc.includes(kw));
+    // Also detect items with +AC or +saving throw bonus as equippable (like cloaks, rings of protection)
+    const hasAcBonus = /\+\d+\s*(to\s+)?AC/i.test(effectText) || /\+\d+\s*(bonus\s+to\s+)?AC/i.test(desc);
+    const hasSavingBonus = /\+\d+\s*(to\s+)?saving/i.test(effectText) || /\+\d+\s*(bonus\s+to\s+)?saving/i.test(desc);
+
+    return armorKeywords.some(kw => name.includes(kw) || desc.includes(kw)) || hasAcBonus || hasSavingBonus;
   };
 
   // Check if item is a potion

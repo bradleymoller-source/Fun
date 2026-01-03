@@ -322,6 +322,8 @@ export interface Weapon {
   name: string;
   attackBonus: number;
   damage: string;  // e.g., "1d8+3 slashing"
+  bonusDamage?: string;  // e.g., "1d6 necrotic" for magic weapons with extra damage
+  effect?: string;  // Magic item effect description (e.g., "deals extra 1d6 necrotic in dim light")
   properties?: string[];  // e.g., ["versatile", "finesse"]
   equipped: boolean;
 }

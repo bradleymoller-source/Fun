@@ -900,15 +900,30 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
                   <div className="text-parchment/70 text-xs">
                     {weapon.properties?.join(', ')}
                   </div>
-                  <button
-                    onClick={() => handleRollDamage(weapon.name, weapon.damage)}
-                    disabled={!onRoll}
-                    className="text-red-400 text-sm hover:text-red-300 disabled:hover:text-red-400"
-                    title="Roll damage"
-                  >
-                    {weapon.damage}
-                  </button>
+                  <div className="flex gap-2 items-center">
+                    <button
+                      onClick={() => handleRollDamage(weapon.name, weapon.damage)}
+                      disabled={!onRoll}
+                      className="text-red-400 text-sm hover:text-red-300 disabled:hover:text-red-400"
+                      title="Roll damage"
+                    >
+                      {weapon.damage}
+                    </button>
+                    {weapon.bonusDamage && (
+                      <button
+                        onClick={() => handleRollDamage(`${weapon.name} (bonus)`, weapon.bonusDamage!)}
+                        disabled={!onRoll}
+                        className="text-purple-400 text-sm hover:text-purple-300 disabled:hover:text-purple-400"
+                        title="Roll bonus damage"
+                      >
+                        +{weapon.bonusDamage}
+                      </button>
+                    )}
+                  </div>
                 </div>
+                {weapon.effect && (
+                  <p className="text-green-400/80 text-xs mt-1 italic">{weapon.effect}</p>
+                )}
               </div>
             ))}
           </div>
