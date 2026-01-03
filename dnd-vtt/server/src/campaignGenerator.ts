@@ -2,6 +2,32 @@ import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
 import type { Request, Response } from 'express';
 import { generateEncounterGuidelines, getRecommendedBossCR, getMonsterStats, CR_TO_XP } from './encounterScaling';
 
+// Retry helper for rate limit errors
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelayMs: number = 60000 // 60 seconds for rate limits
+): Promise<T> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      const isRateLimit = error?.message?.includes('429') ||
+                          error?.message?.includes('Too Many Requests') ||
+                          error?.message?.includes('quota');
+
+      if (isRateLimit && attempt < maxRetries) {
+        const delay = baseDelayMs * Math.pow(2, attempt); // Exponential backoff
+        console.log(`Rate limit hit. Waiting ${delay/1000}s before retry ${attempt + 1}/${maxRetries}...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        throw error;
+      }
+    }
+  }
+  throw new Error('Max retries exceeded');
+}
+
 // Initialize Google Generative AI client - uses GOOGLE_API_KEY env variable
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '');
 
@@ -938,7 +964,7 @@ function processFunctionCall(builder: CampaignBuilder, functionName: string, arg
 // Generate campaign using function calling
 async function generateCampaignWithFunctions(request: CampaignRequest, dungeonMap: DungeonMap): Promise<GeneratedCampaign> {
   const model = genAI.getGenerativeModel({
-    model: 'gemini-pro',
+    model: 'gemini-2.0-flash-exp',
     tools: [{ functionDeclarations: campaignFunctionDeclarations as any }]
   });
 
@@ -1207,7 +1233,7 @@ Use only SRD monsters. All stats must follow the guidelines above - NO guessing 
 
   // Start the conversation
   const chat = model.startChat();
-  let response = await chat.sendMessage(prompt);
+  let response = await withRetry(() => chat.sendMessage(prompt));
   let iterationCount = 0;
   const maxIterations = 50; // Safety limit
 
@@ -1261,7 +1287,7 @@ Use only SRD monsters. All stats must follow the guidelines above - NO guessing 
     }
 
     // Send function responses back to continue the conversation
-    response = await chat.sendMessage(functionResponses);
+    response = await withRetry(() => chat.sendMessage(functionResponses));
   }
 
   console.log(`Function calling completed after ${iterationCount} iterations`);
@@ -1914,7 +1940,7 @@ function extractJsonFromResponse(text: string): string {
 
 // Helper to call Gemini API and parse response
 async function callGeminiAndParse(prompt: string, partName: string): Promise<any> {
-  const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
 
   console.log(`Generating ${partName}...`);
   const result = await model.generateContent(prompt);
@@ -2707,7 +2733,7 @@ export async function generateCampaignLegacy(req: Request, res: Response) {
 
     let model;
     try {
-      model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+      model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
     } catch (modelError) {
       console.error('Failed to get Gemini model:', modelError);
       return res.status(500).json({
@@ -2812,7 +2838,7 @@ Ensure rooms connect logically and don't overlap. Place entrance at edge.
 Use grid coordinates (0-19 for x and y).`;
 
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
     const result = await model.generateContent(prompt);
     const text = result.response.text();
 
@@ -4240,7 +4266,7 @@ Current map: ${JSON.stringify(dungeonMap)}
 Return the enhanced map as JSON with better room names, descriptions, and features. Keep the same structure.`;
 
       try {
-        const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
         const result = await model.generateContent(prompt);
         const text = result.response.text();
 
@@ -4302,9 +4328,9 @@ async function generateImageWithGemini(prompt: string): Promise<string | null> {
   try {
     const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
-    // Use gemini-pro with image generation capability
+    // Use gemini-2.0-flash-exp with image generation capability
     const model = genAI.getGenerativeModel({
-      model: 'gemini-pro',
+      model: 'gemini-2.0-flash-exp',
       generationConfig: {
         responseModalities: ['Text', 'Image'],
       } as any, // Type assertion needed as responseModalities isn't in the base types yet
@@ -4605,7 +4631,7 @@ Return ONLY valid JSON:
 
 Use only SRD monsters. Balance for the party.`;
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
     const result = await model.generateContent(prompt);
     const text = result.response.text();
 
