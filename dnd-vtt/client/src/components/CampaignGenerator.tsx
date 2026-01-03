@@ -338,25 +338,36 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
     value: string;
     type?: string;
     effect?: string;
+    description?: string;  // Story description for clue items
     damage?: string;
     attackBonus?: number;
     armorClass?: number;
     armorType?: 'light' | 'medium' | 'heavy' | 'shield';
     rarity?: string;
+    baseWeaponType?: string;
   }[], source: string) => {
     for (const lootEntry of items) {
+      // For clue items, use description field; for other items, use effect or generate placeholder
+      let itemDescription = lootEntry.description || lootEntry.effect;
+
+      // If this is a clue item without a description, add a placeholder that indicates it needs DM input
+      if (lootEntry.type === 'clue' && !itemDescription) {
+        itemDescription = `[DM: Add story description for this clue - ${lootEntry.item}]`;
+      }
+
       const lootItem: LootItem = {
         id: `loot-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         name: lootEntry.item,
         value: lootEntry.value,
         quantity: 1,
         source: source,
-        description: lootEntry.effect,
+        description: itemDescription,
         // Item type categorization
         itemType: lootEntry.type as LootItem['itemType'],
         // Weapon fields
         damage: lootEntry.damage,
         attackBonus: lootEntry.attackBonus,
+        baseWeaponType: lootEntry.baseWeaponType,
         // Armor fields
         armorClass: lootEntry.armorClass,
         armorType: lootEntry.armorType,
@@ -1072,8 +1083,10 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
                     value: t.value || '0gp',
                     type: t.type,
                     effect: t.effect,
+                    description: t.description,  // Include clue description
                     damage: t.damage,
                     attackBonus: t.attackBonus,
+                    baseWeaponType: t.baseWeaponType,
                     armorClass: t.armorClass,
                     armorType: t.armorType,
                   }));
@@ -1092,8 +1105,10 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
                     value: t.value || '0gp',
                     type: t.type,
                     effect: t.effect,
+                    description: t.description,  // Include clue description
                     damage: t.damage,
                     attackBonus: t.attackBonus,
+                    baseWeaponType: t.baseWeaponType,
                     armorClass: t.armorClass,
                     armorType: t.armorType,
                   }));
@@ -1106,11 +1121,14 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
             </div>
           </div>
           {room.treasure.map((t: any, i: number) => (
-            <div key={i} className="text-yellow-300 text-xs pl-2 border-l border-yellow-500/30 mt-1">
+            <div key={i} className={`text-yellow-300 text-xs pl-2 border-l mt-1 ${t.type === 'clue' ? 'border-amber-500/50 bg-amber-900/20 p-1 rounded-r' : 'border-yellow-500/30'}`}>
               <span className="font-medium">{t.item}</span>
               {t.value && <span className="text-parchment/50"> - {t.value}</span>}
-              {t.type && <span className="text-blue-300 ml-1">({t.type})</span>}
+              {t.type && <span className={`ml-1 ${t.type === 'clue' ? 'text-amber-400' : 'text-blue-300'}`}>({t.type})</span>}
               {t.effect && <p className="text-green-300/80 text-xs">{t.effect}</p>}
+              {t.type === 'clue' && t.description && (
+                <p className="text-amber-300/90 text-xs mt-0.5 italic">📜 {t.description}</p>
+              )}
             </div>
           ))}
         </div>
@@ -2208,8 +2226,10 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
                                         value: l.value || '0gp',
                                         type: l.type,
                                         effect: l.effect,
+                                        description: l.description,  // Include clue description
                                         damage: l.damage,
                                         attackBonus: l.attackBonus,
+                                        baseWeaponType: l.baseWeaponType,
                                         armorClass: l.armorClass,
                                         armorType: l.armorType,
                                       }
@@ -2232,8 +2252,10 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
                                         value: l.value || '0gp',
                                         type: l.type,
                                         effect: l.effect,
+                                        description: l.description,  // Include clue description
                                         damage: l.damage,
                                         attackBonus: l.attackBonus,
+                                        baseWeaponType: l.baseWeaponType,
                                         armorClass: l.armorClass,
                                         armorType: l.armorType,
                                       }
@@ -2251,15 +2273,18 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
                         <>
                           <p className="text-parchment/70 text-xs">{enc.rewards.xp} XP</p>
                           {enc.rewards.loot?.map((l: any, i: number) => (
-                            <div key={i} className="text-yellow-300 text-xs pl-2 border-l border-yellow-500/30 mt-1">
+                            <div key={i} className={`text-yellow-300 text-xs pl-2 border-l mt-1 ${l.type === 'clue' ? 'border-amber-500/50 bg-amber-900/20 p-1 rounded-r' : 'border-yellow-500/30'}`}>
                               {typeof l === 'string' ? (
                                 <span>{l}</span>
                               ) : (
                                 <>
                                   <span className="font-medium">{l.item}</span>
                                   {l.value && <span className="text-parchment/50"> - {l.value}</span>}
-                                  {l.type && <span className="text-blue-300 ml-1">({l.type})</span>}
+                                  {l.type && <span className={`ml-1 ${l.type === 'clue' ? 'text-amber-400' : 'text-blue-300'}`}>({l.type})</span>}
                                   {l.effect && <p className="text-green-300/80 text-xs">{l.effect}</p>}
+                                  {l.type === 'clue' && l.description && (
+                                    <p className="text-amber-300/90 text-xs mt-0.5 italic">📜 {l.description}</p>
+                                  )}
                                 </>
                               )}
                             </div>

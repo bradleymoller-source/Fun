@@ -616,6 +616,7 @@ export const WARLOCK_INVOCATIONS_KNOWN: Record<number, number> = {
 // Classes that get Expertise and at what level
 export const EXPERTISE_CLASSES: Partial<Record<CharacterClass, { level: number; count: number }>> = {
   bard: { level: 2, count: 2 },   // 2 at level 2, 2 more at level 10
+  ranger: { level: 1, count: 1 }, // 1 at level 1 (Deft Explorer), 2 more at level 9
   rogue: { level: 1, count: 2 },  // 2 at level 1, 2 more at level 6
 };
 
