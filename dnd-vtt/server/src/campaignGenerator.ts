@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
 import type { Request, Response } from 'express';
+import { generateEncounterGuidelines, getRecommendedBossCR, getMonsterStats, CR_TO_XP } from './encounterScaling';
 
 // Initialize Google Generative AI client - uses GOOGLE_API_KEY env variable
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '');
@@ -1197,7 +1198,9 @@ ${bossRoom || 'Final chamber with boss encounter'}
 13. setAftermath - Resolution referencing NPCs by name, throughline resolutions
 14. campaignComplete
 
-Use only SRD monsters. Balance encounters for ${request.partySize} level ${request.partyLevel} characters.`;
+${generateEncounterGuidelines(request.partyLevel, request.partySize)}
+
+Use only SRD monsters. All stats must follow the guidelines above - NO guessing or placeholder values.`;
 
   console.log('Starting function-calling campaign generation...');
   const builder: CampaignBuilder = {};
