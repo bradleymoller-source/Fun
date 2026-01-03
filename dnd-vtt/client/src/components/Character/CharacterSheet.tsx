@@ -1042,6 +1042,33 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
     </div>
   );
 
+  // Calculate AC based on equipment (used for syncing character.armorClass)
+  const calculateACFromEquipment = (equipment: typeof character.equipment) => {
+    const dexMod = getAbilityModifier(character.abilityScores.dexterity);
+    const equippedArmor = equipment.find(e => e.category === 'armor' && e.equipped);
+    const equippedShield = equipment.find(e => e.category === 'shield' && e.equipped);
+
+    let baseAC = 10 + dexMod; // Unarmored
+
+    if (equippedArmor) {
+      const armorAC = equippedArmor.armorClass || 10;
+      if (equippedArmor.armorType === 'light') {
+        baseAC = armorAC + dexMod;
+      } else if (equippedArmor.armorType === 'medium') {
+        const maxDex = equippedArmor.maxDexBonus ?? 2;
+        baseAC = armorAC + Math.min(dexMod, maxDex);
+      } else if (equippedArmor.armorType === 'heavy') {
+        baseAC = armorAC;
+      }
+    }
+
+    if (equippedShield) {
+      baseAC += equippedShield.armorClass || 2;
+    }
+
+    return baseAC;
+  };
+
   // Handle equipping/unequipping items
   const handleToggleEquipped = (itemId: string) => {
     if (!onUpdate) return;
@@ -1055,7 +1082,11 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
       }
       return item;
     });
-    onUpdate({ equipment: updatedEquipment });
+
+    // Calculate the new AC based on updated equipment
+    const newAC = calculateACFromEquipment(updatedEquipment);
+
+    onUpdate({ equipment: updatedEquipment, armorClass: newAC });
   };
 
   // Calculate AC based on equipped armor

@@ -14,6 +14,47 @@ function getProficiencyBonus(level: number): number {
   return Math.ceil(level / 4) + 1;
 }
 
+// Armor base data - AC, type, and properties
+const ARMOR_DATA: Record<string, { ac: number; type: 'light' | 'medium' | 'heavy' | 'shield'; maxDexBonus?: number; stealthDisadvantage?: boolean }> = {
+  // Light Armor
+  'padded': { ac: 11, type: 'light', stealthDisadvantage: true },
+  'leather': { ac: 11, type: 'light' },
+  'leather armor': { ac: 11, type: 'light' },
+  'studded leather': { ac: 12, type: 'light' },
+  'studded': { ac: 12, type: 'light' },
+  // Medium Armor
+  'hide': { ac: 12, type: 'medium', maxDexBonus: 2 },
+  'hide armor': { ac: 12, type: 'medium', maxDexBonus: 2 },
+  'chain shirt': { ac: 13, type: 'medium', maxDexBonus: 2 },
+  'scale mail': { ac: 14, type: 'medium', maxDexBonus: 2, stealthDisadvantage: true },
+  'scale': { ac: 14, type: 'medium', maxDexBonus: 2, stealthDisadvantage: true },
+  'breastplate': { ac: 14, type: 'medium', maxDexBonus: 2 },
+  'half plate': { ac: 15, type: 'medium', maxDexBonus: 2, stealthDisadvantage: true },
+  // Heavy Armor
+  'ring mail': { ac: 14, type: 'heavy', maxDexBonus: 0, stealthDisadvantage: true },
+  'chain mail': { ac: 16, type: 'heavy', maxDexBonus: 0, stealthDisadvantage: true },
+  'splint': { ac: 17, type: 'heavy', maxDexBonus: 0, stealthDisadvantage: true },
+  'splint armor': { ac: 17, type: 'heavy', maxDexBonus: 0, stealthDisadvantage: true },
+  'plate': { ac: 18, type: 'heavy', maxDexBonus: 0, stealthDisadvantage: true },
+  'plate armor': { ac: 18, type: 'heavy', maxDexBonus: 0, stealthDisadvantage: true },
+  // Shield
+  'shield': { ac: 2, type: 'shield' },
+};
+
+// Get base armor type from name
+function getBaseArmorType(name: string): { ac: number; type: 'light' | 'medium' | 'heavy' | 'shield'; maxDexBonus?: number } | null {
+  const lowerName = name.toLowerCase();
+
+  // Check each armor type (longest match first to handle "chain mail" before "chain")
+  const armorTypes = Object.keys(ARMOR_DATA).sort((a, b) => b.length - a.length);
+  for (const armorType of armorTypes) {
+    if (lowerName.includes(armorType)) {
+      return ARMOR_DATA[armorType];
+    }
+  }
+  return null;
+}
+
 // Weapon base data - damage die and damage type
 const WEAPON_DATA: Record<string, { damage: string; damageType: string; properties: string[] }> = {
   // Simple Melee
@@ -263,7 +304,7 @@ export function PlayerStorePanel({ character, onAddToCharacter }: PlayerStorePan
     // Combine description (prefer effect for consumables/magic items, fallback to description)
     const fullDescription = [effectText, descText].filter(Boolean).join(' | ') || item.name;
 
-    // Get armorClass - try field first, then parse from effect text
+    // Get armorClass - try field first, then parse from effect text, then lookup from armor data
     let armorClass = 'armorClass' in item ? item.armorClass : undefined;
     if (armorClass === undefined && effectText) {
       armorClass = parseAcFromText(effectText);
@@ -279,15 +320,44 @@ export function PlayerStorePanel({ character, onAddToCharacter }: PlayerStorePan
       armorType = parseArmorTypeFromText(nameAndDesc);
     }
 
+    // If this is armor and we still don't have AC/type, look up from standard armor data
+    let maxDexBonus: number | undefined;
+    if (isArmor(item)) {
+      const armorData = getBaseArmorType(item.name);
+      if (armorData) {
+        if (armorClass === undefined) {
+          armorClass = armorData.ac;
+        }
+        if (armorType === undefined) {
+          armorType = armorData.type;
+        }
+        maxDexBonus = armorData.maxDexBonus;
+      }
+    }
+
+    // Determine the category - check for shield separately
+    let category: 'armor' | 'shield' | 'potion' | 'gear' = 'gear';
+    if (isArmor(item)) {
+      const name = item.name.toLowerCase();
+      if (name === 'shield' || (armorType === 'shield')) {
+        category = 'shield';
+      } else {
+        category = 'armor';
+      }
+    } else if (isPotion(item)) {
+      category = 'potion';
+    }
+
     return {
       id: `equip-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       name: item.name,
       quantity: 1,
       description: fullDescription,
       equipped: false,
-      category: isArmor(item) ? 'armor' : isPotion(item) ? 'potion' : 'gear',
+      category,
       armorClass,
-      armorType,
+      armorType: armorType !== 'shield' ? armorType : undefined, // Don't set armorType for shields
+      maxDexBonus,
     };
   };
 
@@ -307,11 +377,15 @@ export function PlayerStorePanel({ character, onAddToCharacter }: PlayerStorePan
 
   // Check if item is armor
   const isArmor = (item: PlayerInventoryItem | StoreItem): boolean => {
+    const name = item.name.toLowerCase();
+
+    // Scrolls are never armor, even if they have "shield" in the name
+    if (name.includes('scroll')) return false;
+
     if ('itemType' in item && item.itemType === 'armor') return true;
     if ('armorClass' in item && item.armorClass !== undefined) return true;
 
     const desc = (('description' in item ? item.description : '') || ('effect' in item ? item.effect : '') || '').toLowerCase();
-    const name = item.name.toLowerCase();
     const armorKeywords = ['armor', 'shield', 'mail', 'plate', 'leather armor', 'chain', 'breastplate', 'scale', 'splint', 'half plate', 'padded', 'studded', 'hide', 'ring mail'];
 
     return armorKeywords.some(kw => name.includes(kw) || desc.includes(kw));

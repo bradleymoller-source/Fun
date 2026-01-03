@@ -95,6 +95,45 @@ interface CharacterCreatorProps {
 const SPECIES_LIST: Species[] = ['aasimar', 'dragonborn', 'dwarf', 'elf', 'gnome', 'goliath', 'halfling', 'human', 'orc', 'tiefling'];
 const CLASS_LIST: CharacterClass[] = ['barbarian', 'bard', 'cleric', 'druid', 'fighter', 'monk', 'paladin', 'ranger', 'rogue', 'sorcerer', 'warlock', 'wizard'];
 
+// Equipment descriptions for starting gear
+const EQUIPMENT_DESCRIPTIONS: Record<string, string> = {
+  // Packs
+  "Explorer's Pack": "Backpack, bedroll, mess kit, tinderbox, 10 torches, 10 days rations, waterskin, 50ft hempen rope",
+  "Priest's Pack": "Backpack, blanket, 10 candles, tinderbox, alms box, 2 blocks of incense, censer, vestments, 2 days rations, waterskin",
+  "Diplomat's Pack": "Chest, 2 cases for maps/scrolls, fine clothes, bottle of ink, ink pen, lamp, 2 flasks of oil, 5 sheets of paper, vial of perfume, sealing wax, soap",
+  "Dungeoneer's Pack": "Backpack, crowbar, hammer, 10 pitons, 10 torches, tinderbox, 10 days rations, waterskin, 50ft hempen rope",
+  "Entertainer's Pack": "Backpack, bedroll, 2 costumes, 5 candles, 5 days rations, waterskin, disguise kit",
+  "Burglar's Pack": "Backpack, bag of 1000 ball bearings, 10ft string, bell, 5 candles, crowbar, hammer, 10 pitons, hooded lantern, 2 flasks of oil, 5 days rations, tinderbox, waterskin, 50ft hempen rope",
+  "Scholar's Pack": "Backpack, book of lore, bottle of ink, ink pen, 10 sheets parchment, bag of sand, small knife",
+  // Instruments
+  "Lute": "A stringed musical instrument favored by bards",
+  "Lyre": "A stringed musical instrument",
+  "Flute": "A woodwind musical instrument",
+  "Drum": "A percussion musical instrument",
+  "Horn": "A wind musical instrument",
+  "Bagpipes": "A reed instrument with multiple pipes",
+  "Viol": "A bowed stringed instrument",
+  // Focuses and tools
+  "Holy Symbol": "A religious symbol used as a spellcasting focus for divine magic",
+  "Druidic Focus": "A wooden staff, yew wand, or totem used for druid spellcasting",
+  "Arcane Focus": "A crystal, orb, rod, staff, or wand used for arcane spellcasting",
+  "Component Pouch": "A small leather belt pouch containing material components for spells",
+  "Thieves' Tools": "A set of lockpicks and tools for disabling traps",
+  "Herbalism Kit": "Tools for identifying plants and creating potions and antitoxins",
+  "Spellbook": "A leather-bound book for recording wizard spells",
+  // Ammunition
+  "Crossbow Bolts (20)": "20 bolts for use with crossbows",
+  "Arrows (20)": "20 arrows for use with bows",
+  "Sling Bullets (20)": "20 bullets for use with a sling",
+  // Other common items
+  "Backpack": "A leather pack for carrying equipment",
+  "Bedroll": "A padded roll for sleeping",
+  "Rope (50ft)": "50 feet of hempen rope",
+  "Torch": "A wooden rod with a flammable end that burns for 1 hour",
+  "Rations (1 day)": "Dried food suitable for travel",
+  "Waterskin": "A container for holding water",
+};
+
 export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCreatorProps) {
   const [step, setStep] = useState<CreationStep>('basics');
 
@@ -857,7 +896,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
         id: `equip-${idx}`,
         name: e.name,
         quantity: e.quantity,
-        description: e.name,
+        description: EQUIPMENT_DESCRIPTIONS[e.name] || e.name,
         category: 'gear' as const,
       }));
 

@@ -259,10 +259,23 @@ export function useSocket() {
     // Item received (player receives when DM gives them an item)
     socket.on('item-received', (data) => {
       if (data.playerInventories) {
-        // Add to player's local inventory
+        // Get current inventory to avoid duplicates
+        const currentInventory = useSessionStore.getState().playerInventories;
+        const existingIds = new Set(currentInventory.map(i => i.id));
+
+        // Only add items that don't already exist
         data.playerInventories.forEach((item: PlayerInventoryItem) => {
-          store.addToPlayerInventory(item);
+          if (!existingIds.has(item.id)) {
+            store.addToPlayerInventory(item);
+          }
         });
+      }
+    });
+
+    // Player inventory updated (after removing an item)
+    socket.on('player-inventory-updated', (data) => {
+      if (data.inventories) {
+        store.setPlayerInventories(data.inventories);
       }
     });
 
