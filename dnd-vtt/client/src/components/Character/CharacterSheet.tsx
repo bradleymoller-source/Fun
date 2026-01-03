@@ -1101,7 +1101,7 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
         <div>
           <h4 className="text-gold font-semibold mb-2">Currency</h4>
           <div className="grid grid-cols-5 gap-1 text-center">
-            {(['copper', 'silver', 'electrum', 'gold', 'platinum'] as const).map(coin => (
+            {(['platinum', 'gold', 'electrum', 'silver', 'copper'] as const).map(coin => (
               <div key={coin} className="bg-dark-wood p-2 rounded border border-leather">
                 {isEditable && onUpdate ? (
                   <input

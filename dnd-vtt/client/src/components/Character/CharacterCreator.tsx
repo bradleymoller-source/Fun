@@ -857,6 +857,8 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
         id: `equip-${idx}`,
         name: e.name,
         quantity: e.quantity,
+        description: e.name,
+        category: 'gear' as const,
       }));
 
       // Add shield if class pack includes one
@@ -985,6 +987,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
           name: e.name,
           quantity: e.quantity,
           description: e.description,
+          category: e.category === 'armor' ? 'armor' : 'gear',
         };
 
         // Add armor properties for armor items
