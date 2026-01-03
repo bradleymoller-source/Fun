@@ -146,56 +146,57 @@ export function PlayerStorePanel({ character, onAddToCharacter }: PlayerStorePan
 
   // Handle buying from store
   const handleBuy = (item: StoreItem) => {
-    console.log('handleBuy called with:', item);
-    console.log('character:', character?.name, 'onAddToCharacter:', !!onAddToCharacter);
+    if (!character) {
+      setBuyMessage('ERROR: No character loaded');
+      setTimeout(() => setBuyMessage(null), 3000);
+      return;
+    }
 
-    if (!character || !onAddToCharacter) {
-      setBuyMessage('No character loaded');
-      setTimeout(() => setBuyMessage(null), 2000);
+    if (!onAddToCharacter) {
+      setBuyMessage('ERROR: No update function');
+      setTimeout(() => setBuyMessage(null), 3000);
       return;
     }
 
     const copperCost = parsePriceToCopper(item.price);
-    console.log('Price:', item.price, 'copperCost:', copperCost);
-
     if (copperCost === 0) {
-      setBuyMessage('Invalid price');
-      setTimeout(() => setBuyMessage(null), 2000);
+      setBuyMessage(`ERROR: Invalid price "${item.price}"`);
+      setTimeout(() => setBuyMessage(null), 3000);
       return;
     }
 
     const currentCurrency = character.currency || { copper: 0, silver: 0, electrum: 0, gold: 0, platinum: 0 };
-    console.log('currentCurrency:', currentCurrency);
-    const newCurrency = deductCopper(currentCurrency, copperCost);
-    console.log('newCurrency after deduction:', newCurrency);
+    const totalCopper = getTotalCopper(currentCurrency);
 
+    if (totalCopper < copperCost) {
+      setBuyMessage(`Not enough gold! Need ${copperCost}cp, have ${totalCopper}cp`);
+      setTimeout(() => setBuyMessage(null), 3000);
+      return;
+    }
+
+    const newCurrency = deductCopper(currentCurrency, copperCost);
     if (!newCurrency) {
-      setBuyMessage('Not enough gold!');
-      setTimeout(() => setBuyMessage(null), 2000);
+      setBuyMessage('ERROR: Currency deduction failed');
+      setTimeout(() => setBuyMessage(null), 3000);
       return;
     }
 
     // Determine where to add the item
     const weaponCheck = isWeapon(item);
-    console.log('isWeapon:', weaponCheck, 'item name:', item.name);
 
     if (weaponCheck) {
       const newWeapon = createWeaponFromItem(item);
-      console.log('Created weapon:', newWeapon);
       const updatedWeapons = [...(character.weapons || []), newWeapon];
-      console.log('Calling onAddToCharacter with weapons:', updatedWeapons.length);
       onAddToCharacter({ weapons: updatedWeapons, currency: newCurrency });
-      setBuyMessage(`Bought ${item.name} - added to Weapons!`);
+      setBuyMessage(`✓ Bought ${item.name} → Combat tab (${updatedWeapons.length} weapons)`);
     } else {
       const newEquipment = createEquipmentFromItem(item);
-      console.log('Created equipment:', newEquipment);
       const updatedEquipment = [...(character.equipment || []), newEquipment];
-      console.log('Calling onAddToCharacter with equipment:', updatedEquipment.length);
       onAddToCharacter({ equipment: updatedEquipment, currency: newCurrency });
-      setBuyMessage(`Bought ${item.name} - added to Gear!`);
+      setBuyMessage(`✓ Bought ${item.name} → Equipment tab (${updatedEquipment.length} items)`);
     }
 
-    setTimeout(() => setBuyMessage(null), 2000);
+    setTimeout(() => setBuyMessage(null), 3000);
   };
 
   // Check if player can afford item
