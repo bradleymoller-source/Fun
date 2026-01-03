@@ -1786,9 +1786,24 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
         if (campaign.act3?.bossEncounter) {
           const boss = campaign.act3.bossEncounter;
           const villain = boss.villain || {};
+
+          // Build legendary actions as traits
+          const legendaryTraits = villain.legendaryActions?.map((la: any) =>
+            typeof la === 'string'
+              ? { name: 'Legendary Action', description: la }
+              : { name: `Legendary (${la.cost})`, description: `${la.name}: ${la.effect}` }
+          ) || [];
+
+          // Build traits array
+          const villainTraits = [
+            ...(villain.traits || []),
+            ...(villain.weakness ? [{ name: 'Weakness', description: villain.weakness }] : []),
+            ...legendaryTraits
+          ];
+
           const bossEncounter = {
             name: `Boss: ${villain.name || 'Final Confrontation'}`,
-            difficulty: 'deadly',
+            difficulty: 'boss',
             readAloud: boss.readAloud,
             location: 'Boss Chamber',
             tactics: villain.tactics,
@@ -1800,24 +1815,39 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
                 cr: villain.cr,
                 hp: villain.hp,
                 ac: villain.ac,
-                attacks: villain.abilities?.map((a: string) => ({
-                  name: a.split('(')[0]?.trim() || a,
-                  bonus: '?',
-                  damage: a.match(/\d+d\d+[^)]*/)?.[ 0] || 'see ability',
-                  damageType: 'varies'
-                })),
-                traits: [
-                  { name: 'Weakness', description: villain.weakness },
-                  ...(villain.legendaryActions?.map((la: string) => ({ name: 'Legendary', description: la })) || [])
-                ],
-                spells: []
+                acType: villain.acType,
+                initiative: villain.initiative,
+                speed: villain.speed,
+                attacks: villain.attacks || [],
+                spells: villain.spells || [],
+                traits: villainTraits,
+                resistances: villain.resistances || [],
+                immunities: villain.immunities || []
               },
+              // Minions with full stats
               ...(boss.minions || []).map((m: any) => ({
                 name: m.name,
                 count: m.count,
+                cr: m.cr || '?',
                 hp: m.hp,
                 ac: m.ac,
-                cr: '?'
+                initiative: m.initiative,
+                speed: m.speed,
+                attacks: m.attacks || [],
+                role: m.role
+              })),
+              // Summons with full stats
+              ...(boss.summons || []).map((s: any) => ({
+                name: `[Summon] ${s.name}`,
+                count: s.count,
+                cr: s.cr || '?',
+                hp: s.hp,
+                ac: s.ac,
+                initiative: s.initiative,
+                speed: s.speed,
+                attacks: s.attacks || [],
+                traits: s.traits?.map((t: string) => ({ name: 'Trait', description: t })) || [],
+                summonTrigger: s.summonTrigger
               }))
             ],
             rewards: boss.rewards,

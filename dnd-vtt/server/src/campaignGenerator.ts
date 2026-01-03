@@ -474,29 +474,138 @@ const campaignFunctionDeclarations = [
         villainCR: { type: SchemaType.STRING, description: "Challenge rating balanced for party" },
         villainHP: { type: SchemaType.NUMBER, description: "Hit points" },
         villainAC: { type: SchemaType.NUMBER, description: "Armor class" },
+        villainACType: { type: SchemaType.STRING, description: "Armor type (natural armor, mage armor, etc.)" },
+        villainInitiative: { type: SchemaType.NUMBER, description: "Initiative bonus (DEX modifier)" },
+        villainSpeed: { type: SchemaType.STRING, description: "Movement speed (e.g. '30 ft., fly 60 ft.')" },
         villainMotivation: { type: SchemaType.STRING, description: "Deep motivation - what drove them to villainy? Connect to backstory." },
         villainPersonality: { type: SchemaType.STRING, description: "How they act, speak, their demeanor" },
         villainDialogueOpening: { type: SchemaType.STRING, description: "What they say when party enters (actual dialogue, reference what they know about the party)" },
         villainDialogueMidFight: { type: SchemaType.STRING, description: "Taunts and threats during combat" },
         villainDialogueDefeat: { type: SchemaType.STRING, description: "Final words or revelation when defeated" },
         villainTactics: { type: SchemaType.STRING, description: "Detailed combat tactics: opening moves, preferred targets, use of terrain" },
-        villainAbilities: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "3-4 key abilities with effects" },
+        villainAttacks: {
+          type: SchemaType.ARRAY,
+          items: {
+            type: SchemaType.OBJECT,
+            properties: {
+              name: { type: SchemaType.STRING, description: "Attack name (e.g. 'Shadow Blade', 'Corrupting Touch')" },
+              bonus: { type: SchemaType.NUMBER, description: "Attack bonus (e.g. 7 for +7)" },
+              damage: { type: SchemaType.STRING, description: "Damage dice (e.g. '2d8+4')" },
+              damageType: { type: SchemaType.STRING, description: "Damage type (slashing, necrotic, fire, etc.)" },
+              range: { type: SchemaType.STRING, description: "Range (e.g. '5 ft.', '60 ft.', '30/120 ft.')" },
+              notes: { type: SchemaType.STRING, description: "Special effects (e.g. 'target must make DC 14 CON save or be poisoned')" }
+            },
+            required: ["name", "bonus", "damage", "damageType"]
+          },
+          description: "2-4 attacks the villain can make with FULL combat stats"
+        },
+        villainSpells: {
+          type: SchemaType.ARRAY,
+          items: {
+            type: SchemaType.OBJECT,
+            properties: {
+              name: { type: SchemaType.STRING, description: "Spell name" },
+              level: { type: SchemaType.NUMBER, description: "Spell level (0 for cantrip)" },
+              damage: { type: SchemaType.STRING, description: "Damage if applicable (e.g. '3d10 fire')" },
+              effect: { type: SchemaType.STRING, description: "Effect description" },
+              save: { type: SchemaType.STRING, description: "Save type and DC (e.g. 'DC 15 WIS')" },
+              range: { type: SchemaType.STRING, description: "Range (e.g. '120 ft.')" }
+            },
+            required: ["name", "level"]
+          },
+          description: "Spells and cantrips if villain is a spellcaster"
+        },
+        villainTraits: {
+          type: SchemaType.ARRAY,
+          items: {
+            type: SchemaType.OBJECT,
+            properties: {
+              name: { type: SchemaType.STRING, description: "Trait name" },
+              description: { type: SchemaType.STRING, description: "What it does" }
+            },
+            required: ["name", "description"]
+          },
+          description: "Special traits (Magic Resistance, Regeneration, etc.)"
+        },
+        villainResistances: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "Damage resistances (e.g. ['fire', 'cold'])" },
+        villainImmunities: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "Damage immunities (e.g. ['poison', 'necrotic'])" },
         villainWeakness: { type: SchemaType.STRING, description: "Exploitable weakness that was foreshadowed in Act 1 or 2" },
-        legendaryActions: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "2-3 legendary actions if appropriate for CR" },
+        legendaryActions: {
+          type: SchemaType.ARRAY,
+          items: {
+            type: SchemaType.OBJECT,
+            properties: {
+              name: { type: SchemaType.STRING, description: "Action name" },
+              cost: { type: SchemaType.NUMBER, description: "How many legendary actions it costs (1-3)" },
+              effect: { type: SchemaType.STRING, description: "What it does" }
+            },
+            required: ["name", "cost", "effect"]
+          },
+          description: "2-3 legendary actions with costs and effects"
+        },
         phaseChanges: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "What changes at 75%, 50%, 25% HP - new abilities, terrain changes, minion spawns" },
         minions: {
           type: SchemaType.ARRAY,
           items: {
             type: SchemaType.OBJECT,
             properties: {
-              name: { type: SchemaType.STRING },
-              count: { type: SchemaType.NUMBER },
-              hp: { type: SchemaType.NUMBER },
-              ac: { type: SchemaType.NUMBER },
-              role: { type: SchemaType.STRING, description: "Their tactical role: protect boss, harass casters, etc." }
-            }
+              name: { type: SchemaType.STRING, description: "Minion name" },
+              count: { type: SchemaType.NUMBER, description: "How many" },
+              cr: { type: SchemaType.STRING, description: "Challenge rating" },
+              hp: { type: SchemaType.NUMBER, description: "Hit points each" },
+              ac: { type: SchemaType.NUMBER, description: "Armor class" },
+              initiative: { type: SchemaType.NUMBER, description: "Initiative bonus" },
+              speed: { type: SchemaType.STRING, description: "Movement speed" },
+              attacks: {
+                type: SchemaType.ARRAY,
+                items: {
+                  type: SchemaType.OBJECT,
+                  properties: {
+                    name: { type: SchemaType.STRING },
+                    bonus: { type: SchemaType.NUMBER },
+                    damage: { type: SchemaType.STRING },
+                    damageType: { type: SchemaType.STRING }
+                  }
+                },
+                description: "Minion attacks"
+              },
+              role: { type: SchemaType.STRING, description: "Tactical role: protect boss, harass casters, flank" }
+            },
+            required: ["name", "count", "hp", "ac", "initiative", "speed", "attacks", "role"]
           },
-          description: "Minions in the fight with stats and roles"
+          description: "Minions with FULL combat stats"
+        },
+        summons: {
+          type: SchemaType.ARRAY,
+          items: {
+            type: SchemaType.OBJECT,
+            properties: {
+              name: { type: SchemaType.STRING, description: "Summoned creature name" },
+              summonTrigger: { type: SchemaType.STRING, description: "When summoned (e.g. 'At 50% HP', 'Round 3')" },
+              count: { type: SchemaType.NUMBER, description: "How many" },
+              cr: { type: SchemaType.STRING, description: "Challenge rating" },
+              hp: { type: SchemaType.NUMBER, description: "Hit points each" },
+              ac: { type: SchemaType.NUMBER, description: "Armor class" },
+              initiative: { type: SchemaType.NUMBER, description: "Initiative bonus" },
+              speed: { type: SchemaType.STRING, description: "Movement speed" },
+              attacks: {
+                type: SchemaType.ARRAY,
+                items: {
+                  type: SchemaType.OBJECT,
+                  properties: {
+                    name: { type: SchemaType.STRING },
+                    bonus: { type: SchemaType.NUMBER },
+                    damage: { type: SchemaType.STRING },
+                    damageType: { type: SchemaType.STRING }
+                  }
+                },
+                description: "Summon attacks"
+              },
+              traits: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "Special traits" }
+            },
+            required: ["name", "summonTrigger", "count", "hp", "ac", "initiative", "speed", "attacks"]
+          },
+          description: "Creatures summoned during the fight with FULL combat stats"
         },
         throughlinePayoffs: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "How each throughline from Act 1 pays off in this fight" },
         rewardXP: { type: SchemaType.NUMBER, description: "Total XP for defeating boss and minions" },
@@ -519,7 +628,7 @@ const campaignFunctionDeclarations = [
         },
         villainLoot: { type: SchemaType.STRING, description: "Everything on the villain's body: equipment, notes, keys, etc." }
       },
-      required: ["title", "overview", "chamberReadAloud", "chamberFeatures", "chamberDimensions", "villainName", "villainAppearance", "villainType", "villainCR", "villainHP", "villainAC", "villainMotivation", "villainPersonality", "villainDialogueOpening", "villainDialogueMidFight", "villainDialogueDefeat", "villainTactics", "villainAbilities", "villainWeakness", "legendaryActions", "phaseChanges", "throughlinePayoffs", "rewardXP", "rewardGold", "rewardItems", "villainLoot"]
+      required: ["title", "overview", "chamberReadAloud", "chamberFeatures", "chamberDimensions", "villainName", "villainAppearance", "villainType", "villainCR", "villainHP", "villainAC", "villainACType", "villainInitiative", "villainSpeed", "villainMotivation", "villainPersonality", "villainDialogueOpening", "villainDialogueMidFight", "villainDialogueDefeat", "villainTactics", "villainAttacks", "villainWeakness", "legendaryActions", "phaseChanges", "throughlinePayoffs", "rewardXP", "rewardGold", "rewardItems", "villainLoot"]
     }
   },
   {
@@ -769,6 +878,9 @@ function processFunctionCall(builder: CampaignBuilder, functionName: string, arg
           cr: args.villainCR,
           hp: args.villainHP,
           ac: args.villainAC,
+          acType: args.villainACType,
+          initiative: args.villainInitiative,
+          speed: args.villainSpeed,
           motivation: args.villainMotivation,
           personality: args.villainPersonality,
           dialogue: {
@@ -777,12 +889,17 @@ function processFunctionCall(builder: CampaignBuilder, functionName: string, arg
             defeat: args.villainDialogueDefeat
           },
           tactics: args.villainTactics,
-          abilities: args.villainAbilities,
+          attacks: args.villainAttacks,
+          spells: args.villainSpells,
+          traits: args.villainTraits,
+          resistances: args.villainResistances,
+          immunities: args.villainImmunities,
           weakness: args.villainWeakness,
           legendaryActions: args.legendaryActions
         },
         phaseChanges: args.phaseChanges,
         minions: args.minions,
+        summons: args.summons,
         throughlinePayoffs: args.throughlinePayoffs,
         rewards: {
           xp: args.rewardXP,
@@ -967,45 +1084,75 @@ ${bossRoom || 'Final chamber with boss encounter'}
    - trap.hint: "Tiny holes visible in the wall"
 
 8. BOSS ENCOUNTER - setBossEncounter for Act 3 (NOT addRoom):
-   THIS IS THE CLIMAX - FILL IN EVERY FIELD COMPLETELY:
+   THIS IS THE CLIMAX - FILL IN EVERY FIELD COMPLETELY WITH NO "?" VALUES:
 
    BOSS CHAMBER (this IS the Act 3 room - no separate addRoom needed):
-   - chamberReadAloud: 2-3 FULL paragraphs describing the boss's lair. Set the scene!
-     Describe the architecture, lighting, atmosphere, what the villain is doing when party arrives.
+   - chamberReadAloud: 2-3 FULL paragraphs describing the boss's lair
    - chamberDimensions: "60x80 feet with 30-foot vaulted ceiling"
-   - chamberFeatures: 4-5 tactical terrain features (pillars, pits, altars, braziers)
+   - chamberFeatures: 4-5 tactical terrain features
 
-   VILLAIN DETAILS (all required):
-   - villainName, villainAppearance (2-3 sentences of physical description)
-   - villainType, villainCR, villainHP, villainAC
-   - villainMotivation: What drives them? Connect to backstory
-   - villainPersonality: How they act, speak, their demeanor
-   - villainTactics: "Opens with [spell/ability], focuses [target type], uses [ability] when bloodied, retreats to [position] when desperate"
-   - villainAbilities: Array of 3-4 abilities ["Shadowbolt (60ft, 3d8 necrotic)", "Dark Shield (reaction, +5 AC)", etc.]
-   - villainWeakness: Foreshadowed weakness players can exploit
-   - legendaryActions: 2-3 legendary actions if CR 3+
+   VILLAIN COMBAT STATS (ALL REQUIRED - NO "?" ALLOWED):
+   - villainName, villainAppearance, villainType
+   - villainCR: "4" (Challenge Rating as string)
+   - villainHP: 85 (number)
+   - villainAC: 16 (number)
+   - villainACType: "natural armor" or "chain mail" etc.
+   - villainInitiative: 3 (DEX modifier as number)
+   - villainSpeed: "30 ft." or "30 ft., fly 60 ft."
 
-   VILLAIN DIALOGUE (all three required with ACTUAL LINES):
-   - villainDialogueOpening: What they say when party enters (reference what they know)
-   - villainDialogueMidFight: Taunts during combat (3-4 different lines)
-   - villainDialogueDefeat: Final words when defeated
+   VILLAIN ATTACKS - REQUIRED with FULL stats:
+   villainAttacks: [
+     {name: "Shadow Blade", bonus: 7, damage: "2d8+4", damageType: "necrotic", range: "5 ft.", notes: "On hit, target must make DC 14 CON save or be frightened"},
+     {name: "Corrupting Touch", bonus: 7, damage: "3d6", damageType: "necrotic", range: "5 ft."},
+     {name: "Dark Bolt", bonus: 6, damage: "2d10", damageType: "necrotic", range: "60 ft."}
+   ]
 
-   FIGHT DYNAMICS:
-   - phaseChanges: ["At 75% HP: summons 2 shadow minions", "At 50% HP: lair begins to collapse, difficult terrain", "At 25% HP: desperate frenzy, gains extra attack"]
-   - minions: Array of {name, count, hp, ac, role}
-   - throughlinePayoffs: How each throughline resolves in this fight
+   VILLAIN SPELLS (if spellcaster):
+   villainSpells: [
+     {name: "Fire Bolt", level: 0, damage: "2d10 fire", range: "120 ft."},
+     {name: "Hold Person", level: 2, save: "DC 15 WIS", effect: "Paralyzed", range: "60 ft."}
+   ]
+
+   VILLAIN TRAITS, RESISTANCES, IMMUNITIES:
+   villainTraits: [{name: "Magic Resistance", description: "Advantage on saves vs spells"}]
+   villainResistances: ["cold", "fire"]
+   villainImmunities: ["poison", "necrotic"]
+
+   LEGENDARY ACTIONS (with cost and effect):
+   legendaryActions: [
+     {name: "Attack", cost: 1, effect: "Makes one Shadow Blade attack"},
+     {name: "Dark Teleport", cost: 2, effect: "Teleports up to 30 feet to unoccupied space"}
+   ]
+
+   MINIONS - FULL COMBAT STATS REQUIRED:
+   minions: [{
+     name: "Shadow Cultist", count: 2, cr: "1/2", hp: 22, ac: 13,
+     initiative: 2, speed: "30 ft.",
+     attacks: [{name: "Dagger", bonus: 4, damage: "1d4+2", damageType: "piercing"}],
+     role: "Harass spellcasters"
+   }]
+
+   SUMMONS (if villain summons creatures during fight):
+   summons: [{
+     name: "Shadow Demon", summonTrigger: "At 50% HP", count: 2,
+     cr: "1", hp: 27, ac: 12, initiative: 3, speed: "30 ft., fly 30 ft.",
+     attacks: [{name: "Claw", bonus: 5, damage: "2d6+3", damageType: "necrotic"}],
+     traits: ["Shadow Stealth", "Incorporeal Movement"]
+   }]
+
+   OTHER REQUIRED FIELDS:
+   - villainMotivation, villainPersonality, villainTactics, villainWeakness
+   - villainDialogueOpening, villainDialogueMidFight, villainDialogueDefeat
+   - phaseChanges: ["At 75% HP: ...", "At 50% HP: ...", "At 25% HP: ..."]
+   - throughlinePayoffs: How story threads resolve
 
    REWARDS - ALL REQUIRED:
-   - rewardXP: Total XP for the encounter (e.g. 1800)
+   - rewardXP: 1800 (number)
    - rewardGold: "450 gold pieces, 3 gems worth 50gp each"
    - villainLoot: "Ornate dagger, bloodstained journal, key to treasure vault"
-   - rewardItems: MUST include 2-3 magic items:
-     [
+   - rewardItems: [
        {name: "Staff of the Void", type: "staff", rarity: "rare", value: "2000gp",
-        effect: "+1 to spell attack rolls. Can cast Darkness 1/day.", attunement: true,
-        lore: "Once belonged to the archmage who sealed the demon"},
-       {name: "Amulet of Proof Against Detection", type: "wondrous", rarity: "uncommon",
-        value: "500gp", effect: "Cannot be targeted by divination magic", attunement: true}
+        effect: "+1 to spell attack rolls. Can cast Darkness 1/day.", attunement: true}
      ]
 
 === GENERATION ORDER ===
@@ -1038,20 +1185,15 @@ ${bossRoom || 'Final chamber with boss encounter'}
     - spells: Array of {name, level, damage, effect, save} for casters
     - traits: Array of {name, description} for Pack Tactics, Keen Senses, etc.
     - resistances, immunities: Arrays of damage types
-12. setBossEncounter - THE MOST IMPORTANT CALL. This IS Act 3. Include ALL fields:
-    - chamberReadAloud: 2-3 FULL paragraphs setting the scene of the boss's lair
-    - chamberDimensions: Size of arena
-    - chamberFeatures: 4-5 tactical terrain elements
-    - ALL villain fields: name, appearance, type, CR, HP, AC, motivation, personality
-    - villainTactics: Detailed combat strategy (3+ sentences)
-    - villainAbilities: Array of 3-4 abilities with effects
-    - ALL dialogue: opening (when party enters), midFight (taunts), defeat (final words)
-    - legendaryActions: 2-3 legendary actions
-    - phaseChanges: What changes at 75%, 50%, 25% HP
-    - minions: Supporting enemies with stats and roles
-    - throughlinePayoffs: How each story thread resolves
-    - rewardItems: 2-3 magic items with FULL mechanical effects
-    - villainLoot: Everything on the villain's body
+12. setBossEncounter - THE MOST IMPORTANT CALL. NO "?" VALUES ALLOWED:
+    - villainHP, villainAC, villainACType, villainInitiative (number), villainSpeed
+    - villainAttacks: Array of {name, bonus, damage, damageType, range, notes}
+    - villainSpells: Array of {name, level, damage, effect, save, range} if caster
+    - villainTraits, villainResistances, villainImmunities
+    - legendaryActions: Array of {name, cost, effect}
+    - minions: Array with FULL stats {name, count, cr, hp, ac, initiative, speed, attacks, role}
+    - summons: If villain summons creatures, include full stats
+    - rewardItems: 2-3 magic items with mechanical effects
 13. setAftermath - Resolution referencing NPCs by name, throughline resolutions
 14. campaignComplete
 
