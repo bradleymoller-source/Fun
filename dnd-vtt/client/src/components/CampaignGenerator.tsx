@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { useSessionStore } from '../stores/sessionStore';
-import { useSocket } from '../hooks/useSocket';
 import type { Condition, InitiativeEntry, StoreItem, LootItem } from '../types';
 
 interface GeneratedNPC {
@@ -161,6 +160,10 @@ interface CampaignGeneratorProps {
   addInitiativeEntry: (entry: InitiativeEntry) => Promise<void>;
   startCombat: () => Promise<void>;
   addToken: (token: any) => Promise<void>;
+  // Store/Loot functions
+  addStoreItem: (item: StoreItem) => Promise<void>;
+  addLootItem: (item: LootItem) => Promise<void>;
+  distributeItem: (lootItemId: string, playerId: string, playerName: string, quantity: number) => Promise<void>;
 }
 
 // Adventure Types - the core structure of the adventure
@@ -266,7 +269,7 @@ const ROOM_COLORS: Record<DungeonRoom['type'], string> = {
   secret: '#9C27B0',
 };
 
-export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, addInitiativeEntry, startCombat, addToken }: CampaignGeneratorProps) {
+export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, addInitiativeEntry, startCombat, addToken, addStoreItem, addLootItem, distributeItem }: CampaignGeneratorProps) {
   // Form state
   const [adventureType, setAdventureType] = useState(ADVENTURE_TYPES[0].value);
   const [theme, setTheme] = useState(THEMES[0]);
@@ -308,9 +311,6 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
 
   // Get session store for adding maps to the game's Map Library and local state
   const { addMapToLibrary, isInCombat, players } = useSessionStore();
-
-  // Socket functions for store/loot
-  const { addStoreItem, addLootItem, distributeItem } = useSocket();
 
   // State for giving items to players
   const [giveToPlayer, setGiveToPlayer] = useState<{ items: any[]; source: string } | null>(null);

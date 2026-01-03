@@ -160,90 +160,6 @@ const EQUIPMENT_DESCRIPTIONS: Record<string, string> = {
   "Quiver": "A container for arrows or bolts",
 };
 
-// Pack contents - individual items in each starting pack
-const PACK_CONTENTS: Record<string, { name: string; quantity: number; description: string }[]> = {
-  "Explorer's Pack": [
-    { name: "Backpack", quantity: 1, description: "A leather pack for carrying equipment" },
-    { name: "Bedroll", quantity: 1, description: "A padded roll for sleeping" },
-    { name: "Mess Kit", quantity: 1, description: "A tin box with cup, bowl, and utensils" },
-    { name: "Tinderbox", quantity: 1, description: "Flint, steel, and tinder to start fires" },
-    { name: "Torch", quantity: 10, description: "Wooden rods with flammable ends (1 hour each)" },
-    { name: "Rations", quantity: 10, description: "Days of dried food suitable for travel" },
-    { name: "Waterskin", quantity: 1, description: "A container for holding water" },
-    { name: "Rope (50ft)", quantity: 1, description: "50 feet of hempen rope" },
-  ],
-  "Priest's Pack": [
-    { name: "Backpack", quantity: 1, description: "A leather pack for carrying equipment" },
-    { name: "Blanket", quantity: 1, description: "A wool blanket for warmth" },
-    { name: "Candle", quantity: 10, description: "Small wax candles for light" },
-    { name: "Tinderbox", quantity: 1, description: "Flint, steel, and tinder to start fires" },
-    { name: "Alms Box", quantity: 1, description: "A small box for collecting donations" },
-    { name: "Block of Incense", quantity: 2, description: "Fragrant incense for ceremonies" },
-    { name: "Censer", quantity: 1, description: "A container for burning incense" },
-    { name: "Vestments", quantity: 1, description: "Religious robes and garments" },
-    { name: "Rations", quantity: 2, description: "Days of dried food suitable for travel" },
-    { name: "Waterskin", quantity: 1, description: "A container for holding water" },
-  ],
-  "Diplomat's Pack": [
-    { name: "Chest", quantity: 1, description: "A wooden chest for storing items" },
-    { name: "Map/Scroll Case", quantity: 2, description: "Cylindrical cases for maps and scrolls" },
-    { name: "Fine Clothes", quantity: 1, description: "Elegant clothing for formal occasions" },
-    { name: "Ink", quantity: 1, description: "A bottle of black ink" },
-    { name: "Ink Pen", quantity: 1, description: "A quill for writing" },
-    { name: "Lamp", quantity: 1, description: "An oil lamp providing bright light" },
-    { name: "Oil Flask", quantity: 2, description: "Flasks of oil for lamps" },
-    { name: "Paper", quantity: 5, description: "Sheets for writing" },
-    { name: "Perfume", quantity: 1, description: "A vial of fragrant perfume" },
-    { name: "Sealing Wax", quantity: 1, description: "Wax for sealing letters" },
-    { name: "Soap", quantity: 1, description: "A bar of soap" },
-  ],
-  "Dungeoneer's Pack": [
-    { name: "Backpack", quantity: 1, description: "A leather pack for carrying equipment" },
-    { name: "Crowbar", quantity: 1, description: "An iron crowbar for prying things" },
-    { name: "Hammer", quantity: 1, description: "A small hammer" },
-    { name: "Piton", quantity: 10, description: "Iron spikes for climbing" },
-    { name: "Torch", quantity: 10, description: "Wooden rods with flammable ends (1 hour each)" },
-    { name: "Tinderbox", quantity: 1, description: "Flint, steel, and tinder to start fires" },
-    { name: "Rations", quantity: 10, description: "Days of dried food suitable for travel" },
-    { name: "Waterskin", quantity: 1, description: "A container for holding water" },
-    { name: "Rope (50ft)", quantity: 1, description: "50 feet of hempen rope" },
-  ],
-  "Entertainer's Pack": [
-    { name: "Backpack", quantity: 1, description: "A leather pack for carrying equipment" },
-    { name: "Bedroll", quantity: 1, description: "A padded roll for sleeping" },
-    { name: "Costume", quantity: 2, description: "Theatrical costumes for performances" },
-    { name: "Candle", quantity: 5, description: "Small wax candles for light" },
-    { name: "Rations", quantity: 5, description: "Days of dried food suitable for travel" },
-    { name: "Waterskin", quantity: 1, description: "A container for holding water" },
-    { name: "Disguise Kit", quantity: 1, description: "Makeup and props for disguises" },
-  ],
-  "Burglar's Pack": [
-    { name: "Backpack", quantity: 1, description: "A leather pack for carrying equipment" },
-    { name: "Ball Bearings (1000)", quantity: 1, description: "Tiny metal balls that create difficult terrain" },
-    { name: "String (10ft)", quantity: 1, description: "A length of twine" },
-    { name: "Bell", quantity: 1, description: "A small bell" },
-    { name: "Candle", quantity: 5, description: "Small wax candles for light" },
-    { name: "Crowbar", quantity: 1, description: "An iron crowbar for prying things" },
-    { name: "Hammer", quantity: 1, description: "A small hammer" },
-    { name: "Piton", quantity: 10, description: "Iron spikes for climbing" },
-    { name: "Hooded Lantern", quantity: 1, description: "A lantern with a hood to direct light" },
-    { name: "Oil Flask", quantity: 2, description: "Flasks of oil for lamps" },
-    { name: "Rations", quantity: 5, description: "Days of dried food suitable for travel" },
-    { name: "Tinderbox", quantity: 1, description: "Flint, steel, and tinder to start fires" },
-    { name: "Waterskin", quantity: 1, description: "A container for holding water" },
-    { name: "Rope (50ft)", quantity: 1, description: "50 feet of hempen rope" },
-  ],
-  "Scholar's Pack": [
-    { name: "Backpack", quantity: 1, description: "A leather pack for carrying equipment" },
-    { name: "Book of Lore", quantity: 1, description: "A book containing historical knowledge" },
-    { name: "Ink", quantity: 1, description: "A bottle of black ink" },
-    { name: "Ink Pen", quantity: 1, description: "A quill for writing" },
-    { name: "Parchment", quantity: 10, description: "Sheets for writing" },
-    { name: "Bag of Sand", quantity: 1, description: "Fine sand for drying ink" },
-    { name: "Small Knife", quantity: 1, description: "A small utility knife" },
-  ],
-};
-
 export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCreatorProps) {
   const [step, setStep] = useState<CreationStep>('basics');
 
@@ -1001,34 +917,14 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
         };
       });
 
-      // Convert pack equipment to character equipment - unpack packs into individual items
-      let equipIdx = 0;
-      equipment = [];
-      pack.equipment.forEach((e) => {
-        // Check if this is a pack that should be unpacked
-        const packContents = PACK_CONTENTS[e.name];
-        if (packContents) {
-          // Unpack the pack into individual items
-          packContents.forEach((item) => {
-            equipment.push({
-              id: `equip-${equipIdx++}`,
-              name: item.name,
-              quantity: item.quantity,
-              description: item.description,
-              category: 'gear' as const,
-            });
-          });
-        } else {
-          // Regular item - add directly
-          equipment.push({
-            id: `equip-${equipIdx++}`,
-            name: e.name,
-            quantity: e.quantity,
-            description: EQUIPMENT_DESCRIPTIONS[e.name] || e.name,
-            category: 'gear' as const,
-          });
-        }
-      });
+      // Convert pack equipment to character equipment
+      equipment = pack.equipment.map((e, idx) => ({
+        id: `equip-${idx}`,
+        name: e.name,
+        quantity: e.quantity,
+        description: EQUIPMENT_DESCRIPTIONS[e.name] || e.name,
+        category: 'gear' as const,
+      }));
 
       // Add shield if class pack includes one
       if (pack.shield) {

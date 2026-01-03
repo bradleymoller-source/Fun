@@ -47,6 +47,7 @@ export function DMView() {
     updatePlayerCharacter,
     distributeItem,
     addLootItem,
+    addStoreItem,
     socket,
   } = useSocket();
   const [dmNotes, setDmNotes] = useState<Record<string, string>>({});
@@ -666,6 +667,9 @@ export function DMView() {
                 addInitiativeEntry={addInitiativeEntry}
                 startCombat={startCombat}
                 addToken={addToken}
+                addStoreItem={addStoreItem}
+                addLootItem={addLootItem}
+                distributeItem={distributeItem}
               />
             </Panel>
 

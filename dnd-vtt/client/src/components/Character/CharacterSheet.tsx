@@ -1248,7 +1248,7 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
           ) : (
             <div className="space-y-1">
               {otherItems.map(item => {
-                const isUsed = item.equipped === false && item.category === 'gear' && usedItems?.has(item.id);
+                const isUsed = item.category === 'gear' && usedItems?.has(item.id);
                 return (
                 <div key={item.id} className={`bg-dark-wood p-2 rounded border ${isUsed ? 'border-gray-600 opacity-50' : 'border-leather'}`}>
                   <div className="flex justify-between items-start">
