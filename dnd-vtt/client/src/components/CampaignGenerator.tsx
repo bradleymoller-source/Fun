@@ -307,10 +307,13 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
   const [addedToLibrary, setAddedToLibrary] = useState<Set<string>>(new Set());
 
   // Get session store for adding maps to the game's Map Library and local state
-  const { addMapToLibrary, isInCombat } = useSessionStore();
+  const { addMapToLibrary, isInCombat, players } = useSessionStore();
 
   // Socket functions for store/loot
-  const { addStoreItem, addLootItem } = useSocket();
+  const { addStoreItem, addLootItem, distributeItem } = useSocket();
+
+  // State for giving items to players
+  const [giveToPlayer, setGiveToPlayer] = useState<{ items: any[]; source: string } | null>(null);
 
   // Add shop inventory to store
   const handleAddShopToStore = async (shop: { name: string; inventory?: { item: string; cost: string; type?: string; effect?: string; rarity?: string; description?: string }[] }) => {
@@ -363,6 +366,39 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
       };
       await addLootItem(lootItem);
     }
+  };
+
+  // Give items directly to a player (creates loot then distributes)
+  const handleGiveToPlayer = async (playerId: string, playerName: string) => {
+    if (!giveToPlayer || !distributeItem) return;
+
+    for (const lootEntry of giveToPlayer.items) {
+      // First add to loot pool
+      const lootItem: LootItem = {
+        id: `loot-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        name: lootEntry.item,
+        value: lootEntry.value,
+        quantity: 1,
+        source: giveToPlayer.source,
+        description: lootEntry.effect,
+        itemType: lootEntry.type as LootItem['itemType'],
+        damage: lootEntry.damage,
+        attackBonus: lootEntry.attackBonus,
+        armorClass: lootEntry.armorClass,
+        armorType: lootEntry.armorType,
+        effect: lootEntry.effect,
+        rarity: lootEntry.rarity,
+      };
+      await addLootItem(lootItem);
+
+      // Then distribute to player
+      try {
+        await distributeItem(lootItem.id, playerId, playerName, 1);
+      } catch (err) {
+        console.error('Failed to distribute item:', err);
+      }
+    }
+    setGiveToPlayer(null);
   };
 
   // Monster colors for token differentiation
@@ -1026,26 +1062,48 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
         <div className="mt-2 bg-yellow-900/20 p-2 rounded border border-yellow-500/30">
           <div className="flex justify-between items-center">
             <strong className="text-yellow-400 text-xs">Treasure:</strong>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => {
-                const lootItems = room.treasure.map((t: any) => ({
-                  item: t.item,
-                  value: t.value || '0gp',
-                  type: t.type,
-                  effect: t.effect,
-                  damage: t.damage,
-                  attackBonus: t.attackBonus,
-                  armorClass: t.armorClass,
-                  armorType: t.armorType,
-                }));
-                handleAddToLoot(lootItems, `Room ${room.id}: ${room.name}`);
-              }}
-              className="text-xs py-0.5 px-2"
-            >
-              Add to Loot
-            </Button>
+            <div className="flex gap-1">
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  const lootItems = room.treasure.map((t: any) => ({
+                    item: t.item,
+                    value: t.value || '0gp',
+                    type: t.type,
+                    effect: t.effect,
+                    damage: t.damage,
+                    attackBonus: t.attackBonus,
+                    armorClass: t.armorClass,
+                    armorType: t.armorType,
+                  }));
+                  setGiveToPlayer({ items: lootItems, source: `Room ${room.id}: ${room.name}` });
+                }}
+                className="text-xs py-0.5 px-2 bg-green-700/50 hover:bg-green-600/50"
+              >
+                Give
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  const lootItems = room.treasure.map((t: any) => ({
+                    item: t.item,
+                    value: t.value || '0gp',
+                    type: t.type,
+                    effect: t.effect,
+                    damage: t.damage,
+                    attackBonus: t.attackBonus,
+                    armorClass: t.armorClass,
+                    armorType: t.armorType,
+                  }));
+                  handleAddToLoot(lootItems, `Room ${room.id}: ${room.name}`);
+                }}
+                className="text-xs py-0.5 px-2"
+              >
+                + Loot
+              </Button>
+            </div>
           </div>
           {room.treasure.map((t: any, i: number) => (
             <div key={i} className="text-yellow-300 text-xs pl-2 border-l border-yellow-500/30 mt-1">
@@ -1595,27 +1653,50 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
                     <div className="flex justify-between items-center">
                       <strong className="text-yellow-400 text-xs">Boss Rewards:</strong>
                       {campaign.act3.bossEncounter.rewards.items && campaign.act3.bossEncounter.rewards.items.length > 0 && (
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => {
-                            const lootItems = campaign.act3.bossEncounter.rewards.items.map((item: any) => ({
-                              item: item.name,
-                              value: item.value || '0gp',
-                              type: item.type,
-                              effect: item.effect || item.description,
-                              damage: item.damage,
-                              attackBonus: item.attackBonus,
-                              armorClass: item.armorClass,
-                              armorType: item.armorType,
-                              rarity: item.rarity,
-                            }));
-                            handleAddToLoot(lootItems, 'Boss Encounter');
-                          }}
-                          className="text-xs py-0.5 px-2"
-                        >
-                          Add to Loot
-                        </Button>
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => {
+                              const lootItems = campaign.act3.bossEncounter.rewards.items.map((item: any) => ({
+                                item: item.name,
+                                value: item.value || '0gp',
+                                type: item.type,
+                                effect: item.effect || item.description,
+                                damage: item.damage,
+                                attackBonus: item.attackBonus,
+                                armorClass: item.armorClass,
+                                armorType: item.armorType,
+                                rarity: item.rarity,
+                              }));
+                              setGiveToPlayer({ items: lootItems, source: 'Boss Rewards' });
+                            }}
+                            className="text-xs py-0.5 px-2 bg-green-700/50 hover:bg-green-600/50"
+                          >
+                            Give
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => {
+                              const lootItems = campaign.act3.bossEncounter.rewards.items.map((item: any) => ({
+                                item: item.name,
+                                value: item.value || '0gp',
+                                type: item.type,
+                                effect: item.effect || item.description,
+                                damage: item.damage,
+                                attackBonus: item.attackBonus,
+                                armorClass: item.armorClass,
+                                armorType: item.armorType,
+                                rarity: item.rarity,
+                              }));
+                              handleAddToLoot(lootItems, 'Boss Encounter');
+                            }}
+                            className="text-xs py-0.5 px-2"
+                          >
+                            + Loot
+                          </Button>
+                        </div>
                       )}
                     </div>
                     <p className="text-parchment/70 text-xs">{campaign.act3.bossEncounter.rewards.xp} XP | {campaign.act3.bossEncounter.rewards.gold}</p>
@@ -1640,22 +1721,48 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
                         <div className="flex justify-between items-center mb-1">
                           <span className="text-amber-300 text-xs font-medium">Villain's Possessions:</span>
                           {Array.isArray(campaign.act3.bossEncounter.rewards.villainLoot) && campaign.act3.bossEncounter.rewards.villainLoot.length > 0 && (
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              onClick={() => {
-                                const lootItems = campaign.act3.bossEncounter.rewards.villainLoot.map((item: any) => ({
-                                  item: item.name,
-                                  value: item.value || '0gp',
-                                  type: item.type,
-                                  effect: item.description,
-                                }));
-                                handleAddToLoot(lootItems, 'Villain Loot');
-                              }}
-                              className="text-xs py-0.5 px-2"
-                            >
-                              Add to Loot
-                            </Button>
+                            <div className="flex gap-1">
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => {
+                                  const lootItems = campaign.act3.bossEncounter.rewards.villainLoot.map((item: any) => ({
+                                    item: item.name,
+                                    value: item.value || '0gp',
+                                    type: item.type,
+                                    effect: item.description,
+                                    damage: item.damage,
+                                    attackBonus: item.attackBonus,
+                                    armorClass: item.armorClass,
+                                    armorType: item.armorType,
+                                  }));
+                                  setGiveToPlayer({ items: lootItems, source: 'Villain Loot' });
+                                }}
+                                className="text-xs py-0.5 px-2 bg-green-700 hover:bg-green-600"
+                              >
+                                Give
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => {
+                                  const lootItems = campaign.act3.bossEncounter.rewards.villainLoot.map((item: any) => ({
+                                    item: item.name,
+                                    value: item.value || '0gp',
+                                    type: item.type,
+                                    effect: item.description,
+                                    damage: item.damage,
+                                    attackBonus: item.attackBonus,
+                                    armorClass: item.armorClass,
+                                    armorType: item.armorType,
+                                  }));
+                                  handleAddToLoot(lootItems, 'Villain Loot');
+                                }}
+                                className="text-xs py-0.5 px-2"
+                              >
+                                + Loot
+                              </Button>
+                            </div>
                           )}
                         </div>
                         {Array.isArray(campaign.act3.bossEncounter.rewards.villainLoot) ? (
@@ -2084,30 +2191,56 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
                       <div className="flex justify-between items-center">
                         <strong className="text-yellow-400 text-xs">Rewards:</strong>
                         {typeof enc.rewards === 'object' && enc.rewards.loot && enc.rewards.loot.length > 0 && (
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => {
-                              const lootItems = enc.rewards.loot.map((l: any) =>
-                                typeof l === 'string'
-                                  ? { item: l, value: '0gp' }
-                                  : {
-                                      item: l.item,
-                                      value: l.value || '0gp',
-                                      type: l.type,
-                                      effect: l.effect,
-                                      damage: l.damage,
-                                      attackBonus: l.attackBonus,
-                                      armorClass: l.armorClass,
-                                      armorType: l.armorType,
-                                    }
-                              );
-                              handleAddToLoot(lootItems, enc.name || 'Encounter');
-                            }}
-                            className="text-xs py-0.5 px-2"
-                          >
-                            Add to Loot
-                          </Button>
+                          <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => {
+                                const lootItems = enc.rewards.loot.map((l: any) =>
+                                  typeof l === 'string'
+                                    ? { item: l, value: '0gp' }
+                                    : {
+                                        item: l.item,
+                                        value: l.value || '0gp',
+                                        type: l.type,
+                                        effect: l.effect,
+                                        damage: l.damage,
+                                        attackBonus: l.attackBonus,
+                                        armorClass: l.armorClass,
+                                        armorType: l.armorType,
+                                      }
+                                );
+                                setGiveToPlayer({ items: lootItems, source: enc.name || 'Encounter' });
+                              }}
+                              className="text-xs py-0.5 px-2 bg-green-700 hover:bg-green-600"
+                            >
+                              Give
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => {
+                                const lootItems = enc.rewards.loot.map((l: any) =>
+                                  typeof l === 'string'
+                                    ? { item: l, value: '0gp' }
+                                    : {
+                                        item: l.item,
+                                        value: l.value || '0gp',
+                                        type: l.type,
+                                        effect: l.effect,
+                                        damage: l.damage,
+                                        attackBonus: l.attackBonus,
+                                        armorClass: l.armorClass,
+                                        armorType: l.armorType,
+                                      }
+                                );
+                                handleAddToLoot(lootItems, enc.name || 'Encounter');
+                              }}
+                              className="text-xs py-0.5 px-2"
+                            >
+                              + Loot
+                            </Button>
+                          </div>
                         )}
                       </div>
                       {typeof enc.rewards === 'object' ? (
@@ -2467,6 +2600,62 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
 
   return (
     <div className="space-y-4">
+      {/* Player Selection Modal for Giving Items */}
+      {giveToPlayer && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-dark-wood p-4 rounded-lg border border-gold max-w-md w-full mx-4">
+            <h3 className="text-gold font-medieval text-lg mb-3">Give Items to Player</h3>
+            <p className="text-parchment/70 text-sm mb-3">
+              {giveToPlayer.items.length} item(s) from: {giveToPlayer.source}
+            </p>
+            <div className="space-y-2 mb-4">
+              {giveToPlayer.items.map((item, i) => (
+                <div key={i} className="text-parchment text-sm bg-leather/30 p-2 rounded">
+                  {item.item} {item.value && `(${item.value})`}
+                </div>
+              ))}
+            </div>
+            {players.length === 0 ? (
+              <p className="text-red-400 text-sm">No players connected. Items will be added to loot pool instead.</p>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-parchment/70 text-xs">Select a player:</p>
+                {players.map((player) => (
+                  <Button
+                    key={player.id}
+                    onClick={() => handleGiveToPlayer(player.id, player.name)}
+                    className="w-full justify-start"
+                    variant="secondary"
+                  >
+                    Give to {player.name}
+                  </Button>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2 mt-4">
+              <Button
+                onClick={async () => {
+                  // Just add to loot pool without distributing
+                  await handleAddToLoot(giveToPlayer.items, giveToPlayer.source);
+                  setGiveToPlayer(null);
+                }}
+                variant="secondary"
+                className="flex-1"
+              >
+                Add to Loot Pool
+              </Button>
+              <Button
+                onClick={() => setGiveToPlayer(null)}
+                variant="secondary"
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Generation Form */}
       {!campaign && (
         <div className="space-y-3">
