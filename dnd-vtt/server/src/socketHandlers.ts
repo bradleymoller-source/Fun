@@ -38,6 +38,7 @@ import {
   removeLootItem,
   distributeItemToPlayer,
   getPlayerInventories,
+  removePlayerInventoryItem,
 } from './sessionManager';
 import { Token, MapState, DiceRoll, ChatMessage, InitiativeEntry } from './types';
 import { logger, createSocketLogger } from './utils/logger';
@@ -1312,6 +1313,41 @@ export function setupSocketHandlers(io: Server): void {
         : allInventories.filter(i => i.playerId === socket.id);
 
       callback({ success: true, inventories });
+    });
+
+    // Remove player inventory item (after player adds it to their character sheet)
+    socket.on('remove-player-inventory', async (data: unknown, callback: (response: any) => void) => {
+      if (!await checkLimit('remove-player-inventory')) {
+        callback({ success: false, error: 'Rate limit exceeded.' });
+        return;
+      }
+
+      const sessionInfo = socketSessions.get(socket.id);
+      if (!sessionInfo) {
+        callback({ success: false, error: 'Not in a session' });
+        return;
+      }
+
+      const { roomCode } = sessionInfo;
+
+      // Simple validation
+      if (!data || typeof data !== 'object' || !('itemId' in data)) {
+        callback({ success: false, error: 'Invalid data' });
+        return;
+      }
+
+      const { itemId } = data as { itemId: string };
+
+      const result = removePlayerInventoryItem(roomCode, itemId, socket.id);
+      if (!result) {
+        callback({ success: false, error: 'Item not found or not yours' });
+        return;
+      }
+
+      // Notify the player
+      socket.emit('player-inventory-updated', { inventories: result.filter(i => i.playerId === socket.id) });
+
+      callback({ success: true, inventories: result.filter(i => i.playerId === socket.id) });
     });
 
     // ============ DISCONNECTION ============

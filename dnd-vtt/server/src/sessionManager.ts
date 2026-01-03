@@ -663,6 +663,26 @@ export function getPlayerInventories(roomCode: string): PlayerInventoryItem[] {
   return session?.playerInventories || [];
 }
 
+export function removePlayerInventoryItem(
+  roomCode: string,
+  itemId: string,
+  playerId: string
+): PlayerInventoryItem[] | null {
+  const session = getSession(roomCode);
+  if (!session) return null;
+
+  // Find the item and ensure it belongs to this player
+  const itemIndex = session.playerInventories.findIndex(
+    i => i.id === itemId && i.playerId === playerId
+  );
+  if (itemIndex === -1) return null;
+
+  // Remove the item
+  session.playerInventories.splice(itemIndex, 1);
+  updateActivity(roomCode);
+  return session.playerInventories;
+}
+
 export function distributeItemToPlayer(
   roomCode: string,
   lootItemId: string,

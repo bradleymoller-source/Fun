@@ -971,6 +971,25 @@ export function useSocket() {
     });
   }, []);
 
+  // Remove item from player inventory (after adding to character)
+  const removePlayerInventoryItem = useCallback((itemId: string) => {
+    return new Promise<void>((resolve, reject) => {
+      if (!socketRef.current) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      socketRef.current.emit('remove-player-inventory', { itemId }, (response: any) => {
+        if (response.success) {
+          store.setPlayerInventories(response.inventories);
+          resolve();
+        } else {
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }, []);
+
   // Get store items
   const getStore = useCallback(() => {
     return new Promise<StoreItem[]>((resolve, reject) => {
@@ -1029,6 +1048,7 @@ export function useSocket() {
     addLootItem,
     removeLootItem,
     distributeItem,
+    removePlayerInventoryItem,
     getStore,
   };
 }

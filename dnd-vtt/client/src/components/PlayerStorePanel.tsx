@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useSessionStore } from '../stores/sessionStore';
+import { useSocket } from '../hooks/useSocket';
 import type { Character, PlayerInventoryItem, Weapon, EquipmentItem, StoreItem, Currency } from '../types';
 import { Button } from './ui/Button';
 
@@ -71,7 +72,9 @@ function deductCopper(currency: Currency, copperAmount: number): Currency | null
 
 export function PlayerStorePanel({ character, onAddToCharacter }: PlayerStorePanelProps) {
   const { storeItems, playerInventories } = useSessionStore();
+  const { removePlayerInventoryItem } = useSocket();
   const [buyMessage, setBuyMessage] = useState<string | null>(null);
+  const [purchasedItems, setPurchasedItems] = useState<Set<string>>(new Set());
 
   // Convert inventory item to weapon
   const createWeaponFromItem = (item: PlayerInventoryItem | StoreItem): Weapon => ({
@@ -83,17 +86,58 @@ export function PlayerStorePanel({ character, onAddToCharacter }: PlayerStorePan
     equipped: false,
   });
 
+  // Parse AC from effect text (e.g., "AC 17, disadvantage on Stealth")
+  const parseAcFromText = (text: string): number | undefined => {
+    const match = text.match(/\bAC\s*(\d+)/i);
+    return match ? parseInt(match[1], 10) : undefined;
+  };
+
+  // Parse armor type from effect text
+  const parseArmorTypeFromText = (text: string): 'light' | 'medium' | 'heavy' | 'shield' | undefined => {
+    const lower = text.toLowerCase();
+    if (lower.includes('light')) return 'light';
+    if (lower.includes('medium')) return 'medium';
+    if (lower.includes('heavy')) return 'heavy';
+    if (lower.includes('shield')) return 'shield';
+    return undefined;
+  };
+
   // Convert inventory item to equipment
-  const createEquipmentFromItem = (item: PlayerInventoryItem | StoreItem): EquipmentItem => ({
-    id: `equip-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    name: item.name,
-    quantity: 1,
-    description: item.effect || item.description || item.name,
-    equipped: false,
-    category: isArmor(item) ? 'armor' : isPotion(item) ? 'potion' : 'gear',
-    armorClass: 'armorClass' in item ? item.armorClass : undefined,
-    armorType: 'armorType' in item ? item.armorType : undefined,
-  });
+  const createEquipmentFromItem = (item: PlayerInventoryItem | StoreItem): EquipmentItem => {
+    // Get effect and description text
+    const effectText = 'effect' in item ? item.effect : undefined;
+    const descText = 'description' in item ? item.description : undefined;
+
+    // Combine description (prefer effect for consumables/magic items, fallback to description)
+    const fullDescription = [effectText, descText].filter(Boolean).join(' | ') || item.name;
+
+    // Get armorClass - try field first, then parse from effect text
+    let armorClass = 'armorClass' in item ? item.armorClass : undefined;
+    if (armorClass === undefined && effectText) {
+      armorClass = parseAcFromText(effectText);
+    }
+    if (armorClass === undefined && descText) {
+      armorClass = parseAcFromText(descText);
+    }
+
+    // Get armorType - try field first, then parse from text
+    let armorType = 'armorType' in item ? item.armorType : undefined;
+    if (armorType === undefined) {
+      const nameAndDesc = `${item.name} ${effectText || ''} ${descText || ''}`;
+      armorType = parseArmorTypeFromText(nameAndDesc);
+    }
+
+    return {
+      id: `equip-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      name: item.name,
+      quantity: 1,
+      description: fullDescription,
+      equipped: false,
+      category: isArmor(item) ? 'armor' : isPotion(item) ? 'potion' : 'gear',
+      armorClass,
+      armorType,
+    };
+  };
 
   // Check if item is a weapon (check itemType, damage field, or description text)
   const isWeapon = (item: PlayerInventoryItem | StoreItem): boolean => {
@@ -128,20 +172,38 @@ export function PlayerStorePanel({ character, onAddToCharacter }: PlayerStorePan
     return name.includes('potion') || name.includes('elixir') || name.includes('philter');
   };
 
-  const handleAddWeapon = (item: PlayerInventoryItem) => {
+  const handleAddWeapon = async (item: PlayerInventoryItem) => {
     if (!character || !onAddToCharacter) return;
 
     const newWeapon = createWeaponFromItem(item);
     const updatedWeapons = [...(character.weapons || []), newWeapon];
     onAddToCharacter({ weapons: updatedWeapons });
+
+    // Remove from player inventory after adding to character
+    try {
+      await removePlayerInventoryItem(item.id);
+      setBuyMessage(`✓ Added ${item.name} to Combat → removed from inventory`);
+      setTimeout(() => setBuyMessage(null), 3000);
+    } catch (error) {
+      console.error('Failed to remove from inventory:', error);
+    }
   };
 
-  const handleAddEquipment = (item: PlayerInventoryItem) => {
+  const handleAddEquipment = async (item: PlayerInventoryItem) => {
     if (!character || !onAddToCharacter) return;
 
     const newEquipment = createEquipmentFromItem(item);
     const updatedEquipment = [...(character.equipment || []), newEquipment];
     onAddToCharacter({ equipment: updatedEquipment });
+
+    // Remove from player inventory after adding to character
+    try {
+      await removePlayerInventoryItem(item.id);
+      setBuyMessage(`✓ Added ${item.name} to Equipment → removed from inventory`);
+      setTimeout(() => setBuyMessage(null), 3000);
+    } catch (error) {
+      console.error('Failed to remove from inventory:', error);
+    }
   };
 
   // Handle buying from store
@@ -195,6 +257,9 @@ export function PlayerStorePanel({ character, onAddToCharacter }: PlayerStorePan
       onAddToCharacter({ equipment: updatedEquipment, currency: newCurrency });
       setBuyMessage(`✓ Bought ${item.name} → Equipment tab (${updatedEquipment.length} items)`);
     }
+
+    // Mark item as purchased (gray it out)
+    setPurchasedItems(prev => new Set([...prev, item.id]));
 
     setTimeout(() => setBuyMessage(null), 3000);
   };
@@ -251,17 +316,24 @@ export function PlayerStorePanel({ character, onAddToCharacter }: PlayerStorePan
           </p>
         ) : (
           <div className="space-y-2 max-h-64 overflow-y-auto">
-            {storeItems.map((item) => (
-              <div key={item.id} className="p-2 bg-leather/20 rounded border border-leather/50">
+            {storeItems.map((item) => {
+              const isPurchased = purchasedItems.has(item.id);
+              return (
+              <div key={item.id} className={`p-2 rounded border ${
+                isPurchased
+                  ? 'bg-gray-700/30 border-gray-600/50 opacity-60'
+                  : 'bg-leather/20 border-leather/50'
+              }`}>
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
-                    <span className="text-parchment font-medium">{item.name}</span>
-                    <span className="text-gold ml-2">({item.price})</span>
+                    <span className={isPurchased ? 'text-gray-400 font-medium line-through' : 'text-parchment font-medium'}>{item.name}</span>
+                    <span className={isPurchased ? 'text-gray-500 ml-2' : 'text-gold ml-2'}>({item.price})</span>
                     {item.quantity !== -1 && item.quantity !== undefined && (
                       <span className="text-parchment/70 ml-2">x{item.quantity}</span>
                     )}
+                    {isPurchased && <span className="text-green-400 ml-2 text-xs">(Purchased)</span>}
                   </div>
-                  {character && onAddToCharacter && (
+                  {character && onAddToCharacter && !isPurchased && (
                     <Button
                       size="sm"
                       variant="secondary"
@@ -278,13 +350,14 @@ export function PlayerStorePanel({ character, onAddToCharacter }: PlayerStorePan
                   )}
                 </div>
                 {item.effect && (
-                  <p className="text-green-400 text-sm mt-1">{item.effect}</p>
+                  <p className={isPurchased ? 'text-gray-500 text-sm mt-1' : 'text-green-400 text-sm mt-1'}>{item.effect}</p>
                 )}
                 {item.description && (
-                  <p className="text-parchment/70 text-sm mt-1">{item.description}</p>
+                  <p className={isPurchased ? 'text-gray-500 text-sm mt-1' : 'text-parchment/70 text-sm mt-1'}>{item.description}</p>
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
