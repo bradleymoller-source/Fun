@@ -232,6 +232,10 @@ export function setupSocketHandlers(io: Server): void {
 
       const initiativeState = getInitiative(upperRoomCode);
 
+      // Get player's inventory and store items
+      const playerInventories = getPlayerInventories(upperRoomCode).filter(i => i.playerId === socket.id);
+      const storeItems = getStoreItems(upperRoomCode);
+
       callback({
         success: true,
         roomCode: upperRoomCode,
@@ -239,6 +243,8 @@ export function setupSocketHandlers(io: Server): void {
         initiative: initiativeState?.initiative || [],
         isInCombat: initiativeState?.isInCombat || false,
         character, // Include character if found
+        playerInventories,
+        storeItems,
       });
     });
 

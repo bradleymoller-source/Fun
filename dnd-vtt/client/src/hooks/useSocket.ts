@@ -363,6 +363,14 @@ export function useSocket() {
             store.setCharacter(response.character);
             console.log('Character restored from server:', response.character.name);
           }
+          // Restore player's inventory
+          if (response.playerInventories) {
+            store.setPlayerInventories(response.playerInventories);
+          }
+          // Restore store items
+          if (response.storeItems) {
+            store.setStoreItems(response.storeItems);
+          }
           store.setView('player');
           // Save to localStorage for persistence
           saveSession({
