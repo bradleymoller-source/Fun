@@ -423,16 +423,17 @@ const campaignFunctionDeclarations = [
           items: {
             type: SchemaType.OBJECT,
             properties: {
-              item: { type: SchemaType.STRING },
-              value: { type: SchemaType.STRING },
-              type: { type: SchemaType.STRING },
-              effect: { type: SchemaType.STRING }
-            }
+              item: { type: SchemaType.STRING, description: "Item name" },
+              value: { type: SchemaType.STRING, description: "Gold value (e.g. '25gp')" },
+              type: { type: SchemaType.STRING, description: "Item type: weapon, armor, potion, scroll, wondrous, treasure" },
+              effect: { type: SchemaType.STRING, description: "Mechanical effect if magical" }
+            },
+            required: ["item", "value", "type"]
           },
-          description: "Loot from this encounter"
+          description: "2-4 loot items. Include gold, potions, scrolls, weapons, or story items. Every encounter should have loot!"
         }
       },
-      required: ["name", "location", "readAloud", "enemies", "tactics", "difficulty", "rewardXP"]
+      required: ["name", "location", "readAloud", "enemies", "tactics", "difficulty", "rewardXP", "rewardLoot"]
     }
   },
   {
@@ -713,21 +714,27 @@ function processFunctionCall(builder: CampaignBuilder, functionName: string, arg
     case 'addEncounter':
       if (!builder.act2) builder.act2 = {};
       if (!builder.act2.encounters) builder.act2.encounters = [];
-      builder.act2.encounters.push({
-        name: args.name,
-        location: args.location,
-        readAloud: args.readAloud,
-        type: 'combat',
-        enemies: args.enemies,
-        tactics: args.tactics,
-        terrain: args.terrain,
-        dynamicElements: args.dynamicElements,
-        difficulty: args.difficulty,
-        rewards: {
-          xp: args.rewardXP,
-          loot: args.rewardLoot || []
-        }
-      });
+      // Deduplicate - check if encounter with same name already exists
+      const existingEncounter = builder.act2.encounters.find(e => e.name === args.name);
+      if (!existingEncounter) {
+        builder.act2.encounters.push({
+          name: args.name,
+          location: args.location,
+          readAloud: args.readAloud,
+          type: 'combat',
+          enemies: args.enemies,
+          tactics: args.tactics,
+          terrain: args.terrain,
+          dynamicElements: args.dynamicElements,
+          difficulty: args.difficulty,
+          rewards: {
+            xp: args.rewardXP,
+            loot: args.rewardLoot || []
+          }
+        });
+      } else {
+        console.log(`  -> Skipping duplicate encounter: ${args.name}`);
+      }
       break;
 
     case 'addTrap':
@@ -918,6 +925,13 @@ ${bossRoom || 'Final chamber with boss encounter'}
      acType: "armor scraps", initiative: 2, speed: "30 ft.",
      attacks: [{name: "Shortsword", bonus: 4, damage: "1d6+2", damageType: "piercing"}],
      immunities: ["poison"], traits: [{name: "Undead", description: "Immune to exhaustion"}]}
+
+   LOOT IS REQUIRED for every encounter! Include 2-4 items per encounter:
+   rewardLoot: [
+     {item: "50 gold pieces", value: "50gp", type: "treasure"},
+     {item: "Potion of Healing", value: "50gp", type: "potion", effect: "Heals 2d4+2 HP"},
+     {item: "Rusted Longsword", value: "10gp", type: "weapon"}
+   ]
 
 5. TRAPS - Include 2-4 hidden traps spread across different rooms:
    Use the trap field in addRoom (NOT separate addTrap calls):

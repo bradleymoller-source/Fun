@@ -1409,41 +1409,155 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
 
             {campaign.act3.bossEncounter && (
               <div className="bg-red-900/20 p-3 rounded-lg border border-red-500/50">
-                <h4 className="text-red-400 text-sm font-bold mb-2">Boss Encounter</h4>
+                <h4 className="text-red-400 text-sm font-bold mb-2">Boss Chamber</h4>
 
-                {campaign.act3.bossEncounter.chamberDescription?.readAloud && (
-                  <div className="mb-3">{renderReadAloud(campaign.act3.bossEncounter.chamberDescription.readAloud)}</div>
+                {/* Boss room description - check both possible locations */}
+                {(campaign.act3.bossEncounter.readAloud || campaign.act3.bossEncounter.chamberDescription?.readAloud) && (
+                  <div className="mb-3">
+                    {renderReadAloud(campaign.act3.bossEncounter.readAloud || campaign.act3.bossEncounter.chamberDescription?.readAloud)}
+                  </div>
+                )}
+
+                {/* Chamber dimensions and features */}
+                {campaign.act3.bossEncounter.chamberDimensions && (
+                  <p className="text-parchment/60 text-xs mb-2"><strong>Dimensions:</strong> {campaign.act3.bossEncounter.chamberDimensions}</p>
+                )}
+                {campaign.act3.bossEncounter.chamberFeatures && campaign.act3.bossEncounter.chamberFeatures.length > 0 && (
+                  <div className="mb-3">
+                    <strong className="text-parchment/80 text-xs">Tactical Features:</strong>
+                    <ul className="list-disc list-inside text-parchment/60 text-xs ml-2">
+                      {campaign.act3.bossEncounter.chamberFeatures.map((f: string, idx: number) => (
+                        <li key={idx}>{f}</li>
+                      ))}
+                    </ul>
+                  </div>
                 )}
 
                 {campaign.act3.bossEncounter.villain && (
                   <div className="bg-dark-wood/50 p-2 rounded mb-2">
-                    <p className="text-red-300 font-bold">{campaign.act3.bossEncounter.villain.name}</p>
+                    <div className="flex justify-between items-start">
+                      <p className="text-red-300 font-bold">{campaign.act3.bossEncounter.villain.name}</p>
+                      <span className="text-parchment/50 text-xs">
+                        {campaign.act3.bossEncounter.villain.type} CR {campaign.act3.bossEncounter.villain.cr}
+                      </span>
+                    </div>
                     <p className="text-parchment/70 text-sm">{campaign.act3.bossEncounter.villain.appearance}</p>
-                    <p className="text-parchment/60 text-xs mt-1"><strong>Motivation:</strong> {campaign.act3.bossEncounter.villain.motivation}</p>
 
+                    {/* Stats */}
+                    <div className="grid grid-cols-3 gap-2 mt-2 text-xs">
+                      <span className="text-parchment/60">HP: <span className="text-white">{campaign.act3.bossEncounter.villain.hp}</span></span>
+                      <span className="text-parchment/60">AC: <span className="text-white">{campaign.act3.bossEncounter.villain.ac}</span></span>
+                      <span className="text-parchment/60">CR: <span className="text-white">{campaign.act3.bossEncounter.villain.cr}</span></span>
+                    </div>
+
+                    <p className="text-parchment/60 text-xs mt-2"><strong>Motivation:</strong> {campaign.act3.bossEncounter.villain.motivation}</p>
+                    {campaign.act3.bossEncounter.villain.personality && (
+                      <p className="text-parchment/60 text-xs"><strong>Personality:</strong> {campaign.act3.bossEncounter.villain.personality}</p>
+                    )}
+
+                    {/* Dialogue - support both old and new formats */}
                     {campaign.act3.bossEncounter.villain.dialogue && (
-                      <div className="mt-2 space-y-1">
-                        {campaign.act3.bossEncounter.villain.dialogue.onSighting && (
-                          <p className="text-amber-300 text-xs">"{campaign.act3.bossEncounter.villain.dialogue.onSighting}"</p>
+                      <div className="mt-2 space-y-1 bg-amber-900/20 p-2 rounded">
+                        <strong className="text-amber-400 text-xs">Dialogue:</strong>
+                        {(campaign.act3.bossEncounter.villain.dialogue.opening || campaign.act3.bossEncounter.villain.dialogue.onSighting) && (
+                          <p className="text-amber-300 text-xs">
+                            <strong>Opening:</strong> "{campaign.act3.bossEncounter.villain.dialogue.opening || campaign.act3.bossEncounter.villain.dialogue.onSighting}"
+                          </p>
                         )}
-                        {campaign.act3.bossEncounter.villain.dialogue.monologue && (
-                          <p className="text-amber-300 text-xs italic">"{campaign.act3.bossEncounter.villain.dialogue.monologue}"</p>
+                        {(campaign.act3.bossEncounter.villain.dialogue.midFight || campaign.act3.bossEncounter.villain.dialogue.monologue) && (
+                          <p className="text-amber-300 text-xs">
+                            <strong>Mid-Fight:</strong> "{campaign.act3.bossEncounter.villain.dialogue.midFight || campaign.act3.bossEncounter.villain.dialogue.monologue}"
+                          </p>
+                        )}
+                        {campaign.act3.bossEncounter.villain.dialogue.defeat && (
+                          <p className="text-amber-300 text-xs">
+                            <strong>Defeat:</strong> "{campaign.act3.bossEncounter.villain.dialogue.defeat}"
+                          </p>
                         )}
                       </div>
                     )}
 
+                    {/* Tactics - support both string and object formats */}
                     {campaign.act3.bossEncounter.villain.tactics && (
                       <div className="mt-2 text-xs">
                         <strong className="text-gold">Tactics:</strong>
-                        <p className="text-parchment/70">Phase 1: {campaign.act3.bossEncounter.villain.tactics.phase1}</p>
-                        <p className="text-parchment/70">Phase 2: {campaign.act3.bossEncounter.villain.tactics.phase2}</p>
-                        <p className="text-parchment/70">Phase 3: {campaign.act3.bossEncounter.villain.tactics.phase3}</p>
+                        {typeof campaign.act3.bossEncounter.villain.tactics === 'string' ? (
+                          <p className="text-parchment/70">{campaign.act3.bossEncounter.villain.tactics}</p>
+                        ) : (
+                          <>
+                            <p className="text-parchment/70">Phase 1: {campaign.act3.bossEncounter.villain.tactics.phase1}</p>
+                            <p className="text-parchment/70">Phase 2: {campaign.act3.bossEncounter.villain.tactics.phase2}</p>
+                            <p className="text-parchment/70">Phase 3: {campaign.act3.bossEncounter.villain.tactics.phase3}</p>
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Abilities */}
+                    {campaign.act3.bossEncounter.villain.abilities && campaign.act3.bossEncounter.villain.abilities.length > 0 && (
+                      <div className="mt-2 text-xs">
+                        <strong className="text-red-400">Abilities:</strong>
+                        <ul className="list-disc list-inside text-parchment/70 ml-2">
+                          {campaign.act3.bossEncounter.villain.abilities.map((a: string, idx: number) => (
+                            <li key={idx}>{a}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Legendary Actions */}
+                    {campaign.act3.bossEncounter.villain.legendaryActions && campaign.act3.bossEncounter.villain.legendaryActions.length > 0 && (
+                      <div className="mt-2 text-xs">
+                        <strong className="text-purple-400">Legendary Actions:</strong>
+                        <ul className="list-disc list-inside text-parchment/70 ml-2">
+                          {campaign.act3.bossEncounter.villain.legendaryActions.map((la: string, idx: number) => (
+                            <li key={idx}>{la}</li>
+                          ))}
+                        </ul>
                       </div>
                     )}
 
                     {campaign.act3.bossEncounter.villain.weakness && (
                       <p className="text-green-400 text-xs mt-2"><strong>Weakness:</strong> {campaign.act3.bossEncounter.villain.weakness}</p>
                     )}
+                  </div>
+                )}
+
+                {/* Phase Changes */}
+                {campaign.act3.bossEncounter.phaseChanges && campaign.act3.bossEncounter.phaseChanges.length > 0 && (
+                  <div className="mt-2 bg-orange-900/20 p-2 rounded border border-orange-500/30">
+                    <strong className="text-orange-400 text-xs">Phase Changes:</strong>
+                    <ul className="list-disc list-inside text-parchment/70 text-xs ml-2">
+                      {campaign.act3.bossEncounter.phaseChanges.map((pc: string, idx: number) => (
+                        <li key={idx}>{pc}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Minions */}
+                {campaign.act3.bossEncounter.minions && campaign.act3.bossEncounter.minions.length > 0 && (
+                  <div className="mt-2">
+                    <strong className="text-parchment/80 text-xs">Minions:</strong>
+                    <div className="space-y-1 mt-1">
+                      {campaign.act3.bossEncounter.minions.map((m: any, idx: number) => (
+                        <div key={idx} className="text-xs text-parchment/70 bg-dark-wood/30 p-1 rounded">
+                          {m.count}x {m.name} (AC {m.ac}, HP {m.hp}) - {m.role}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Throughline Payoffs */}
+                {campaign.act3.bossEncounter.throughlinePayoffs && campaign.act3.bossEncounter.throughlinePayoffs.length > 0 && (
+                  <div className="mt-2 bg-blue-900/20 p-2 rounded border border-blue-500/30">
+                    <strong className="text-blue-400 text-xs">Story Payoffs:</strong>
+                    <ul className="list-disc list-inside text-parchment/70 text-xs ml-2">
+                      {campaign.act3.bossEncounter.throughlinePayoffs.map((tp: string, idx: number) => (
+                        <li key={idx}>{tp}</li>
+                      ))}
+                    </ul>
                   </div>
                 )}
 
