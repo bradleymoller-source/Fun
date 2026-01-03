@@ -64,8 +64,6 @@ import {
   MUSICAL_INSTRUMENTS,
   // Species trait choices
   HIGH_ELF_CANTRIPS,
-  // Class cantrips for order choices
-  CLASS_CANTRIPS,
   // Class resources
   getCharacterResources,
   // Weapon Mastery
