@@ -676,7 +676,7 @@ export function distributeItemToPlayer(
   const lootItem = session.lootItems.find(i => i.id === lootItemId);
   if (!lootItem) return null;
 
-  // Add to player inventory
+  // Add to player inventory with all item fields
   const inventoryItem: PlayerInventoryItem = {
     id: `inv-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     name: lootItem.name,
@@ -684,6 +684,16 @@ export function distributeItemToPlayer(
     quantity,
     playerId,
     playerName,
+    // Copy all item data fields
+    itemType: lootItem.itemType,
+    damage: lootItem.damage,
+    attackBonus: lootItem.attackBonus,
+    properties: lootItem.properties,
+    armorClass: lootItem.armorClass,
+    armorType: lootItem.armorType,
+    effect: lootItem.effect,
+    rarity: lootItem.rarity,
+    value: lootItem.value,
   };
   session.playerInventories.push(inventoryItem);
 

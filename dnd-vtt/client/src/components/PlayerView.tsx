@@ -337,7 +337,10 @@ export function PlayerView() {
           <h2 className="font-medieval text-xl text-gold mb-4">
             Shop & Inventory
           </h2>
-          <PlayerStorePanel />
+          <PlayerStorePanel
+            character={character}
+            onAddToCharacter={handleCharacterUpdate}
+          />
         </Panel>
       </div>
     </>

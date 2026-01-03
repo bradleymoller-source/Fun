@@ -66,6 +66,18 @@ export interface LootItem {
   value?: string;  // e.g., "50gp"
   quantity: number;
   source?: string;  // Where it came from, e.g., "Room 3 treasure chest"
+  // Item categorization
+  itemType?: 'weapon' | 'armor' | 'potion' | 'scroll' | 'gear' | 'treasure' | 'wondrous';
+  // Weapon fields
+  damage?: string;        // e.g. "1d8+1 slashing"
+  attackBonus?: number;   // e.g. 5 for +5
+  properties?: string[];  // e.g. ["versatile", "finesse"]
+  // Armor fields
+  armorClass?: number;
+  armorType?: 'light' | 'medium' | 'heavy' | 'shield';
+  // Effect for potions/scrolls/magic items
+  effect?: string;
+  rarity?: string;
 }
 
 export interface PlayerInventoryItem {
@@ -75,6 +87,19 @@ export interface PlayerInventoryItem {
   quantity: number;
   playerId: string;
   playerName: string;
+  // Item categorization
+  itemType?: 'weapon' | 'armor' | 'potion' | 'scroll' | 'gear' | 'treasure' | 'wondrous';
+  // Weapon fields
+  damage?: string;
+  attackBonus?: number;
+  properties?: string[];
+  // Armor fields
+  armorClass?: number;
+  armorType?: 'light' | 'medium' | 'heavy' | 'shield';
+  // Effect for potions/scrolls/magic items
+  effect?: string;
+  rarity?: string;
+  value?: string;
 }
 
 // Saved map for the map library

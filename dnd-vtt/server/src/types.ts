@@ -117,6 +117,18 @@ export interface LootItem {
   value?: string;
   quantity: number;
   source?: string;
+  // Item categorization
+  itemType?: 'weapon' | 'armor' | 'potion' | 'scroll' | 'gear' | 'treasure' | 'wondrous';
+  // Weapon fields
+  damage?: string;        // e.g. "1d8+1 slashing"
+  attackBonus?: number;   // e.g. 5 for +5
+  properties?: string[];  // e.g. ["versatile", "finesse"]
+  // Armor fields
+  armorClass?: number;
+  armorType?: 'light' | 'medium' | 'heavy' | 'shield';
+  // Effect for potions/scrolls/magic items
+  effect?: string;
+  rarity?: string;
 }
 
 // Item distributed to a player
@@ -127,6 +139,19 @@ export interface PlayerInventoryItem {
   quantity: number;
   playerId: string;
   playerName: string;
+  // Item categorization
+  itemType?: 'weapon' | 'armor' | 'potion' | 'scroll' | 'gear' | 'treasure' | 'wondrous';
+  // Weapon fields
+  damage?: string;
+  attackBonus?: number;
+  properties?: string[];
+  // Armor fields
+  armorClass?: number;
+  armorType?: 'light' | 'medium' | 'heavy' | 'shield';
+  // Effect for potions/scrolls/magic items
+  effect?: string;
+  rarity?: string;
+  value?: string;
 }
 
 // Represents a game session

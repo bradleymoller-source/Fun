@@ -349,13 +349,16 @@ const campaignFunctionDeclarations = [
             properties: {
               item: { type: SchemaType.STRING, description: "Item name" },
               value: { type: SchemaType.STRING, description: "Gold value" },
-              type: { type: SchemaType.STRING, description: "weapon, armor, potion, scroll, treasure, clue" },
+              type: { type: SchemaType.STRING, description: "weapon, armor, potion, scroll, treasure, clue, gear" },
               effect: { type: SchemaType.STRING, description: "Mechanical effect if any" },
+              damage: { type: SchemaType.STRING, description: "For weapons: damage dice (e.g. '1d8+1 slashing')" },
+              attackBonus: { type: SchemaType.NUMBER, description: "For weapons: attack bonus (e.g. 5 for +5)" },
+              armorClass: { type: SchemaType.NUMBER, description: "For armor: AC value" },
               hidden: { type: SchemaType.BOOLEAN, description: "Is it hidden?" },
               findDC: { type: SchemaType.NUMBER, description: "DC to find if hidden" }
             }
           },
-          description: "Treasure and loot. Include story-relevant items that connect to NPCs or throughlines."
+          description: "Treasure and loot. Weapons MUST include damage and attackBonus. Armor MUST include armorClass."
         }
       },
       required: ["id", "name", "roomType", "readAloud", "dimensions", "lighting", "contentsObvious", "exits", "treasure"]
@@ -452,8 +455,11 @@ const campaignFunctionDeclarations = [
             properties: {
               item: { type: SchemaType.STRING, description: "Item name" },
               value: { type: SchemaType.STRING, description: "Gold value (e.g. '25gp')" },
-              type: { type: SchemaType.STRING, description: "Item type: weapon, armor, potion, scroll, wondrous, treasure" },
-              effect: { type: SchemaType.STRING, description: "Mechanical effect if magical" }
+              type: { type: SchemaType.STRING, description: "Item type: weapon, armor, potion, scroll, wondrous, treasure, gear" },
+              effect: { type: SchemaType.STRING, description: "Mechanical effect if magical" },
+              damage: { type: SchemaType.STRING, description: "For weapons: damage dice (e.g. '1d8+1 slashing')" },
+              attackBonus: { type: SchemaType.NUMBER, description: "For weapons: attack bonus (e.g. 5 for +5)" },
+              armorClass: { type: SchemaType.NUMBER, description: "For armor: AC value" }
             },
             required: ["item", "value", "type"]
           },
@@ -643,15 +649,18 @@ const campaignFunctionDeclarations = [
             type: SchemaType.OBJECT,
             properties: {
               name: { type: SchemaType.STRING, description: "Item name" },
-              type: { type: SchemaType.STRING, description: "weapon, armor, wondrous, etc." },
+              type: { type: SchemaType.STRING, description: "weapon, armor, wondrous, potion, scroll, etc." },
               effect: { type: SchemaType.STRING, description: "Full mechanical description" },
               value: { type: SchemaType.STRING, description: "Gold value" },
               rarity: { type: SchemaType.STRING, description: "common, uncommon, rare, very rare" },
               attunement: { type: SchemaType.BOOLEAN, description: "Requires attunement?" },
-              lore: { type: SchemaType.STRING, description: "History or significance of the item" }
+              lore: { type: SchemaType.STRING, description: "History or significance of the item" },
+              damage: { type: SchemaType.STRING, description: "For weapons: damage dice (e.g. '1d8+1 slashing')" },
+              attackBonus: { type: SchemaType.NUMBER, description: "For weapons: attack bonus (e.g. 6 for +6)" },
+              armorClass: { type: SchemaType.NUMBER, description: "For armor: AC value" }
             }
           },
-          description: "2-3 magic items or special loot with full descriptions"
+          description: "2-3 magic items. Weapons MUST include damage and attackBonus. Armor MUST include armorClass."
         },
         villainLoot: {
           type: SchemaType.ARRAY,
@@ -1093,8 +1102,11 @@ ${bossRoom || 'Final chamber with boss encounter'}
    treasure: [
      {item: "Silver candlesticks", value: "25gp", type: "treasure", hidden: false},
      {item: "Potion of Healing", value: "50gp", type: "potion", effect: "Heals 2d4+2 HP", hidden: true, findDC: 14},
-     {item: "Ancient journal", value: "5gp", type: "clue", effect: "Mentions the villain's weakness"}
+     {item: "Longsword +1", value: "200gp", type: "weapon", damage: "1d8+1 slashing", attackBonus: 5, effect: "+1 magic weapon"},
+     {item: "Chain Mail", value: "75gp", type: "armor", armorClass: 16, effect: "AC 16, disadvantage on Stealth"}
    ]
+   WEAPONS MUST include: damage (e.g. "1d8+1 slashing") and attackBonus (number)
+   ARMOR MUST include: armorClass (number)
    Include: gold, gems, potions, scrolls, weapons, story clues, keys, maps.
    Some should be hidden (hidden: true, findDC: 12-16).
 
@@ -1124,8 +1136,11 @@ ${bossRoom || 'Final chamber with boss encounter'}
    rewardLoot: [
      {item: "50 gold pieces", value: "50gp", type: "treasure"},
      {item: "Potion of Healing", value: "50gp", type: "potion", effect: "Heals 2d4+2 HP"},
-     {item: "Rusted Longsword", value: "10gp", type: "weapon"}
+     {item: "Longsword", value: "15gp", type: "weapon", damage: "1d8 slashing", attackBonus: 4},
+     {item: "Leather Armor", value: "10gp", type: "armor", armorClass: 11, effect: "AC 11 + DEX"}
    ]
+   WEAPONS MUST include: damage (e.g. "1d8 slashing") and attackBonus (number)
+   ARMOR MUST include: armorClass (number)
 
 7. TRAPS - Include 2-4 hidden traps spread across different rooms:
    Use the trap field in addRoom (NOT separate addTrap calls):
@@ -1205,15 +1220,19 @@ ${bossRoom || 'Final chamber with boss encounter'}
    - rewardXP: 1800 (number)
    - rewardGold: "450 gold pieces"
    - villainLoot: [
-       {name: "Ornate Ceremonial Dagger", type: "weapon", value: "75gp", description: "A silver dagger with cult symbols - worth more to collectors"},
-       {name: "Bloodstained Journal", type: "document", value: "0gp", description: "Details the villain's plans and mentions a greater threat"},
-       {name: "Key to Treasure Vault", type: "key", value: "0gp", description: "Opens the locked chest in the villain's chamber"},
+       {name: "Ornate Ceremonial Dagger", type: "weapon", value: "75gp", description: "A silver dagger with cult symbols"},
+       {name: "Bloodstained Journal", type: "document", value: "0gp", description: "Details the villain's plans"},
+       {name: "Key to Treasure Vault", type: "key", value: "0gp", description: "Opens the locked chest"},
        {name: "Pouch of Gems", type: "treasure", value: "150gp", description: "3 gems worth 50gp each"}
      ]
    - rewardItems: [
-       {name: "Staff of the Void", type: "staff", rarity: "rare", value: "2000gp",
-        effect: "+1 to spell attack rolls. Can cast Darkness 1/day.", attunement: true}
+       {name: "Shadowblade +1", type: "weapon", rarity: "uncommon", value: "500gp",
+        damage: "1d8+1 slashing", attackBonus: 6, effect: "+1 magic weapon, deals extra 1d6 necrotic in dim light"},
+       {name: "Cloak of Protection", type: "wondrous", rarity: "uncommon", value: "500gp",
+        effect: "+1 to AC and saving throws", attunement: true}
      ]
+   WEAPONS MUST include: damage (e.g. "1d8+1 slashing") and attackBonus (number)
+   ARMOR MUST include: armorClass (number)
 
 === GENERATION ORDER ===
 

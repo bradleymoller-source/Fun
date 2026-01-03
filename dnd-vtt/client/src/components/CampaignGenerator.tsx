@@ -330,7 +330,17 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
   };
 
   // Add encounter/room loot to loot pool
-  const handleAddToLoot = async (items: { item: string; value: string; type?: string; effect?: string }[], source: string) => {
+  const handleAddToLoot = async (items: {
+    item: string;
+    value: string;
+    type?: string;
+    effect?: string;
+    damage?: string;
+    attackBonus?: number;
+    armorClass?: number;
+    armorType?: 'light' | 'medium' | 'heavy' | 'shield';
+    rarity?: string;
+  }[], source: string) => {
     for (const lootEntry of items) {
       const lootItem: LootItem = {
         id: `loot-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -339,6 +349,17 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
         quantity: 1,
         source: source,
         description: lootEntry.effect,
+        // Item type categorization
+        itemType: lootEntry.type as LootItem['itemType'],
+        // Weapon fields
+        damage: lootEntry.damage,
+        attackBonus: lootEntry.attackBonus,
+        // Armor fields
+        armorClass: lootEntry.armorClass,
+        armorType: lootEntry.armorType,
+        // Magic item info
+        effect: lootEntry.effect,
+        rarity: lootEntry.rarity,
       };
       await addLootItem(lootItem);
     }
@@ -1014,6 +1035,10 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
                   value: t.value || '0gp',
                   type: t.type,
                   effect: t.effect,
+                  damage: t.damage,
+                  attackBonus: t.attackBonus,
+                  armorClass: t.armorClass,
+                  armorType: t.armorType,
                 }));
                 handleAddToLoot(lootItems, `Room ${room.id}: ${room.name}`);
               }}
@@ -1579,6 +1604,11 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
                               value: item.value || '0gp',
                               type: item.type,
                               effect: item.effect || item.description,
+                              damage: item.damage,
+                              attackBonus: item.attackBonus,
+                              armorClass: item.armorClass,
+                              armorType: item.armorType,
+                              rarity: item.rarity,
                             }));
                             handleAddToLoot(lootItems, 'Boss Encounter');
                           }}
@@ -2061,7 +2091,16 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
                               const lootItems = enc.rewards.loot.map((l: any) =>
                                 typeof l === 'string'
                                   ? { item: l, value: '0gp' }
-                                  : { item: l.item, value: l.value || '0gp', type: l.type, effect: l.effect }
+                                  : {
+                                      item: l.item,
+                                      value: l.value || '0gp',
+                                      type: l.type,
+                                      effect: l.effect,
+                                      damage: l.damage,
+                                      attackBonus: l.attackBonus,
+                                      armorClass: l.armorClass,
+                                      armorType: l.armorType,
+                                    }
                               );
                               handleAddToLoot(lootItems, enc.name || 'Encounter');
                             }}
