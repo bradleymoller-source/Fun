@@ -1510,8 +1510,12 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
                       <div className="mt-2 text-xs">
                         <strong className="text-purple-400">Legendary Actions:</strong>
                         <ul className="list-disc list-inside text-parchment/70 ml-2">
-                          {campaign.act3.bossEncounter.villain.legendaryActions.map((la: string, idx: number) => (
-                            <li key={idx}>{la}</li>
+                          {campaign.act3.bossEncounter.villain.legendaryActions.map((la: any, idx: number) => (
+                            <li key={idx}>
+                              <strong>{typeof la === 'string' ? la : la.name}</strong>
+                              {la.cost && la.cost > 1 && <span className="text-purple-300"> (Costs {la.cost} Actions)</span>}
+                              {(la.effect || la.description) && <span>: {la.effect || la.description}</span>}
+                            </li>
                           ))}
                         </ul>
                       </div>
