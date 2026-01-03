@@ -1668,9 +1668,48 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
           allEncounters.push(...campaign.act2.encounters);
         }
 
-        // Legacy top-level encounters
-        if (campaign.encounters) {
-          allEncounters.push(...campaign.encounters);
+        // Boss encounter from Act 3
+        if (campaign.act3?.bossEncounter) {
+          const boss = campaign.act3.bossEncounter;
+          const villain = boss.villain || {};
+          const bossEncounter = {
+            name: `Boss: ${villain.name || 'Final Confrontation'}`,
+            difficulty: 'deadly',
+            readAloud: boss.readAloud,
+            location: 'Boss Chamber',
+            tactics: villain.tactics,
+            terrain: boss.chamberFeatures?.join(', '),
+            enemies: [
+              {
+                name: villain.name || 'Boss',
+                count: 1,
+                cr: villain.cr,
+                hp: villain.hp,
+                ac: villain.ac,
+                attacks: villain.abilities?.map((a: string) => ({
+                  name: a.split('(')[0]?.trim() || a,
+                  bonus: '?',
+                  damage: a.match(/\d+d\d+[^)]*/)?.[ 0] || 'see ability',
+                  damageType: 'varies'
+                })),
+                traits: [
+                  { name: 'Weakness', description: villain.weakness },
+                  ...(villain.legendaryActions?.map((la: string) => ({ name: 'Legendary', description: la })) || [])
+                ],
+                spells: []
+              },
+              ...(boss.minions || []).map((m: any) => ({
+                name: m.name,
+                count: m.count,
+                hp: m.hp,
+                ac: m.ac,
+                cr: '?'
+              }))
+            ],
+            rewards: boss.rewards,
+            _type: 'boss'
+          };
+          allEncounters.push(bossEncounter);
         }
 
         // Potential conflicts from Act 1 - only include if they have combat data
@@ -1695,6 +1734,7 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
                 medium: 'bg-yellow-500/30 text-yellow-300',
                 hard: 'bg-orange-500/30 text-orange-300',
                 deadly: 'bg-red-500/30 text-red-300',
+                boss: 'bg-red-700/50 text-red-200 border border-red-500',
                 optional: 'bg-purple-500/30 text-purple-300',
               };
               return (

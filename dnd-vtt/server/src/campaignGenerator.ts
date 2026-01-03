@@ -336,7 +336,7 @@ const campaignFunctionDeclarations = [
   },
   {
     name: "addEncounter",
-    description: "Add a combat encounter to Act 2. Add exactly 3 encounters.",
+    description: "Add a combat encounter to Act 2. Add exactly 3 encounters with COMPLETE monster stats.",
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
@@ -352,16 +352,71 @@ const campaignFunctionDeclarations = [
               count: { type: SchemaType.NUMBER, description: "How many" },
               cr: { type: SchemaType.STRING, description: "Challenge rating" },
               hp: { type: SchemaType.NUMBER, description: "Hit points each" },
-              ac: { type: SchemaType.NUMBER, description: "Armor class" }
+              ac: { type: SchemaType.NUMBER, description: "Armor class" },
+              acType: { type: SchemaType.STRING, description: "Armor type (natural armor, leather, etc.)" },
+              initiative: { type: SchemaType.NUMBER, description: "Initiative bonus (DEX modifier)" },
+              speed: { type: SchemaType.STRING, description: "Speed (e.g. '30 ft., fly 60 ft.')" },
+              attacks: {
+                type: SchemaType.ARRAY,
+                items: {
+                  type: SchemaType.OBJECT,
+                  properties: {
+                    name: { type: SchemaType.STRING, description: "Attack name (e.g. 'Longsword', 'Bite')" },
+                    bonus: { type: SchemaType.NUMBER, description: "Attack bonus (e.g. 5 for +5)" },
+                    damage: { type: SchemaType.STRING, description: "Damage dice (e.g. '1d8+3')" },
+                    damageType: { type: SchemaType.STRING, description: "Damage type (slashing, piercing, fire, etc.)" },
+                    notes: { type: SchemaType.STRING, description: "Special effects (e.g. 'reach 10 ft.')" }
+                  },
+                  required: ["name", "bonus", "damage", "damageType"]
+                },
+                description: "All attacks this creature can make"
+              },
+              spells: {
+                type: SchemaType.ARRAY,
+                items: {
+                  type: SchemaType.OBJECT,
+                  properties: {
+                    name: { type: SchemaType.STRING, description: "Spell name" },
+                    level: { type: SchemaType.NUMBER, description: "Spell level (0 for cantrip)" },
+                    damage: { type: SchemaType.STRING, description: "Damage if applicable" },
+                    effect: { type: SchemaType.STRING, description: "Effect description" },
+                    save: { type: SchemaType.STRING, description: "Save type and DC (e.g. 'DC 14 WIS')" }
+                  },
+                  required: ["name", "level"]
+                },
+                description: "Spells and cantrips (if spellcaster)"
+              },
+              traits: {
+                type: SchemaType.ARRAY,
+                items: {
+                  type: SchemaType.OBJECT,
+                  properties: {
+                    name: { type: SchemaType.STRING, description: "Trait name" },
+                    description: { type: SchemaType.STRING, description: "What it does" }
+                  },
+                  required: ["name", "description"]
+                },
+                description: "Special traits (Pack Tactics, Keen Senses, etc.)"
+              },
+              resistances: {
+                type: SchemaType.ARRAY,
+                items: { type: SchemaType.STRING },
+                description: "Damage resistances (e.g. ['fire', 'cold'])"
+              },
+              immunities: {
+                type: SchemaType.ARRAY,
+                items: { type: SchemaType.STRING },
+                description: "Damage immunities (e.g. ['poison', 'psychic'])"
+              }
             },
-            required: ["name", "count", "cr", "hp", "ac"]
+            required: ["name", "count", "cr", "hp", "ac", "initiative", "speed", "attacks"]
           },
-          description: "Enemies in this encounter"
+          description: "Enemies with COMPLETE combat stats"
         },
-        tactics: { type: SchemaType.STRING, description: "How enemies fight" },
+        tactics: { type: SchemaType.STRING, description: "How enemies fight - be specific about focus targets and ability usage" },
         terrain: { type: SchemaType.STRING, description: "Combat-relevant terrain" },
         dynamicElements: { type: SchemaType.STRING, description: "What changes mid-fight" },
-        difficulty: { type: SchemaType.STRING, description: "easy, medium, or hard" },
+        difficulty: { type: SchemaType.STRING, description: "easy, medium, hard, or deadly" },
         rewardXP: { type: SchemaType.NUMBER, description: "XP reward" },
         rewardLoot: {
           type: SchemaType.ARRAY,
@@ -849,7 +904,22 @@ ${bossRoom || 'Final chamber with boss encounter'}
    - 3-5 obvious contents, 2-3 hidden contents with DCs
    - Story connections to throughlines
 
-4. TRAPS - Include 2-4 hidden traps spread across different rooms:
+4. ENCOUNTERS - Add exactly 3 combat encounters with FULL MONSTER STATS:
+   Each enemy needs COMPLETE statblock information:
+   - name, count, cr, hp, ac, acType (natural armor, leather, etc.)
+   - initiative: The creature's DEX modifier (e.g. 2 for a creature with 14 DEX)
+   - speed: Movement speed (e.g. "30 ft." or "30 ft., fly 60 ft.")
+   - attacks: REQUIRED array with at least one attack:
+     [{name: "Claw", bonus: 4, damage: "1d6+2", damageType: "slashing"}]
+   - spells: For casters, include cantrips (level 0) and spells
+   - traits: Special abilities like Pack Tactics, Sunlight Sensitivity
+   - resistances/immunities: Damage type arrays
+   Example skeleton: {name: "Skeleton", count: 3, cr: "1/4", hp: 13, ac: 13,
+     acType: "armor scraps", initiative: 2, speed: "30 ft.",
+     attacks: [{name: "Shortsword", bonus: 4, damage: "1d6+2", damageType: "piercing"}],
+     immunities: ["poison"], traits: [{name: "Undead", description: "Immune to exhaustion"}]}
+
+5. TRAPS - Include 2-4 hidden traps spread across different rooms:
    Use the trap field in addRoom (NOT separate addTrap calls):
    - trap.hasTrap: true
    - trap.name: "Poison Dart Trap"
@@ -860,7 +930,7 @@ ${bossRoom || 'Final chamber with boss encounter'}
    - trap.disarmDC: 13 (Thieves' tools)
    - trap.hint: "Tiny holes visible in the wall"
 
-5. BOSS ENCOUNTER - setBossEncounter for Act 3 (NOT addRoom):
+6. BOSS ENCOUNTER - setBossEncounter for Act 3 (NOT addRoom):
    THIS IS THE CLIMAX - FILL IN EVERY FIELD COMPLETELY:
 
    BOSS CHAMBER (this IS the Act 3 room - no separate addRoom needed):
@@ -910,7 +980,15 @@ ${bossRoom || 'Final chamber with boss encounter'}
 9. setAct2Setup - Dungeon overview referencing its history and the villain
 10. addRoom for EACH room in ACT 2 ROOMS - include ALL rooms (corridors, secrets, treasures, rituals)
     - 2-4 rooms should have trap field populated with full trap details
-11. addEncounter x3 - Enemies with detailed tactics, terrain features, loot with effects
+11. addEncounter x3 - COMPLETE MONSTER STATBLOCKS required for each enemy:
+    - name, count, cr, hp, ac, acType (natural armor, etc.)
+    - initiative: DEX modifier bonus (e.g. 2 for +2)
+    - speed: "30 ft." or "30 ft., fly 60 ft."
+    - attacks: Array of {name, bonus, damage, damageType, notes}
+      Example: {name: "Longsword", bonus: 5, damage: "1d8+3", damageType: "slashing"}
+    - spells: Array of {name, level, damage, effect, save} for casters
+    - traits: Array of {name, description} for Pack Tactics, Keen Senses, etc.
+    - resistances, immunities: Arrays of damage types
 12. setBossEncounter - THE MOST IMPORTANT CALL. This IS Act 3. Include ALL fields:
     - chamberReadAloud: 2-3 FULL paragraphs setting the scene of the boss's lair
     - chamberDimensions: Size of arena
