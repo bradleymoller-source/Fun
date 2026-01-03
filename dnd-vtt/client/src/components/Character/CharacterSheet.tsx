@@ -877,58 +877,98 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
       {renderHitPoints()}
 
       {/* Weapons */}
-      <div>
-        <h4 className="text-gold font-semibold mb-2">Weapons</h4>
-        {character.weapons.length === 0 ? (
-          <p className="text-parchment/50 text-sm">No weapons equipped</p>
-        ) : (
-          <div className="space-y-2">
-            {character.weapons.map(weapon => (
-              <div key={weapon.id} className="bg-dark-wood p-2 rounded border border-leather">
-                <div className="flex justify-between items-center mb-1">
-                  <div className="text-parchment font-semibold">{weapon.name}</div>
-                  <button
-                    onClick={() => handleRollAttack(weapon.name, weapon.attackBonus)}
-                    disabled={!onRoll}
-                    className="text-gold font-bold hover:text-yellow-300 disabled:hover:text-gold"
-                    title="Roll attack"
-                  >
-                    {formatModifier(weapon.attackBonus)} to hit
-                  </button>
-                </div>
-                <div className="flex justify-between items-center">
-                  <div className="text-parchment/70 text-xs">
-                    {weapon.properties?.join(', ')}
-                  </div>
-                  <div className="flex gap-2 items-center">
-                    <button
-                      onClick={() => handleRollDamage(weapon.name, weapon.damage)}
-                      disabled={!onRoll}
-                      className="text-red-400 text-sm hover:text-red-300 disabled:hover:text-red-400"
-                      title="Roll damage"
-                    >
-                      {weapon.damage}
-                    </button>
-                    {weapon.bonusDamage && (
-                      <button
-                        onClick={() => handleRollDamage(`${weapon.name} (bonus)`, weapon.bonusDamage!)}
-                        disabled={!onRoll}
-                        className="text-purple-400 text-sm hover:text-purple-300 disabled:hover:text-purple-400"
-                        title="Roll bonus damage"
-                      >
-                        +{weapon.bonusDamage}
-                      </button>
-                    )}
-                  </div>
-                </div>
-                {weapon.effect && (
-                  <p className="text-green-400/80 text-xs mt-1 italic">{weapon.effect}</p>
+      {(() => {
+        // Check for combat feats
+        const hasSavageAttacker = character.features?.some(f => f.name === 'Savage Attacker');
+        const hasTavernBrawler = character.features?.some(f => f.name === 'Tavern Brawler');
+        const isUnarmed = (name: string) => name.toLowerCase().includes('unarmed');
+
+        return (
+          <div>
+            <h4 className="text-gold font-semibold mb-2">Weapons</h4>
+            {/* Combat feat reminders */}
+            {(hasSavageAttacker || hasTavernBrawler) && (
+              <div className="mb-2 p-2 bg-amber-900/20 border border-amber-600/30 rounded text-xs">
+                {hasSavageAttacker && (
+                  <p className="text-amber-300">
+                    <span className="font-semibold">Savage Attacker:</span> Once per turn, roll weapon/unarmed damage twice and use either result
+                  </p>
+                )}
+                {hasTavernBrawler && (
+                  <p className="text-orange-300 mt-1">
+                    <span className="font-semibold">Tavern Brawler:</span> Reroll 1s on unarmed damage • Push target 5 ft on unarmed hit (1/turn)
+                  </p>
                 )}
               </div>
-            ))}
+            )}
+            {character.weapons.length === 0 ? (
+              <p className="text-parchment/50 text-sm">No weapons equipped</p>
+            ) : (
+              <div className="space-y-2">
+                {character.weapons.map(weapon => {
+                  const weaponIsUnarmed = isUnarmed(weapon.name);
+                  return (
+                    <div
+                      key={weapon.id}
+                      className={`p-2 rounded border ${
+                        weaponIsUnarmed && hasTavernBrawler
+                          ? 'bg-orange-900/30 border-orange-600/40'
+                          : 'bg-dark-wood border-leather'
+                      }`}
+                    >
+                      <div className="flex justify-between items-center mb-1">
+                        <div className="text-parchment font-semibold">
+                          {weapon.name}
+                          {weaponIsUnarmed && hasTavernBrawler && (
+                            <span className="text-orange-400 text-xs ml-2">(Tavern Brawler)</span>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => handleRollAttack(weapon.name, weapon.attackBonus)}
+                          disabled={!onRoll}
+                          className="text-gold font-bold hover:text-yellow-300 disabled:hover:text-gold"
+                          title="Roll attack"
+                        >
+                          {formatModifier(weapon.attackBonus)} to hit
+                        </button>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <div className="text-parchment/70 text-xs">
+                          {weapon.properties?.join(', ')}
+                        </div>
+                        <div className="flex gap-2 items-center">
+                          <button
+                            onClick={() => handleRollDamage(weapon.name, weapon.damage)}
+                            disabled={!onRoll}
+                            className="text-red-400 text-sm hover:text-red-300 disabled:hover:text-red-400"
+                            title={hasSavageAttacker ? "Roll damage (Savage Attacker: roll twice!)" : "Roll damage"}
+                          >
+                            {weapon.damage}
+                            {hasSavageAttacker && <span className="text-amber-400 ml-1">*</span>}
+                          </button>
+                          {weapon.bonusDamage && (
+                            <button
+                              onClick={() => handleRollDamage(`${weapon.name} (bonus)`, weapon.bonusDamage!)}
+                              disabled={!onRoll}
+                              className="text-purple-400 text-sm hover:text-purple-300 disabled:hover:text-purple-400"
+                              title="Roll bonus damage"
+                            >
+                              +{weapon.bonusDamage}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      {weapon.effect && (
+                        <p className="text-green-400/80 text-xs mt-1 italic">{weapon.effect}</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        );
+      })()}
 
       {/* Weapon Masteries */}
       {character.weaponMasteries && character.weaponMasteries.length > 0 && (

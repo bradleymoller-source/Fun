@@ -350,23 +350,54 @@ export function DiceRoller({ onRoll, playerId, playerName, isDm, character }: Di
               </div>
 
               {/* Attack Rolls */}
-              {character.weapons.length > 0 && (
-                <div>
-                  <h5 className="text-parchment/70 text-xs uppercase mb-1">Attack Rolls</h5>
-                  <div className="space-y-1">
-                    {character.weapons.filter(w => w.equipped).map((weapon) => (
-                      <button
-                        key={weapon.id}
-                        onClick={() => rollWithModifier(`${weapon.name} Attack`, weapon.attackBonus)}
-                        className="w-full px-2 py-1 text-xs bg-red-900/30 text-red-300 rounded text-left hover:bg-red-700 hover:text-white"
-                        title={`${weapon.name}: +${weapon.attackBonus} to hit, ${weapon.damage}`}
-                      >
-                        {weapon.name} (+{weapon.attackBonus}) - {weapon.damage}
-                      </button>
-                    ))}
+              {character.weapons.length > 0 && (() => {
+                // Check for combat feats
+                const hasSavageAttacker = character.features?.some(f => f.name === 'Savage Attacker');
+                const hasTavernBrawler = character.features?.some(f => f.name === 'Tavern Brawler');
+                const isUnarmed = (name: string) => name.toLowerCase().includes('unarmed');
+
+                return (
+                  <div>
+                    <h5 className="text-parchment/70 text-xs uppercase mb-1">Attack Rolls</h5>
+                    {/* Feat combat reminders */}
+                    {hasSavageAttacker && (
+                      <p className="text-amber-400/80 text-xs mb-1 italic">
+                        Savage Attacker: Once/turn, roll damage twice, use either
+                      </p>
+                    )}
+                    <div className="space-y-1">
+                      {character.weapons.filter(w => w.equipped).map((weapon) => {
+                        // Build tooltip with feat notes
+                        let tooltip = `${weapon.name}: +${weapon.attackBonus} to hit, ${weapon.damage}`;
+                        if (isUnarmed(weapon.name) && hasTavernBrawler) {
+                          tooltip += '\n\nTavern Brawler:\n• Reroll 1s on damage\n• Push target 5 ft on hit (1/turn)';
+                        }
+                        if (hasSavageAttacker) {
+                          tooltip += '\n\nSavage Attacker: Roll damage twice (1/turn)';
+                        }
+
+                        return (
+                          <button
+                            key={weapon.id}
+                            onClick={() => rollWithModifier(`${weapon.name} Attack`, weapon.attackBonus)}
+                            className={`w-full px-2 py-1 text-xs rounded text-left hover:bg-red-700 hover:text-white ${
+                              isUnarmed(weapon.name) && hasTavernBrawler
+                                ? 'bg-orange-900/40 text-orange-300 border border-orange-600/30'
+                                : 'bg-red-900/30 text-red-300'
+                            }`}
+                            title={tooltip}
+                          >
+                            {weapon.name} (+{weapon.attackBonus}) - {weapon.damage}
+                            {isUnarmed(weapon.name) && hasTavernBrawler && (
+                              <span className="text-orange-400 ml-1">*</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
           )}
         </div>
