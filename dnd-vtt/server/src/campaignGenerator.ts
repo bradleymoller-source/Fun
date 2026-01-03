@@ -463,7 +463,7 @@ const campaignFunctionDeclarations = [
         },
         villainLoot: { type: SchemaType.STRING, description: "Everything on the villain's body: equipment, notes, keys, etc." }
       },
-      required: ["title", "overview", "chamberReadAloud", "chamberFeatures", "villainName", "villainAppearance", "villainType", "villainCR", "villainHP", "villainAC", "villainMotivation", "villainDialogueOpening", "villainDialogueDefeat", "villainTactics", "villainAbilities", "villainWeakness", "phaseChanges", "rewardXP", "rewardGold", "rewardItems"]
+      required: ["title", "overview", "chamberReadAloud", "chamberFeatures", "chamberDimensions", "villainName", "villainAppearance", "villainType", "villainCR", "villainHP", "villainAC", "villainMotivation", "villainPersonality", "villainDialogueOpening", "villainDialogueMidFight", "villainDialogueDefeat", "villainTactics", "villainAbilities", "villainWeakness", "legendaryActions", "phaseChanges", "throughlinePayoffs", "rewardXP", "rewardGold", "rewardItems", "villainLoot"]
     }
   },
   {
@@ -809,6 +809,15 @@ PARAMETERS:
 - Party Size: ${request.partySize}
 - Tone: ${request.tone || 'serious'}
 
+=== NAMING REQUIREMENTS ===
+IMPORTANT: Create UNIQUE, CREATIVE names. NEVER use generic fantasy names like:
+- Oakhaven, Willowdale, Thornwood, Shadowfen, Misthollow, Ravencrest, etc.
+Instead, create evocative names that match the theme and setting:
+- For dark themes: Bleakmarrow, The Sunken Parish, Gallowsmere
+- For mystical themes: Starfall Crossing, The Luminant Hollow, Crystalvein
+- For corrupt themes: The Tainted Wells, Blightreach, Canker's Rest
+Each town, dungeon, and NPC name should feel unique to THIS specific adventure.
+
 === DUNGEON STRUCTURE ===
 
 ACT 2 ROOMS (generate these with addRoom):
@@ -852,12 +861,37 @@ ${bossRoom || 'Final chamber with boss encounter'}
    - trap.hint: "Tiny holes visible in the wall"
 
 5. BOSS ENCOUNTER - setBossEncounter for Act 3 (NOT addRoom):
-   - The boss room is listed under "ACT 3 BOSS ROOM" above - do NOT use addRoom for it
-   - villainTactics REQUIRED: "Opens with X, focuses Y, uses Z when bloodied"
-   - villainAbilities REQUIRED: Array of 3-4 abilities with effects
-   - phaseChanges REQUIRED: What happens at 75%, 50%, 25% HP
-   - villainDialogueOpening, villainDialogueMidFight, villainDialogueDefeat - all required
-   - throughlinePayoffs: How each Act 1 throughline resolves here
+   THIS IS THE CLIMAX - FILL IN EVERY FIELD COMPLETELY:
+
+   BOSS CHAMBER (this IS the Act 3 room - no separate addRoom needed):
+   - chamberReadAloud: 2-3 FULL paragraphs describing the boss's lair. Set the scene!
+     Describe the architecture, lighting, atmosphere, what the villain is doing when party arrives.
+   - chamberDimensions: "60x80 feet with 30-foot vaulted ceiling"
+   - chamberFeatures: 4-5 tactical terrain features (pillars, pits, altars, braziers)
+
+   VILLAIN DETAILS (all required):
+   - villainName, villainAppearance (2-3 sentences of physical description)
+   - villainType, villainCR, villainHP, villainAC
+   - villainMotivation: What drives them? Connect to backstory
+   - villainPersonality: How they act, speak, their demeanor
+   - villainTactics: "Opens with [spell/ability], focuses [target type], uses [ability] when bloodied, retreats to [position] when desperate"
+   - villainAbilities: Array of 3-4 abilities ["Shadowbolt (60ft, 3d8 necrotic)", "Dark Shield (reaction, +5 AC)", etc.]
+   - villainWeakness: Foreshadowed weakness players can exploit
+   - legendaryActions: 2-3 legendary actions if CR 3+
+
+   VILLAIN DIALOGUE (all three required with ACTUAL LINES):
+   - villainDialogueOpening: What they say when party enters (reference what they know)
+   - villainDialogueMidFight: Taunts during combat (3-4 different lines)
+   - villainDialogueDefeat: Final words when defeated
+
+   FIGHT DYNAMICS:
+   - phaseChanges: ["At 75% HP: summons 2 shadow minions", "At 50% HP: lair begins to collapse, difficult terrain", "At 25% HP: desperate frenzy, gains extra attack"]
+   - minions: Array of {name, count, hp, ac, role}
+   - throughlinePayoffs: How each throughline resolves in this fight
+
+   REWARDS:
+   - rewardXP, rewardGold, villainLoot (equipment, notes, keys on body)
+   - rewardItems: 2-3 magic items with FULL mechanical descriptions
 
 === GENERATION ORDER ===
 
@@ -877,11 +911,20 @@ ${bossRoom || 'Final chamber with boss encounter'}
 10. addRoom for EACH room in ACT 2 ROOMS - include ALL rooms (corridors, secrets, treasures, rituals)
     - 2-4 rooms should have trap field populated with full trap details
 11. addEncounter x3 - Enemies with detailed tactics, terrain features, loot with effects
-12. setBossEncounter - This covers the Act 3 boss room. Include:
-    - chamberReadAloud (2-3 paragraphs), chamberFeatures (tactical terrain)
-    - Full villain with appearance, abilities, tactics, ALL dialogue fields
-    - phaseChanges array, throughlinePayoffs array
-    - rewardItems with mechanical effects
+12. setBossEncounter - THE MOST IMPORTANT CALL. This IS Act 3. Include ALL fields:
+    - chamberReadAloud: 2-3 FULL paragraphs setting the scene of the boss's lair
+    - chamberDimensions: Size of arena
+    - chamberFeatures: 4-5 tactical terrain elements
+    - ALL villain fields: name, appearance, type, CR, HP, AC, motivation, personality
+    - villainTactics: Detailed combat strategy (3+ sentences)
+    - villainAbilities: Array of 3-4 abilities with effects
+    - ALL dialogue: opening (when party enters), midFight (taunts), defeat (final words)
+    - legendaryActions: 2-3 legendary actions
+    - phaseChanges: What changes at 75%, 50%, 25% HP
+    - minions: Supporting enemies with stats and roles
+    - throughlinePayoffs: How each story thread resolves
+    - rewardItems: 2-3 magic items with FULL mechanical effects
+    - villainLoot: Everything on the villain's body
 13. setAftermath - Resolution referencing NPCs by name, throughline resolutions
 14. campaignComplete
 
