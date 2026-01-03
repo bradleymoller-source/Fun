@@ -1103,7 +1103,19 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
           <div className="grid grid-cols-5 gap-1 text-center">
             {(['copper', 'silver', 'electrum', 'gold', 'platinum'] as const).map(coin => (
               <div key={coin} className="bg-dark-wood p-2 rounded border border-leather">
-                <div className="text-gold font-bold">{character.currency[coin]}</div>
+                {isEditable && onUpdate ? (
+                  <input
+                    type="number"
+                    value={character.currency[coin]}
+                    onChange={(e) => onUpdate({
+                      currency: { ...character.currency, [coin]: parseInt(e.target.value) || 0 }
+                    })}
+                    className="w-full bg-transparent text-gold font-bold text-center border-none outline-none focus:bg-leather/30 rounded"
+                    min="0"
+                  />
+                ) : (
+                  <div className="text-gold font-bold">{character.currency[coin]}</div>
+                )}
                 <div className="text-parchment/70 text-xs uppercase">{coin.slice(0, 2)}</div>
               </div>
             ))}
