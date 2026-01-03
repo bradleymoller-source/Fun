@@ -203,7 +203,7 @@ const campaignFunctionDeclarations = [
           description: "Services or items they offer with prices"
         }
       },
-      required: ["name", "role", "location", "appearance", "personality", "connectionToPlot", "dialogueGreeting", "dialogueGossip", "keyInformation"]
+      required: ["name", "role", "location", "appearance", "personality", "connectionToPlot", "dialogueGreeting", "dialogueGossip", "keyInformation", "skillChecks"]
     }
   },
   {
@@ -331,7 +331,7 @@ const campaignFunctionDeclarations = [
           description: "Treasure and loot. Include story-relevant items that connect to NPCs or throughlines."
         }
       },
-      required: ["id", "name", "roomType", "readAloud", "dimensions", "lighting", "contentsObvious", "exits"]
+      required: ["id", "name", "roomType", "readAloud", "dimensions", "lighting", "contentsObvious", "exits", "treasure"]
     }
   },
   {
@@ -896,22 +896,44 @@ ${bossRoom || 'Final chamber with boss encounter'}
    - Dungeon rooms should contain evidence of throughlines
    - The boss encounter must resolve all throughlines
 
-2. NPC SKILL CHECKS - REQUIRED for 3-4 NPCs:
-   Each NPC with skill checks needs the skillChecks object with:
-   - persuasion: { dc: 12-15, reveals: "Story-relevant secret about villain/dungeon" }
-   - intimidation: { dc: 13-16, reveals: "What they confess under pressure" }
-   - insight: { dc: 10-14, reveals: "What you notice about their hidden motives" }
-   - bribe: { cost: "5-20gp", reveals: "Exclusive information for payment" }
-   Example: The blacksmith (DC 13 Persuasion) reveals he repaired the cultist's ritual dagger last week.
+2. NPC SKILL CHECKS - REQUIRED for ALL NPCs:
+   EVERY NPC must have the skillChecks object with at least 2-3 checks:
+   skillChecks: {
+     persuasion: { dc: 13, reveals: "He mentions seeing cloaked figures at the old mill last week" },
+     intimidation: { dc: 15, reveals: "Admits he sold supplies to the cultists out of fear" },
+     insight: { dc: 12, reveals: "You notice he keeps glancing nervously at the back door" },
+     bribe: { cost: "10gp", reveals: "Draws a rough map showing a secret entrance to the dungeon" }
+   }
+   The reveals should be STORY-RELEVANT and help players learn about the villain, dungeon, or plot.
 
-3. ROOM DESCRIPTIONS - Generate ALL rooms from ACT 2 ROOMS list above:
+3. SHOPS MUST HAVE INVENTORY - addShop requires inventory array:
+   Blacksmiths sell: weapons, armor, shields, ammunition
+   General stores sell: adventuring gear, rations, rope, torches
+   Apothecaries sell: potions, antidotes, herbs
+   Example inventory: [
+     {item: "Longsword", cost: "15gp", type: "weapon", effect: "1d8 slashing, versatile (1d10)"},
+     {item: "Potion of Healing", cost: "50gp", type: "potion", effect: "Heals 2d4+2 HP"},
+     {item: "Chain Mail", cost: "75gp", type: "armor", effect: "AC 16, disadvantage on Stealth"}
+   ]
+
+4. ROOM TREASURE - REQUIRED for every room:
+   Every room needs the treasure array with 1-4 items:
+   treasure: [
+     {item: "Silver candlesticks", value: "25gp", type: "treasure", hidden: false},
+     {item: "Potion of Healing", value: "50gp", type: "potion", effect: "Heals 2d4+2 HP", hidden: true, findDC: 14},
+     {item: "Ancient journal", value: "5gp", type: "clue", effect: "Mentions the villain's weakness"}
+   ]
+   Include: gold, gems, potions, scrolls, weapons, story clues, keys, maps.
+   Some should be hidden (hidden: true, findDC: 12-16).
+
+5. ROOM DESCRIPTIONS - Generate ALL rooms from ACT 2 ROOMS list above:
    - Match each room number and type from the dungeon structure
    - Include secret rooms, treasure rooms, ritual rooms, corridors - ALL of them
    - 2-3 paragraph read-aloud with sensory details
    - 3-5 obvious contents, 2-3 hidden contents with DCs
    - Story connections to throughlines
 
-4. ENCOUNTERS - Add exactly 3 combat encounters with FULL MONSTER STATS:
+6. ENCOUNTERS - Add exactly 3 combat encounters with FULL MONSTER STATS:
    Each enemy needs COMPLETE statblock information:
    - name, count, cr, hp, ac, acType (natural armor, leather, etc.)
    - initiative: The creature's DEX modifier (e.g. 2 for a creature with 14 DEX)
@@ -933,7 +955,7 @@ ${bossRoom || 'Final chamber with boss encounter'}
      {item: "Rusted Longsword", value: "10gp", type: "weapon"}
    ]
 
-5. TRAPS - Include 2-4 hidden traps spread across different rooms:
+7. TRAPS - Include 2-4 hidden traps spread across different rooms:
    Use the trap field in addRoom (NOT separate addTrap calls):
    - trap.hasTrap: true
    - trap.name: "Poison Dart Trap"
@@ -944,7 +966,7 @@ ${bossRoom || 'Final chamber with boss encounter'}
    - trap.disarmDC: 13 (Thieves' tools)
    - trap.hint: "Tiny holes visible in the wall"
 
-6. BOSS ENCOUNTER - setBossEncounter for Act 3 (NOT addRoom):
+8. BOSS ENCOUNTER - setBossEncounter for Act 3 (NOT addRoom):
    THIS IS THE CLIMAX - FILL IN EVERY FIELD COMPLETELY:
 
    BOSS CHAMBER (this IS the Act 3 room - no separate addRoom needed):
@@ -973,9 +995,18 @@ ${bossRoom || 'Final chamber with boss encounter'}
    - minions: Array of {name, count, hp, ac, role}
    - throughlinePayoffs: How each throughline resolves in this fight
 
-   REWARDS:
-   - rewardXP, rewardGold, villainLoot (equipment, notes, keys on body)
-   - rewardItems: 2-3 magic items with FULL mechanical descriptions
+   REWARDS - ALL REQUIRED:
+   - rewardXP: Total XP for the encounter (e.g. 1800)
+   - rewardGold: "450 gold pieces, 3 gems worth 50gp each"
+   - villainLoot: "Ornate dagger, bloodstained journal, key to treasure vault"
+   - rewardItems: MUST include 2-3 magic items:
+     [
+       {name: "Staff of the Void", type: "staff", rarity: "rare", value: "2000gp",
+        effect: "+1 to spell attack rolls. Can cast Darkness 1/day.", attunement: true,
+        lore: "Once belonged to the archmage who sealed the demon"},
+       {name: "Amulet of Proof Against Detection", type: "wondrous", rarity: "uncommon",
+        value: "500gp", effect: "Cannot be targeted by divination magic", attunement: true}
+     ]
 
 === GENERATION ORDER ===
 
@@ -983,16 +1014,20 @@ ${bossRoom || 'Final chamber with boss encounter'}
 2. addThroughline x2-3 - Narrative threads that will appear throughout
 3. setAct1Setup - Town arrival, DM notes about what's really happening
 4. setQuestGiver - Full dialogue including greeting, quest pitch, responses to questions
-5. addNPC x4-6 - IMPORTANT: 3-4 NPCs MUST have skillChecks with DC and reveals
-   - Innkeeper: insight check reveals nervousness about recent visitors
-   - Blacksmith: persuasion reveals he sold weapons to suspicious figures
-   - Elder: no check needed, freely shares legends
-   - Merchant: bribe unlocks map showing secret entrance
+5. addNPC x4-6 - EVERY NPC must have skillChecks object:
+   Each NPC needs 2-4 skill checks with DCs and story-relevant reveals:
+   - skillChecks.persuasion: { dc: 13, reveals: "..." }
+   - skillChecks.intimidation: { dc: 15, reveals: "..." }
+   - skillChecks.insight: { dc: 12, reveals: "..." }
+   - skillChecks.bribe: { cost: "10gp", reveals: "..." }
 6. setInn - Rumors that foreshadow dungeon dangers
-7. addShop x1-2 - Items useful for the specific dungeon
+7. addShop x1-2 - MUST include inventory array with 4-6 items:
+   Each item needs: {item, cost, type, effect}
+   Blacksmith: weapons, armor. Apothecary: potions. General: gear.
 8. setTravelToDestination - Journey with environmental storytelling
 9. setAct2Setup - Dungeon overview referencing its history and the villain
 10. addRoom for EACH room in ACT 2 ROOMS - include ALL rooms (corridors, secrets, treasures, rituals)
+    - EVERY room MUST have treasure array with 1-4 items
     - 2-4 rooms should have trap field populated with full trap details
 11. addEncounter x3 - COMPLETE MONSTER STATBLOCKS required for each enemy:
     - name, count, cr, hp, ac, acType (natural armor, etc.)
