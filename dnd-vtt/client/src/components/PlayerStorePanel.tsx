@@ -206,8 +206,20 @@ export function PlayerStorePanel({ character, onAddToCharacter }: PlayerStorePan
     return getTotalCopper(character.currency) >= copperCost;
   };
 
+  // Debug
+  const hasCharacter = !!character;
+  const hasCallback = !!onAddToCharacter;
+
   return (
     <div className="space-y-4">
+      {/* Debug Panel */}
+      <div className="bg-purple-900/50 p-2 rounded text-xs text-purple-300 border border-purple-500">
+        <div>Character: {hasCharacter ? `✓ ${character?.name}` : '✗ null'}</div>
+        <div>Callback: {hasCallback ? '✓ defined' : '✗ undefined'}</div>
+        <div>Store items: {storeItems.length}</div>
+        <div>Can show buy: {hasCharacter && hasCallback ? '✓ YES' : '✗ NO'}</div>
+      </div>
+
       {/* Currency Display */}
       {character?.currency && (
         <div className="bg-dark-wood p-3 rounded-lg border border-gold/50">
