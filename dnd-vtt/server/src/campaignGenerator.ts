@@ -938,7 +938,7 @@ function processFunctionCall(builder: CampaignBuilder, functionName: string, arg
 // Generate campaign using function calling
 async function generateCampaignWithFunctions(request: CampaignRequest, dungeonMap: DungeonMap): Promise<GeneratedCampaign> {
   const model = genAI.getGenerativeModel({
-    model: 'gemini-2.0-flash-exp',
+    model: 'gemini-1.5-flash',
     tools: [{ functionDeclarations: campaignFunctionDeclarations as any }]
   });
 
@@ -1914,7 +1914,7 @@ function extractJsonFromResponse(text: string): string {
 
 // Helper to call Gemini API and parse response
 async function callGeminiAndParse(prompt: string, partName: string): Promise<any> {
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
   console.log(`Generating ${partName}...`);
   const result = await model.generateContent(prompt);
@@ -2707,7 +2707,7 @@ export async function generateCampaignLegacy(req: Request, res: Response) {
 
     let model;
     try {
-      model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+      model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     } catch (modelError) {
       console.error('Failed to get Gemini model:', modelError);
       return res.status(500).json({
@@ -2812,7 +2812,7 @@ Ensure rooms connect logically and don't overlap. Place entrance at edge.
 Use grid coordinates (0-19 for x and y).`;
 
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     const result = await model.generateContent(prompt);
     const text = result.response.text();
 
@@ -4240,7 +4240,7 @@ Current map: ${JSON.stringify(dungeonMap)}
 Return the enhanced map as JSON with better room names, descriptions, and features. Keep the same structure.`;
 
       try {
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
         const result = await model.generateContent(prompt);
         const text = result.response.text();
 
@@ -4302,9 +4302,9 @@ async function generateImageWithGemini(prompt: string): Promise<string | null> {
   try {
     const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
-    // Use gemini-2.0-flash-exp with image generation capability
+    // Use gemini-1.5-flash with image generation capability
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash-exp',
+      model: 'gemini-1.5-flash',
       generationConfig: {
         responseModalities: ['Text', 'Image'],
       } as any, // Type assertion needed as responseModalities isn't in the base types yet
@@ -4605,7 +4605,7 @@ Return ONLY valid JSON:
 
 Use only SRD monsters. Balance for the party.`;
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     const result = await model.generateContent(prompt);
     const text = result.response.text();
 
