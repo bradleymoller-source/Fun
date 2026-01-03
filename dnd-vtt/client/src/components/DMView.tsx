@@ -16,7 +16,7 @@ import { EncounterBuilder } from './EncounterBuilder';
 import { CampaignGenerator } from './CampaignGenerator';
 import { NotesPanel } from './DM/NotesPanel';
 import { StorePanel } from './StorePanel';
-import type { Token, DiceRoll, ChatMessage, InitiativeEntry, FogArea, Character, StoreItem } from '../types';
+import type { Token, DiceRoll, ChatMessage, InitiativeEntry, FogArea, Character, StoreItem, LootItem } from '../types';
 
 type MapOrientation = 'landscape' | 'portrait';
 
@@ -46,6 +46,7 @@ export function DMView() {
     getAllCharacters,
     updatePlayerCharacter,
     distributeItem,
+    addLootItem,
     socket,
   } = useSocket();
   const [dmNotes, setDmNotes] = useState<Record<string, string>>({});
@@ -342,6 +343,27 @@ export function DMView() {
       console.log(`Item ${itemId} distributed to ${playerName}`);
     } catch (error) {
       console.error('Failed to distribute item:', error);
+    }
+  };
+
+  const handleDistributeStoreItem = async (item: StoreItem, playerId: string, playerName: string) => {
+    try {
+      // Convert store item to loot item and add to loot pool
+      const lootItem: LootItem = {
+        id: `loot-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        name: item.name,
+        value: item.price,
+        quantity: 1,
+        description: item.description,
+        source: 'Store',
+        effect: item.effect,
+      };
+      await addLootItem(lootItem);
+      // Then distribute it
+      await distributeItem(lootItem.id, playerId, playerName, 1);
+      console.log(`Store item ${item.name} given to ${playerName}`);
+    } catch (error) {
+      console.error('Failed to give store item:', error);
     }
   };
 
@@ -693,6 +715,7 @@ export function DMView() {
                 players={players}
                 onUpdateStore={handleUpdateStore}
                 onDistributeItem={handleDistributeItem}
+                onDistributeStoreItem={handleDistributeStoreItem}
               />
             </Panel>
 

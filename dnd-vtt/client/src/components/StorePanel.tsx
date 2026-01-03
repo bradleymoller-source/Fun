@@ -10,9 +10,10 @@ interface StorePanelProps {
   players?: Player[];
   onUpdateStore?: (items: StoreItem[]) => void;
   onDistributeItem?: (itemId: string, playerId: string, playerName: string, quantity: number) => void;
+  onDistributeStoreItem?: (item: StoreItem, playerId: string, playerName: string) => void;
 }
 
-export function StorePanel({ isDm, players = [], onDistributeItem }: StorePanelProps) {
+export function StorePanel({ isDm, players = [], onDistributeItem, onDistributeStoreItem }: StorePanelProps) {
   const { storeItems, lootItems, playerInventories } = useSessionStore();
   const { addStoreItem: addStoreItemSocket, removeStoreItem: removeStoreItemSocket, addLootItem: addLootItemSocket, removeLootItem: removeLootItemSocket } = useSocket();
 
@@ -21,6 +22,7 @@ export function StorePanel({ isDm, players = [], onDistributeItem }: StorePanelP
   const [newStoreItem, setNewStoreItem] = useState({ name: '', price: '', quantity: 1, description: '', effect: '' });
   const [newLootItem, setNewLootItem] = useState({ name: '', value: '', quantity: 1, description: '', source: '' });
   const [distributeItem, setDistributeItem] = useState<{ itemId: string; quantity: number } | null>(null);
+  const [distributeStoreItem, setDistributeStoreItem] = useState<StoreItem | null>(null);
 
   const handleAddStoreItem = async () => {
     if (!newStoreItem.name.trim() || !newStoreItem.price.trim()) return;
@@ -70,6 +72,12 @@ export function StorePanel({ isDm, players = [], onDistributeItem }: StorePanelP
     // Call the socket function to distribute
     onDistributeItem?.(distributeItem.itemId, playerId, playerName, distributeItem.quantity);
     setDistributeItem(null);
+  };
+
+  const handleDistributeStore = (playerId: string, playerName: string) => {
+    if (!distributeStoreItem || !onDistributeStoreItem) return;
+    onDistributeStoreItem(distributeStoreItem, playerId, playerName);
+    setDistributeStoreItem(null);
   };
 
   const handleRemoveStore = async (itemId: string) => {
@@ -158,12 +166,20 @@ export function StorePanel({ isDm, players = [], onDistributeItem }: StorePanelP
                     )}
                   </div>
                   {isDm && (
-                    <button
-                      onClick={() => handleRemoveStore(item.id)}
-                      className="text-red-400 hover:text-red-300 text-sm"
-                    >
-                      Remove
-                    </button>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => setDistributeStoreItem(item)}
+                        className="text-green-400 hover:text-green-300 text-sm px-2 py-1 bg-green-900/50 rounded"
+                      >
+                        Give
+                      </button>
+                      <button
+                        onClick={() => handleRemoveStore(item.id)}
+                        className="text-red-400 hover:text-red-300 text-sm px-2 py-1 bg-red-900/50 rounded"
+                      >
+                        Remove
+                      </button>
+                    </div>
                   )}
                 </div>
                 {item.effect && (
@@ -174,6 +190,38 @@ export function StorePanel({ isDm, players = [], onDistributeItem }: StorePanelP
                 )}
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Store Distribute Dialog */}
+        {distributeStoreItem && (
+          <div className="mt-4 p-3 bg-green-900/30 rounded border border-green-600">
+            <p className="text-parchment text-sm mb-2">
+              Give "{distributeStoreItem.name}" to:
+            </p>
+            <div className="space-y-2">
+              {players.length === 0 ? (
+                <p className="text-parchment/50 text-sm">No players connected</p>
+              ) : (
+                players.map((player) => (
+                  <button
+                    key={player.id}
+                    onClick={() => handleDistributeStore(player.id, player.name)}
+                    className="w-full text-left px-3 py-2 bg-leather/30 hover:bg-leather/50 rounded text-parchment"
+                  >
+                    {player.name}
+                  </button>
+                ))
+              )}
+            </div>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => setDistributeStoreItem(null)}
+              className="mt-2"
+            >
+              Cancel
+            </Button>
           </div>
         )}
       </div>
