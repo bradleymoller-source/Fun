@@ -4,6 +4,93 @@ import { useSocket } from '../hooks/useSocket';
 import type { Character, PlayerInventoryItem, Weapon, EquipmentItem, StoreItem, Currency } from '../types';
 import { Button } from './ui/Button';
 
+// Calculate ability modifier from score
+function getAbilityModifier(score: number): number {
+  return Math.floor((score - 10) / 2);
+}
+
+// Calculate proficiency bonus from level
+function getProficiencyBonus(level: number): number {
+  return Math.ceil(level / 4) + 1;
+}
+
+// Weapon base data - damage die and damage type
+const WEAPON_DATA: Record<string, { damage: string; damageType: string; properties: string[] }> = {
+  // Simple Melee
+  'club': { damage: '1d4', damageType: 'bludgeoning', properties: ['light'] },
+  'dagger': { damage: '1d4', damageType: 'piercing', properties: ['finesse', 'light', 'thrown (20/60)'] },
+  'greatclub': { damage: '1d8', damageType: 'bludgeoning', properties: ['two-handed'] },
+  'handaxe': { damage: '1d6', damageType: 'slashing', properties: ['light', 'thrown (20/60)'] },
+  'javelin': { damage: '1d6', damageType: 'piercing', properties: ['thrown (30/120)'] },
+  'light hammer': { damage: '1d4', damageType: 'bludgeoning', properties: ['light', 'thrown (20/60)'] },
+  'mace': { damage: '1d6', damageType: 'bludgeoning', properties: [] },
+  'quarterstaff': { damage: '1d6', damageType: 'bludgeoning', properties: ['versatile (1d8)'] },
+  'sickle': { damage: '1d4', damageType: 'slashing', properties: ['light'] },
+  'spear': { damage: '1d6', damageType: 'piercing', properties: ['thrown (20/60)', 'versatile (1d8)'] },
+  // Simple Ranged
+  'light crossbow': { damage: '1d8', damageType: 'piercing', properties: ['ammunition', 'loading', 'range (80/320)', 'two-handed'] },
+  'dart': { damage: '1d4', damageType: 'piercing', properties: ['finesse', 'thrown (20/60)'] },
+  'shortbow': { damage: '1d6', damageType: 'piercing', properties: ['ammunition', 'range (80/320)', 'two-handed'] },
+  'sling': { damage: '1d4', damageType: 'bludgeoning', properties: ['ammunition', 'range (30/120)'] },
+  // Martial Melee
+  'battleaxe': { damage: '1d8', damageType: 'slashing', properties: ['versatile (1d10)'] },
+  'flail': { damage: '1d8', damageType: 'bludgeoning', properties: [] },
+  'glaive': { damage: '1d10', damageType: 'slashing', properties: ['heavy', 'reach', 'two-handed'] },
+  'greataxe': { damage: '1d12', damageType: 'slashing', properties: ['heavy', 'two-handed'] },
+  'greatsword': { damage: '2d6', damageType: 'slashing', properties: ['heavy', 'two-handed'] },
+  'halberd': { damage: '1d10', damageType: 'slashing', properties: ['heavy', 'reach', 'two-handed'] },
+  'lance': { damage: '1d12', damageType: 'piercing', properties: ['reach', 'special'] },
+  'longsword': { damage: '1d8', damageType: 'slashing', properties: ['versatile (1d10)'] },
+  'maul': { damage: '2d6', damageType: 'bludgeoning', properties: ['heavy', 'two-handed'] },
+  'morningstar': { damage: '1d8', damageType: 'piercing', properties: [] },
+  'pike': { damage: '1d10', damageType: 'piercing', properties: ['heavy', 'reach', 'two-handed'] },
+  'rapier': { damage: '1d8', damageType: 'piercing', properties: ['finesse'] },
+  'scimitar': { damage: '1d6', damageType: 'slashing', properties: ['finesse', 'light'] },
+  'shortsword': { damage: '1d6', damageType: 'piercing', properties: ['finesse', 'light'] },
+  'trident': { damage: '1d6', damageType: 'piercing', properties: ['thrown (20/60)', 'versatile (1d8)'] },
+  'war pick': { damage: '1d8', damageType: 'piercing', properties: [] },
+  'warhammer': { damage: '1d8', damageType: 'bludgeoning', properties: ['versatile (1d10)'] },
+  'whip': { damage: '1d4', damageType: 'slashing', properties: ['finesse', 'reach'] },
+  // Martial Ranged
+  'blowgun': { damage: '1', damageType: 'piercing', properties: ['ammunition', 'loading', 'range (25/100)'] },
+  'hand crossbow': { damage: '1d6', damageType: 'piercing', properties: ['ammunition', 'light', 'loading', 'range (30/120)'] },
+  'heavy crossbow': { damage: '1d10', damageType: 'piercing', properties: ['ammunition', 'heavy', 'loading', 'range (100/400)', 'two-handed'] },
+  'longbow': { damage: '1d8', damageType: 'piercing', properties: ['ammunition', 'heavy', 'range (150/600)', 'two-handed'] },
+  'net': { damage: '0', damageType: 'none', properties: ['special', 'thrown (5/15)'] },
+};
+
+// Parse magic bonus from weapon name (e.g., "Longsword +1" -> 1, "Sword of Flame" -> 0)
+function parseMagicBonus(name: string): number {
+  const match = name.match(/\+(\d+)/);
+  return match ? parseInt(match[1], 10) : 0;
+}
+
+// Get base weapon type from name (e.g., "Longsword +1" -> "longsword")
+function getBaseWeaponType(name: string): string | null {
+  const lowerName = name.toLowerCase().replace(/\+\d+/g, '').trim();
+
+  // Check each weapon type
+  for (const weaponType of Object.keys(WEAPON_DATA)) {
+    if (lowerName.includes(weaponType)) {
+      return weaponType;
+    }
+  }
+  return null;
+}
+
+// Check if weapon is finesse (can use DEX)
+function isFinesse(properties: string[]): boolean {
+  return properties.some(p => p.toLowerCase().includes('finesse'));
+}
+
+// Check if weapon is ranged
+function isRanged(properties: string[]): boolean {
+  return properties.some(p =>
+    p.toLowerCase().includes('ammunition') ||
+    p.toLowerCase().includes('range')
+  );
+}
+
 interface PlayerStorePanelProps {
   character?: Character | null;
   onAddToCharacter?: (updates: Partial<Character>) => void;
@@ -76,15 +163,80 @@ export function PlayerStorePanel({ character, onAddToCharacter }: PlayerStorePan
   const [buyMessage, setBuyMessage] = useState<string | null>(null);
   const [purchasedItems, setPurchasedItems] = useState<Set<string>>(new Set());
 
-  // Convert inventory item to weapon
-  const createWeaponFromItem = (item: PlayerInventoryItem | StoreItem): Weapon => ({
-    id: `weapon-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    name: item.name,
-    attackBonus: ('attackBonus' in item ? item.attackBonus : undefined) || 0,
-    damage: ('damage' in item ? item.damage : undefined) || '1d6',
-    properties: ('properties' in item ? item.properties : undefined) || [],
-    equipped: false,
-  });
+  // Convert inventory item to weapon with proper modifiers
+  const createWeaponFromItem = (item: PlayerInventoryItem | StoreItem): Weapon => {
+    // Get base weapon type from name
+    const baseWeaponType = getBaseWeaponType(item.name);
+    const weaponData = baseWeaponType ? WEAPON_DATA[baseWeaponType] : null;
+
+    // Parse magic bonus from weapon name (+1, +2, +3)
+    const magicBonus = parseMagicBonus(item.name);
+
+    // Get properties from item or weapon database
+    const itemProperties = ('properties' in item ? item.properties : undefined) || [];
+    const properties = itemProperties.length > 0 ? itemProperties : (weaponData?.properties || []);
+
+    // Determine which ability modifier to use
+    let abilityMod = 0;
+    if (character) {
+      const strMod = getAbilityModifier(character.abilityScores.strength);
+      const dexMod = getAbilityModifier(character.abilityScores.dexterity);
+
+      if (isFinesse(properties)) {
+        // Finesse weapons use higher of STR or DEX
+        abilityMod = Math.max(strMod, dexMod);
+      } else if (isRanged(properties)) {
+        // Ranged weapons use DEX
+        abilityMod = dexMod;
+      } else {
+        // Melee weapons use STR
+        abilityMod = strMod;
+      }
+    }
+
+    // Get proficiency bonus (assume proficient with all weapons for now)
+    const profBonus = character ? getProficiencyBonus(character.level) : 0;
+
+    // Calculate attack bonus: proficiency + ability mod + magic bonus
+    // If item has explicit attackBonus that's non-zero, use it (it's already calculated)
+    let attackBonus = 0;
+    const itemAttackBonus = ('attackBonus' in item ? item.attackBonus : undefined);
+    if (itemAttackBonus !== undefined && itemAttackBonus !== 0) {
+      // Item already has calculated attack bonus
+      attackBonus = itemAttackBonus;
+    } else {
+      // Calculate from character stats
+      attackBonus = profBonus + abilityMod + magicBonus;
+    }
+
+    // Calculate damage string
+    let damage = '1d6'; // Default fallback
+    const itemDamage = ('damage' in item ? item.damage : undefined);
+
+    if (itemDamage && itemDamage !== '1d6') {
+      // Item has explicit damage string - use it
+      damage = itemDamage;
+    } else if (weaponData) {
+      // Build damage string from weapon data + modifiers
+      const totalDamageMod = abilityMod + magicBonus;
+      const modString = totalDamageMod >= 0 ? `+${totalDamageMod}` : `${totalDamageMod}`;
+      damage = `${weaponData.damage}${modString} ${weaponData.damageType}`;
+    } else {
+      // Unknown weapon - use default with modifiers
+      const totalDamageMod = abilityMod + magicBonus;
+      const modString = totalDamageMod >= 0 ? `+${totalDamageMod}` : `${totalDamageMod}`;
+      damage = `1d6${modString}`;
+    }
+
+    return {
+      id: `weapon-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      name: item.name,
+      attackBonus,
+      damage,
+      properties,
+      equipped: false,
+    };
+  };
 
   // Parse AC from effect text (e.g., "AC 17, disadvantage on Stealth")
   const parseAcFromText = (text: string): number | undefined => {
@@ -170,6 +322,73 @@ export function PlayerStorePanel({ character, onAddToCharacter }: PlayerStorePan
     if ('itemType' in item && item.itemType === 'potion') return true;
     const name = item.name.toLowerCase();
     return name.includes('potion') || name.includes('elixir') || name.includes('philter');
+  };
+
+  // Check if item is currency (gold pieces, silver coins, etc.)
+  const isCurrency = (item: PlayerInventoryItem | StoreItem): { isCurrency: boolean; type?: 'copper' | 'silver' | 'electrum' | 'gold' | 'platinum'; amount?: number } => {
+    if ('itemType' in item && item.itemType === 'treasure') {
+      // Check if it's a coin/currency treasure
+      const name = item.name.toLowerCase();
+      const currencyPatterns = [
+        { pattern: /(\d+)\s*(gold|gp|gold pieces?|gold coins?)/, type: 'gold' as const },
+        { pattern: /(\d+)\s*(silver|sp|silver pieces?|silver coins?)/, type: 'silver' as const },
+        { pattern: /(\d+)\s*(copper|cp|copper pieces?|copper coins?)/, type: 'copper' as const },
+        { pattern: /(\d+)\s*(platinum|pp|platinum pieces?|platinum coins?)/, type: 'platinum' as const },
+        { pattern: /(\d+)\s*(electrum|ep|electrum pieces?|electrum coins?)/, type: 'electrum' as const },
+      ];
+
+      for (const { pattern, type } of currencyPatterns) {
+        const match = name.match(pattern);
+        if (match) {
+          return { isCurrency: true, type, amount: parseInt(match[1], 10) };
+        }
+      }
+    }
+
+    // Also check names directly for common patterns like "500 gold pieces"
+    const name = item.name.toLowerCase();
+    const patterns = [
+      { pattern: /^(\d+)\s*gold\s*pieces?$/i, type: 'gold' as const },
+      { pattern: /^(\d+)\s*silver\s*pieces?$/i, type: 'silver' as const },
+      { pattern: /^(\d+)\s*copper\s*pieces?$/i, type: 'copper' as const },
+      { pattern: /^(\d+)\s*platinum\s*pieces?$/i, type: 'platinum' as const },
+      { pattern: /^(\d+)\s*electrum\s*pieces?$/i, type: 'electrum' as const },
+      { pattern: /^(\d+)\s*gp$/i, type: 'gold' as const },
+      { pattern: /^(\d+)\s*sp$/i, type: 'silver' as const },
+      { pattern: /^(\d+)\s*cp$/i, type: 'copper' as const },
+      { pattern: /^(\d+)\s*pp$/i, type: 'platinum' as const },
+      { pattern: /^(\d+)\s*ep$/i, type: 'electrum' as const },
+    ];
+
+    for (const { pattern, type } of patterns) {
+      const match = name.match(pattern);
+      if (match) {
+        return { isCurrency: true, type, amount: parseInt(match[1], 10) };
+      }
+    }
+
+    return { isCurrency: false };
+  };
+
+  // Add currency to character
+  const handleAddCurrency = async (item: PlayerInventoryItem, currencyType: 'copper' | 'silver' | 'electrum' | 'gold' | 'platinum', amount: number) => {
+    if (!character || !onAddToCharacter) return;
+
+    const currentCurrency = character.currency || { copper: 0, silver: 0, electrum: 0, gold: 0, platinum: 0 };
+    const newCurrency = {
+      ...currentCurrency,
+      [currencyType]: currentCurrency[currencyType] + amount,
+    };
+    onAddToCharacter({ currency: newCurrency });
+
+    // Remove from player inventory after adding to character
+    try {
+      await removePlayerInventoryItem(item.id);
+      setBuyMessage(`✓ Added ${amount} ${currencyType} to your wealth`);
+      setTimeout(() => setBuyMessage(null), 3000);
+    } catch (error) {
+      console.error('Failed to remove from inventory:', error);
+    }
   };
 
   const handleAddWeapon = async (item: PlayerInventoryItem) => {
@@ -271,20 +490,8 @@ export function PlayerStorePanel({ character, onAddToCharacter }: PlayerStorePan
     return getTotalCopper(character.currency) >= copperCost;
   };
 
-  // Debug
-  const hasCharacter = !!character;
-  const hasCallback = !!onAddToCharacter;
-
   return (
     <div className="space-y-4">
-      {/* Debug Panel */}
-      <div className="bg-purple-900/50 p-2 rounded text-xs text-purple-300 border border-purple-500">
-        <div>Character: {hasCharacter ? `✓ ${character?.name}` : '✗ null'}</div>
-        <div>Callback: {hasCallback ? '✓ defined' : '✗ undefined'}</div>
-        <div>Store items: {storeItems.length}</div>
-        <div>Can show buy: {hasCharacter && hasCallback ? '✓ YES' : '✗ NO'}</div>
-      </div>
-
       {/* Currency Display */}
       {character?.currency && (
         <div className="bg-dark-wood p-3 rounded-lg border border-gold/50">
@@ -386,32 +593,48 @@ export function PlayerStorePanel({ character, onAddToCharacter }: PlayerStorePan
                   </div>
 
                   {/* Add to Character buttons */}
-                  {character && onAddToCharacter && (
-                    <div className="flex gap-1 ml-2">
-                      {isWeapon(item) && (
+                  {character && onAddToCharacter && (() => {
+                    const currencyCheck = isCurrency(item);
+                    if (currencyCheck.isCurrency && currencyCheck.type && currencyCheck.amount) {
+                      return (
                         <Button
                           size="sm"
                           variant="secondary"
-                          onClick={() => handleAddWeapon(item)}
-                          className="text-xs py-0.5 px-2 bg-red-700/50 hover:bg-red-600/50"
-                          title="Add to Combat Weapons"
+                          onClick={() => handleAddCurrency(item, currencyCheck.type!, currencyCheck.amount!)}
+                          className="text-xs py-0.5 px-2 bg-gold/50 hover:bg-gold/70 text-dark-wood"
+                          title="Add to Currency"
                         >
-                          + Weapons
+                          + Wealth
                         </Button>
-                      )}
-                      {(isArmor(item) || !isWeapon(item)) && (
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => handleAddEquipment(item)}
-                          className="text-xs py-0.5 px-2 bg-blue-700/50 hover:bg-blue-600/50"
-                          title="Add to Equipment"
-                        >
-                          + Gear
-                        </Button>
-                      )}
-                    </div>
-                  )}
+                      );
+                    }
+                    return (
+                      <div className="flex gap-1 ml-2">
+                        {isWeapon(item) && (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => handleAddWeapon(item)}
+                            className="text-xs py-0.5 px-2 bg-red-700/50 hover:bg-red-600/50"
+                            title="Add to Combat Weapons"
+                          >
+                            + Weapons
+                          </Button>
+                        )}
+                        {(isArmor(item) || !isWeapon(item)) && (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => handleAddEquipment(item)}
+                            className="text-xs py-0.5 px-2 bg-blue-700/50 hover:bg-blue-600/50"
+                            title="Add to Equipment"
+                          >
+                            + Gear
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Item details */}

@@ -1185,12 +1185,15 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
           ) : (
             <div className="space-y-1">
               {otherItems.map(item => (
-                <div key={item.id} className="bg-dark-wood p-2 rounded border border-leather flex justify-between">
-                  <Tooltip content={item.description || item.name}>
-                    <span className="text-parchment cursor-help">{item.name}</span>
-                  </Tooltip>
-                  {item.quantity > 1 && (
-                    <span className="text-parchment/70">×{item.quantity}</span>
+                <div key={item.id} className="bg-dark-wood p-2 rounded border border-leather">
+                  <div className="flex justify-between items-start">
+                    <span className="text-parchment font-medium">{item.name}</span>
+                    {item.quantity > 1 && (
+                      <span className="text-parchment/70 text-sm">×{item.quantity}</span>
+                    )}
+                  </div>
+                  {item.description && item.description !== item.name && (
+                    <p className="text-parchment/60 text-xs mt-1">{item.description}</p>
                   )}
                 </div>
               ))}
