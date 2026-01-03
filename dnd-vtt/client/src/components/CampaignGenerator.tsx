@@ -1856,16 +1856,24 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
           const boss = campaign.act3.bossEncounter;
           const villain = boss.villain || {};
 
+          // Helper to normalize trait formats to {name, description}
+          const normalizeTrait = (t: any): { name: string; description: string } => {
+            if (typeof t === 'string') return { name: 'Trait', description: t };
+            if (t.description) return { name: t.name || 'Trait', description: t.description };
+            if (t.effect) return { name: t.name || 'Action', description: t.effect };
+            return { name: t.name || 'Trait', description: JSON.stringify(t) };
+          };
+
           // Build legendary actions as traits
           const legendaryTraits = villain.legendaryActions?.map((la: any) =>
             typeof la === 'string'
               ? { name: 'Legendary Action', description: la }
-              : { name: `Legendary (${la.cost})`, description: `${la.name}: ${la.effect}` }
+              : { name: `Legendary${la.cost > 1 ? ` (${la.cost})` : ''}`, description: `${la.name}: ${la.effect || la.description || ''}` }
           ) || [];
 
-          // Build traits array
+          // Build traits array - normalize all formats
           const villainTraits = [
-            ...(villain.traits || []),
+            ...(villain.traits || []).map(normalizeTrait),
             ...(villain.weakness ? [{ name: 'Weakness', description: villain.weakness }] : []),
             ...legendaryTraits
           ];
@@ -2015,11 +2023,16 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
                           {m.traits && m.traits.length > 0 && (
                             <div className="mt-1 border-t border-parchment/10 pt-1">
                               <span className="text-blue-400">Traits:</span>
-                              {m.traits.map((t: any, tIdx: number) => (
-                                <div key={tIdx} className="ml-2 text-parchment/70">
-                                  <span className="text-white">{t.name}:</span> {t.description}
-                                </div>
-                              ))}
+                              {m.traits.map((t: any, tIdx: number) => {
+                                // Handle various trait formats
+                                const traitName = typeof t === 'string' ? 'Trait' : (t.name || 'Trait');
+                                const traitDesc = typeof t === 'string' ? t : (t.description || t.effect || '');
+                                return (
+                                  <div key={tIdx} className="ml-2 text-parchment/70">
+                                    <span className="text-white">{traitName}:</span> {traitDesc}
+                                  </div>
+                                );
+                              })}
                             </div>
                           )}
 
