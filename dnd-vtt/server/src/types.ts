@@ -118,11 +118,12 @@ export interface LootItem {
   quantity: number;
   source?: string;
   // Item categorization
-  itemType?: 'weapon' | 'armor' | 'potion' | 'scroll' | 'gear' | 'treasure' | 'wondrous';
+  itemType?: 'weapon' | 'armor' | 'potion' | 'scroll' | 'gear' | 'treasure' | 'wondrous' | 'clue';
   // Weapon fields
   damage?: string;        // e.g. "1d8+1 slashing"
   attackBonus?: number;   // e.g. 5 for +5
   properties?: string[];  // e.g. ["versatile", "finesse"]
+  baseWeaponType?: string; // e.g. "longsword", "dagger" - for looking up base damage dice
   // Armor fields
   armorClass?: number;
   armorType?: 'light' | 'medium' | 'heavy' | 'shield';
@@ -140,11 +141,12 @@ export interface PlayerInventoryItem {
   playerId: string;
   playerName: string;
   // Item categorization
-  itemType?: 'weapon' | 'armor' | 'potion' | 'scroll' | 'gear' | 'treasure' | 'wondrous';
+  itemType?: 'weapon' | 'armor' | 'potion' | 'scroll' | 'gear' | 'treasure' | 'wondrous' | 'clue';
   // Weapon fields
   damage?: string;
   attackBonus?: number;
   properties?: string[];
+  baseWeaponType?: string;
   // Armor fields
   armorClass?: number;
   armorType?: 'light' | 'medium' | 'heavy' | 'shield';

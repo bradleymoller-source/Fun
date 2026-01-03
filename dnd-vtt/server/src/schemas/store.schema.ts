@@ -11,7 +11,7 @@ export const StoreItemSchema = z.object({
   effect: z.string().max(500).optional(),
 });
 
-// Loot item schema
+// Loot item schema - includes fields for weapons, armor, and magic items
 export const LootItemSchema = z.object({
   id: IdSchema,
   name: z.string().min(1).max(100),
@@ -19,6 +19,19 @@ export const LootItemSchema = z.object({
   value: z.string().max(50).optional(),
   quantity: z.number().min(1).max(9999),
   source: z.string().max(100).optional(),
+  // Item categorization
+  itemType: z.enum(['weapon', 'armor', 'potion', 'scroll', 'gear', 'treasure', 'wondrous', 'clue']).optional(),
+  // Weapon fields
+  damage: z.string().max(100).optional(),
+  attackBonus: z.number().optional(),
+  properties: z.array(z.string()).optional(),
+  baseWeaponType: z.string().max(50).optional(),
+  // Armor fields
+  armorClass: z.number().optional(),
+  armorType: z.enum(['light', 'medium', 'heavy', 'shield']).optional(),
+  // Magic item fields
+  effect: z.string().max(500).optional(),
+  rarity: z.string().max(50).optional(),
 });
 
 // Socket event schemas

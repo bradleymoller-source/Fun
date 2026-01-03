@@ -290,6 +290,9 @@ export type SkillName =
 // Skill proficiency type
 export type ProficiencyLevel = 'none' | 'proficient' | 'expertise';
 
+// D&D 5e equipment slots for wondrous items
+export type EquipmentSlot = 'head' | 'eyes' | 'neck' | 'shoulders' | 'chest' | 'arms' | 'hands' | 'ring' | 'waist' | 'feet';
+
 // Equipment item
 export interface EquipmentItem {
   id: string;
@@ -298,12 +301,19 @@ export interface EquipmentItem {
   weight?: number;
   description?: string;
   equipped?: boolean;
-  category?: 'weapon' | 'armor' | 'shield' | 'gear' | 'potion' | 'food' | 'tool';
+  category?: 'weapon' | 'armor' | 'shield' | 'gear' | 'potion' | 'food' | 'tool' | 'wondrous';
   armorClass?: number;  // Base AC for armor, or AC bonus for shields
   armorType?: 'light' | 'medium' | 'heavy' | 'shield';
   maxDexBonus?: number;  // Max Dex bonus for medium armor (usually 2)
   strengthRequired?: number;  // Minimum strength for heavy armor
   stealthDisadvantage?: boolean;  // Does this armor impose stealth disadvantage?
+  // Wondrous item fields
+  equipmentSlot?: EquipmentSlot;  // Where to equip (cloak=shoulders, ring=ring, etc.)
+  acBonus?: number;  // +AC bonus (e.g., Cloak of Protection gives +1)
+  savingThrowBonus?: number;  // +saving throw bonus (e.g., Cloak of Protection gives +1)
+  requiresAttunement?: boolean;  // Needs attunement to use
+  effect?: string;  // Magic item effect description
+  rarity?: string;  // common, uncommon, rare, very rare, legendary
 }
 
 // Weapon with attack info

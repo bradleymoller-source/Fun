@@ -48,6 +48,8 @@ export function DMView() {
     distributeItem,
     addLootItem,
     addStoreItem,
+    removeStoreItem,
+    removeLootItem,
     socket,
   } = useSocket();
   const [dmNotes, setDmNotes] = useState<Record<string, string>>({});
@@ -720,6 +722,10 @@ export function DMView() {
                 onUpdateStore={handleUpdateStore}
                 onDistributeItem={handleDistributeItem}
                 onDistributeStoreItem={handleDistributeStoreItem}
+                addStoreItem={addStoreItem}
+                removeStoreItem={removeStoreItem}
+                addLootItem={addLootItem}
+                removeLootItem={removeLootItem}
               />
             </Panel>
 

@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useSessionStore } from '../stores/sessionStore';
-import { useSocket } from '../hooks/useSocket';
 import type { Character, PlayerInventoryItem, Weapon, EquipmentItem, StoreItem, Currency } from '../types';
 import { Button } from './ui/Button';
 
@@ -135,6 +134,7 @@ function isRanged(properties: string[]): boolean {
 interface PlayerStorePanelProps {
   character?: Character | null;
   onAddToCharacter?: (updates: Partial<Character>) => void;
+  removePlayerInventoryItem?: (itemId: string) => Promise<void>;
 }
 
 // Parse price string like "10gp" or "5sp" into copper value
@@ -198,9 +198,8 @@ function deductCopper(currency: Currency, copperAmount: number): Currency | null
   return { platinum, gold, electrum, silver, copper };
 }
 
-export function PlayerStorePanel({ character, onAddToCharacter }: PlayerStorePanelProps) {
+export function PlayerStorePanel({ character, onAddToCharacter, removePlayerInventoryItem }: PlayerStorePanelProps) {
   const { storeItems, playerInventories } = useSessionStore();
-  const { removePlayerInventoryItem } = useSocket();
   const [buyMessage, setBuyMessage] = useState<string | null>(null);
   const [purchasedItems, setPurchasedItems] = useState<Set<string>>(new Set());
 
@@ -298,6 +297,48 @@ export function PlayerStorePanel({ character, onAddToCharacter }: PlayerStorePan
     return undefined;
   };
 
+  // Parse equipment slot from item name
+  const parseEquipmentSlot = (name: string): EquipmentItem['equipmentSlot'] => {
+    const lowerName = name.toLowerCase();
+    if (lowerName.includes('cloak') || lowerName.includes('cape') || lowerName.includes('mantle')) return 'shoulders';
+    if (lowerName.includes('ring')) return 'ring';
+    if (lowerName.includes('amulet') || lowerName.includes('necklace') || lowerName.includes('periapt') || lowerName.includes('brooch')) return 'neck';
+    if (lowerName.includes('belt') || lowerName.includes('girdle')) return 'waist';
+    if (lowerName.includes('boots') || lowerName.includes('slippers') || lowerName.includes('sandals')) return 'feet';
+    if (lowerName.includes('bracers') || lowerName.includes('vambrace')) return 'arms';
+    if (lowerName.includes('gloves') || lowerName.includes('gauntlets')) return 'hands';
+    if (lowerName.includes('helm') || lowerName.includes('helmet') || lowerName.includes('circlet') || lowerName.includes('headband') || lowerName.includes('crown')) return 'head';
+    if (lowerName.includes('goggles') || lowerName.includes('eyes')) return 'eyes';
+    if (lowerName.includes('robe') || lowerName.includes('vest') || lowerName.includes('shirt')) return 'chest';
+    return undefined;
+  };
+
+  // Parse AC bonus from effect text (e.g., "+1 to AC" or "+1 AC")
+  const parseAcBonus = (text: string): number | undefined => {
+    const match = text.match(/\+(\d+)\s*(?:to\s+)?AC/i) || text.match(/\+(\d+)\s+bonus\s+to\s+AC/i);
+    return match ? parseInt(match[1], 10) : undefined;
+  };
+
+  // Parse saving throw bonus from effect text
+  const parseSavingThrowBonus = (text: string): number | undefined => {
+    const match = text.match(/\+(\d+)\s*(?:to\s+)?saving\s*throws?/i) || text.match(/\+(\d+)\s+bonus\s+to\s+saving\s*throws?/i);
+    return match ? parseInt(match[1], 10) : undefined;
+  };
+
+  // Check if item is a wondrous item (magical equipable non-armor, non-weapon)
+  const isWondrous = (item: PlayerInventoryItem | StoreItem): boolean => {
+    if ('itemType' in item && item.itemType === 'wondrous') return true;
+    const name = item.name.toLowerCase();
+    const effectText = ('effect' in item ? item.effect : '') || '';
+
+    // Check for equipable magic item keywords
+    const wondrousKeywords = ['cloak', 'ring', 'amulet', 'belt', 'boots', 'bracers', 'gloves', 'gauntlets', 'helm', 'helmet', 'circlet', 'headband', 'crown', 'cape', 'mantle', 'necklace', 'periapt', 'brooch', 'girdle', 'slippers', 'sandals', 'robe', 'vest', 'goggles'];
+    // Check for +AC or +saving throw bonuses
+    const hasMagicBonus = /\+\d+\s*(to\s+)?AC/i.test(effectText) || /\+\d+\s*(to\s+)?saving/i.test(effectText);
+
+    return wondrousKeywords.some(kw => name.includes(kw)) || hasMagicBonus;
+  };
+
   // Convert inventory item to equipment
   const createEquipmentFromItem = (item: PlayerInventoryItem | StoreItem): EquipmentItem => {
     // Get effect and description text
@@ -325,7 +366,7 @@ export function PlayerStorePanel({ character, onAddToCharacter }: PlayerStorePan
 
     // If this is armor and we still don't have AC/type, look up from standard armor data
     let maxDexBonus: number | undefined;
-    if (isArmor(item)) {
+    if (isArmor(item) && !isWondrous(item)) {
       const armorData = getBaseArmorType(item.name);
       if (armorData) {
         if (armorClass === undefined) {
@@ -338,9 +379,19 @@ export function PlayerStorePanel({ character, onAddToCharacter }: PlayerStorePan
       }
     }
 
-    // Determine the category - check for shield separately
-    let category: 'armor' | 'shield' | 'potion' | 'gear' = 'gear';
-    if (isArmor(item)) {
+    // Parse wondrous item properties
+    const combinedText = `${effectText || ''} ${descText || ''}`;
+    const acBonus = parseAcBonus(combinedText);
+    const savingThrowBonus = parseSavingThrowBonus(combinedText);
+    const equipmentSlot = parseEquipmentSlot(item.name);
+    const requiresAttunement = combinedText.toLowerCase().includes('attunement');
+    const rarity = 'rarity' in item ? item.rarity : undefined;
+
+    // Determine the category
+    let category: EquipmentItem['category'] = 'gear';
+    if (isWondrous(item)) {
+      category = 'wondrous';
+    } else if (isArmor(item)) {
       const name = item.name.toLowerCase();
       if (name === 'shield' || (armorType === 'shield')) {
         category = 'shield';
@@ -358,9 +409,16 @@ export function PlayerStorePanel({ character, onAddToCharacter }: PlayerStorePan
       description: fullDescription,
       equipped: false,
       category,
-      armorClass,
-      armorType: armorType !== 'shield' ? armorType : undefined, // Don't set armorType for shields
+      armorClass: category === 'wondrous' ? undefined : armorClass, // Wondrous items use acBonus instead
+      armorType: armorType !== 'shield' ? armorType : undefined,
       maxDexBonus,
+      // Wondrous item fields
+      equipmentSlot,
+      acBonus,
+      savingThrowBonus,
+      requiresAttunement,
+      effect: effectText,
+      rarity,
     };
   };
 
@@ -459,12 +517,17 @@ export function PlayerStorePanel({ character, onAddToCharacter }: PlayerStorePan
     onAddToCharacter({ currency: newCurrency });
 
     // Remove from player inventory after adding to character
-    try {
-      await removePlayerInventoryItem(item.id);
+    if (removePlayerInventoryItem) {
+      try {
+        await removePlayerInventoryItem(item.id);
+        setBuyMessage(`✓ Added ${amount} ${currencyType} to your wealth`);
+        setTimeout(() => setBuyMessage(null), 3000);
+      } catch (error) {
+        console.error('Failed to remove from inventory:', error);
+      }
+    } else {
       setBuyMessage(`✓ Added ${amount} ${currencyType} to your wealth`);
       setTimeout(() => setBuyMessage(null), 3000);
-    } catch (error) {
-      console.error('Failed to remove from inventory:', error);
     }
   };
 
@@ -476,12 +539,17 @@ export function PlayerStorePanel({ character, onAddToCharacter }: PlayerStorePan
     onAddToCharacter({ weapons: updatedWeapons });
 
     // Remove from player inventory after adding to character
-    try {
-      await removePlayerInventoryItem(item.id);
-      setBuyMessage(`✓ Added ${item.name} to Combat → removed from inventory`);
+    if (removePlayerInventoryItem) {
+      try {
+        await removePlayerInventoryItem(item.id);
+        setBuyMessage(`✓ Added ${item.name} to Combat → removed from inventory`);
+        setTimeout(() => setBuyMessage(null), 3000);
+      } catch (error) {
+        console.error('Failed to remove from inventory:', error);
+      }
+    } else {
+      setBuyMessage(`✓ Added ${item.name} to Combat`);
       setTimeout(() => setBuyMessage(null), 3000);
-    } catch (error) {
-      console.error('Failed to remove from inventory:', error);
     }
   };
 
@@ -493,12 +561,17 @@ export function PlayerStorePanel({ character, onAddToCharacter }: PlayerStorePan
     onAddToCharacter({ equipment: updatedEquipment });
 
     // Remove from player inventory after adding to character
-    try {
-      await removePlayerInventoryItem(item.id);
-      setBuyMessage(`✓ Added ${item.name} to Equipment → removed from inventory`);
+    if (removePlayerInventoryItem) {
+      try {
+        await removePlayerInventoryItem(item.id);
+        setBuyMessage(`✓ Added ${item.name} to Equipment → removed from inventory`);
+        setTimeout(() => setBuyMessage(null), 3000);
+      } catch (error) {
+        console.error('Failed to remove from inventory:', error);
+      }
+    } else {
+      setBuyMessage(`✓ Added ${item.name} to Equipment`);
       setTimeout(() => setBuyMessage(null), 3000);
-    } catch (error) {
-      console.error('Failed to remove from inventory:', error);
     }
   };
 

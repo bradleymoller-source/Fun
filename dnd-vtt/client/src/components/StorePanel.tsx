@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useSessionStore } from '../stores/sessionStore';
-import { useSocket } from '../hooks/useSocket';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import type { StoreItem, LootItem, Player } from '../types';
@@ -11,11 +10,15 @@ interface StorePanelProps {
   onUpdateStore?: (items: StoreItem[]) => void;
   onDistributeItem?: (itemId: string, playerId: string, playerName: string, quantity: number) => void;
   onDistributeStoreItem?: (item: StoreItem, playerId: string, playerName: string) => void;
+  // Socket functions passed from parent to avoid creating new socket connection
+  addStoreItem?: (item: StoreItem) => Promise<void>;
+  removeStoreItem?: (itemId: string) => Promise<void>;
+  addLootItem?: (item: LootItem) => Promise<void>;
+  removeLootItem?: (itemId: string) => Promise<void>;
 }
 
-export function StorePanel({ isDm, players = [], onDistributeItem, onDistributeStoreItem }: StorePanelProps) {
+export function StorePanel({ isDm, players = [], onDistributeItem, onDistributeStoreItem, addStoreItem, removeStoreItem, addLootItem, removeLootItem }: StorePanelProps) {
   const { storeItems, lootItems, playerInventories } = useSessionStore();
-  const { addStoreItem: addStoreItemSocket, removeStoreItem: removeStoreItemSocket, addLootItem: addLootItemSocket, removeLootItem: removeLootItemSocket } = useSocket();
 
   const [showAddStore, setShowAddStore] = useState(false);
   const [showAddLoot, setShowAddLoot] = useState(false);
@@ -25,7 +28,7 @@ export function StorePanel({ isDm, players = [], onDistributeItem, onDistributeS
   const [distributeStoreItem, setDistributeStoreItem] = useState<StoreItem | null>(null);
 
   const handleAddStoreItem = async () => {
-    if (!newStoreItem.name.trim() || !newStoreItem.price.trim()) return;
+    if (!newStoreItem.name.trim() || !newStoreItem.price.trim() || !addStoreItem) return;
 
     const item: StoreItem = {
       id: `store-${Date.now()}`,
@@ -37,7 +40,7 @@ export function StorePanel({ isDm, players = [], onDistributeItem, onDistributeS
     };
 
     try {
-      await addStoreItemSocket(item);
+      await addStoreItem(item);
       setNewStoreItem({ name: '', price: '', quantity: 1, description: '', effect: '' });
       setShowAddStore(false);
     } catch (error) {
@@ -46,7 +49,7 @@ export function StorePanel({ isDm, players = [], onDistributeItem, onDistributeS
   };
 
   const handleAddLootItem = async () => {
-    if (!newLootItem.name.trim()) return;
+    if (!newLootItem.name.trim() || !addLootItem) return;
 
     const item: LootItem = {
       id: `loot-${Date.now()}`,
@@ -58,7 +61,7 @@ export function StorePanel({ isDm, players = [], onDistributeItem, onDistributeS
     };
 
     try {
-      await addLootItemSocket(item);
+      await addLootItem(item);
       setNewLootItem({ name: '', value: '', quantity: 1, description: '', source: '' });
       setShowAddLoot(false);
     } catch (error) {
@@ -81,16 +84,18 @@ export function StorePanel({ isDm, players = [], onDistributeItem, onDistributeS
   };
 
   const handleRemoveStore = async (itemId: string) => {
+    if (!removeStoreItem) return;
     try {
-      await removeStoreItemSocket(itemId);
+      await removeStoreItem(itemId);
     } catch (error) {
       console.error('Failed to remove store item:', error);
     }
   };
 
   const handleRemoveLoot = async (itemId: string) => {
+    if (!removeLootItem) return;
     try {
-      await removeLootItemSocket(itemId);
+      await removeLootItem(itemId);
     } catch (error) {
       console.error('Failed to remove loot item:', error);
     }
@@ -285,8 +290,11 @@ export function StorePanel({ isDm, players = [], onDistributeItem, onDistributeS
               {lootItems.map((item) => (
                 <div key={item.id} className="p-2 bg-yellow-900/30 rounded border border-yellow-700/50">
                   <div className="flex justify-between items-start">
-                    <div>
+                    <div className="flex-1">
                       <span className="text-parchment font-medium">{item.name}</span>
+                      {item.attackBonus !== undefined && item.attackBonus > 0 && (
+                        <span className="text-green-400 ml-1">+{item.attackBonus > 5 ? item.attackBonus - 5 : item.attackBonus}</span>
+                      )}
                       {item.value && <span className="text-gold ml-2">({item.value})</span>}
                       <span className="text-parchment/70 ml-2">x{item.quantity}</span>
                     </div>
@@ -308,7 +316,27 @@ export function StorePanel({ isDm, players = [], onDistributeItem, onDistributeS
                   {item.source && (
                     <p className="text-yellow-400/70 text-xs mt-1">From: {item.source}</p>
                   )}
-                  {item.description && (
+                  {/* Weapon stats */}
+                  {item.damage && (
+                    <p className="text-red-400 text-sm mt-1">
+                      <span className="text-parchment/50">Damage:</span> {item.damage}
+                      {item.attackBonus !== undefined && (
+                        <span className="ml-2"><span className="text-parchment/50">Attack:</span> +{item.attackBonus}</span>
+                      )}
+                    </p>
+                  )}
+                  {/* Armor stats */}
+                  {item.armorClass && (
+                    <p className="text-blue-400 text-sm mt-1">
+                      <span className="text-parchment/50">AC:</span> {item.armorClass}
+                      {item.armorType && <span className="ml-1">({item.armorType})</span>}
+                    </p>
+                  )}
+                  {/* Effect for magic items */}
+                  {item.effect && (
+                    <p className="text-purple-400 text-sm mt-1">{item.effect}</p>
+                  )}
+                  {item.description && !item.effect && (
                     <p className="text-parchment/70 text-sm mt-1">{item.description}</p>
                   )}
                 </div>

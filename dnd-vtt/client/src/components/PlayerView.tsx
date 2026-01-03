@@ -22,7 +22,7 @@ const ORIENTATION_SIZES = {
 
 export function PlayerView() {
   const { roomCode, playerName, players, isConnected, playerTab, character, setPlayerTab, setCharacter, updateCharacter } = useSessionStore();
-  const { rollDice, sendChatMessage, moveToken, saveCharacter, deleteCharacter, playerRollInitiative, leaveSession, getStore, socket } = useSocket();
+  const { rollDice, sendChatMessage, moveToken, saveCharacter, deleteCharacter, playerRollInitiative, leaveSession, getStore, removePlayerInventoryItem, socket } = useSocket();
   const [showParty, setShowParty] = useState(false);
   const [mapOrientation, setMapOrientation] = useState<MapOrientation>('landscape');
   const [mapDimensions, setMapDimensions] = useState(ORIENTATION_SIZES.landscape);
@@ -340,6 +340,7 @@ export function PlayerView() {
           <PlayerStorePanel
             character={character}
             onAddToCharacter={handleCharacterUpdate}
+            removePlayerInventoryItem={removePlayerInventoryItem}
           />
         </Panel>
       </div>
