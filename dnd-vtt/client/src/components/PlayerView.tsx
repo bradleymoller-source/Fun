@@ -303,6 +303,7 @@ export function PlayerView() {
             playerId={socket?.id}
             playerName={character?.name || playerName || 'Player'}
             playerMaxHp={character?.maxHitPoints}
+            character={character}
           />
         </Panel>
 

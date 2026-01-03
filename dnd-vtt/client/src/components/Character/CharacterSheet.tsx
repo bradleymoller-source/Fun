@@ -1094,6 +1094,10 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
     const dexMod = getAbilityModifier(character.abilityScores.dexterity);
     const equippedArmor = equipment.find(e => e.category === 'armor' && e.equipped);
     const equippedShield = equipment.find(e => e.category === 'shield' && e.equipped);
+    // Get equipped wondrous items with AC bonus
+    const equippedWondrousWithAC = equipment.filter(e =>
+      e.equipped && e.acBonus !== undefined && e.acBonus > 0
+    );
 
     let baseAC = 10 + dexMod; // Unarmored
 
@@ -1112,6 +1116,11 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
     if (equippedShield) {
       baseAC += equippedShield.armorClass || 2;
     }
+
+    // Add AC bonus from equipped wondrous items
+    equippedWondrousWithAC.forEach(item => {
+      baseAC += item.acBonus!;
+    });
 
     return baseAC;
   };
@@ -1141,6 +1150,10 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
     const dexMod = getAbilityModifier(character.abilityScores.dexterity);
     const equippedArmor = character.equipment.find(e => e.category === 'armor' && e.equipped);
     const equippedShield = character.equipment.find(e => e.category === 'shield' && e.equipped);
+    // Get equipped wondrous items with AC bonus
+    const equippedWondrousWithAC = character.equipment.filter(e =>
+      e.equipped && e.acBonus !== undefined && e.acBonus > 0
+    );
 
     let baseAC = 10 + dexMod; // Unarmored
     let acDetails = 'Unarmored: 10 + DEX';
@@ -1165,12 +1178,25 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
       acDetails += ' + Shield (+2)';
     }
 
+    // Add AC bonus from equipped wondrous items (Cloak of Protection, Ring of Protection, etc.)
+    equippedWondrousWithAC.forEach(item => {
+      baseAC += item.acBonus!;
+      acDetails += ` + ${item.name} (+${item.acBonus})`;
+    });
+
     return { ac: baseAC, details: acDetails };
   };
 
   const renderEquipmentTab = () => {
     const armorItems = character.equipment.filter(e => e.category === 'armor' || e.category === 'shield');
-    const otherItems = character.equipment.filter(e => e.category !== 'armor' && e.category !== 'shield');
+    // Wondrous items that can be equipped (have acBonus, savingThrowBonus, or equipmentSlot)
+    const wondrousItems = character.equipment.filter(e =>
+      e.category === 'wondrous' || e.acBonus !== undefined || e.savingThrowBonus !== undefined || e.equipmentSlot !== undefined
+    );
+    const otherItems = character.equipment.filter(e =>
+      e.category !== 'armor' && e.category !== 'shield' &&
+      e.category !== 'wondrous' && e.acBonus === undefined && e.savingThrowBonus === undefined && e.equipmentSlot === undefined
+    );
     const acInfo = calculateAC();
 
     return (
@@ -1252,6 +1278,59 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
             </div>
           )}
         </div>
+
+        {/* Wondrous Items (equippable magic items with AC bonus, saving throw bonus, etc.) */}
+        {wondrousItems.length > 0 && (
+          <div>
+            <h4 className="text-gold font-semibold mb-2">Wondrous Items</h4>
+            <div className="space-y-1">
+              {wondrousItems.map(item => {
+                const bonusText = [];
+                if (item.acBonus) bonusText.push(`+${item.acBonus} AC`);
+                if (item.savingThrowBonus) bonusText.push(`+${item.savingThrowBonus} Saves`);
+                if (item.equipmentSlot) bonusText.push(item.equipmentSlot);
+
+                return (
+                  <div key={item.id} className="bg-dark-wood p-2 rounded border border-purple-700/50">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {isEditable && (
+                          <button
+                            onClick={() => handleToggleEquipped(item.id)}
+                            className={`w-5 h-5 rounded border transition-colors ${
+                              item.equipped
+                                ? 'bg-purple-500 border-purple-400 text-white'
+                                : 'border-parchment/50 hover:border-purple-400'
+                            }`}
+                            title={item.equipped ? 'Unequip' : 'Equip'}
+                          >
+                            {item.equipped && '✓'}
+                          </button>
+                        )}
+                        <Tooltip content={item.description || item.effect || item.name}>
+                          <span className={`cursor-help ${item.equipped ? 'text-purple-300' : 'text-parchment'}`}>
+                            {item.name}
+                          </span>
+                        </Tooltip>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-purple-400 text-xs">
+                          {bonusText.join(', ') || 'Magic'}
+                        </span>
+                        {item.equipped && (
+                          <span className="ml-2 text-green-400 text-xs">Equipped</span>
+                        )}
+                      </div>
+                    </div>
+                    {item.effect && (
+                      <p className="text-purple-400/70 text-xs mt-1">{item.effect}</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Other Equipment */}
         <div>

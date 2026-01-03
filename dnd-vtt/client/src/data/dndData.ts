@@ -4489,7 +4489,15 @@ export const FEAT_RESOURCES: FeatResourceDefinition[] = [
     featName: 'Lucky',
     description: 'After rolling a d20 for attack, ability check, or save: Spend 1 point to roll another d20 and choose which to use. OR when attacked: Spend 1 point to roll a d20, attacker must use that roll instead.',
     restoreOn: 'long',
-    maxAtLevel: () => 3,
+    maxAtLevel: (level) => getProficiencyBonus(level), // Uses proficiency bonus per 2024 rules
+  },
+  {
+    id: 'healer-uses',
+    name: 'Battle Medic',
+    featName: 'Healer',
+    description: 'Use Healer\'s Kit to let target spend one Hit Die + your Proficiency Bonus as a Utilize action. Usable once per creature per Short/Long Rest.',
+    restoreOn: 'short',
+    maxAtLevel: (level) => getProficiencyBonus(level), // Can use on up to Prof Bonus creatures
   },
 ];
 

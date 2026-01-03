@@ -745,6 +745,9 @@ export function PlayerStorePanel({ character, onAddToCharacter, removePlayerInve
                         item.itemType === 'weapon' ? 'bg-red-500/30 text-red-300' :
                         item.itemType === 'armor' ? 'bg-blue-500/30 text-blue-300' :
                         item.itemType === 'potion' ? 'bg-green-500/30 text-green-300' :
+                        item.itemType === 'clue' ? 'bg-yellow-500/30 text-yellow-300' :
+                        item.itemType === 'scroll' ? 'bg-purple-500/30 text-purple-300' :
+                        item.itemType === 'wondrous' ? 'bg-pink-500/30 text-pink-300' :
                         'bg-gray-500/30 text-gray-300'
                       }`}>
                         {item.itemType}
@@ -819,8 +822,15 @@ export function PlayerStorePanel({ character, onAddToCharacter, removePlayerInve
                   {item.effect && (
                     <p className="text-green-400">{item.effect}</p>
                   )}
-                  {item.description && !item.effect && (
-                    <p className="text-parchment/70">{item.description}</p>
+                  {/* Always show description for clues, otherwise show if no effect */}
+                  {item.itemType === 'clue' && item.description ? (
+                    <p className="text-yellow-300 italic bg-yellow-900/20 p-1 rounded border-l-2 border-yellow-500">
+                      📜 {item.description}
+                    </p>
+                  ) : (
+                    item.description && !item.effect && (
+                      <p className="text-parchment/70">{item.description}</p>
+                    )
                   )}
                   {item.value && (
                     <p className="text-gold/70">Value: {item.value}</p>

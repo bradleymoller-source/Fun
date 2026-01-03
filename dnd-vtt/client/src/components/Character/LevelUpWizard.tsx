@@ -49,13 +49,30 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
 
   // Calculate HP gain
   const getHpGain = (): number => {
+    let baseGain: number;
     if (hpMethod === 'average') {
       // Average is (die size / 2) + 1 (rounded up)
-      return Math.ceil(hitDie / 2) + 1 + conMod;
+      baseGain = Math.ceil(hitDie / 2) + 1 + conMod;
     } else if (rolledHp !== null) {
-      return Math.max(1, rolledHp + conMod);
+      baseGain = Math.max(1, rolledHp + conMod);
+    } else {
+      return 0;
     }
-    return 0;
+
+    // Tough feat: +2 HP per level
+    const hasTough = character.features.some(f => f.name === 'Tough');
+    if (hasTough) {
+      baseGain += 2;
+    }
+
+    // Dwarven Toughness (Hill Dwarf): +1 HP per level
+    const hasDwarvenToughness = character.species === 'dwarf' &&
+      character.features.some(f => f.name === 'Dwarven Toughness');
+    if (hasDwarvenToughness) {
+      baseGain += 1;
+    }
+
+    return baseGain;
   };
 
   const rollHp = () => {

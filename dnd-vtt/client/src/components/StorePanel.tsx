@@ -288,10 +288,25 @@ export function StorePanel({ isDm, players = [], onDistributeItem, onDistributeS
           ) : (
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {lootItems.map((item) => (
-                <div key={item.id} className="p-2 bg-yellow-900/30 rounded border border-yellow-700/50">
+                <div key={item.id} className={`p-2 rounded border ${
+                  item.itemType === 'clue' ? 'bg-amber-900/40 border-amber-600/50' : 'bg-yellow-900/30 border-yellow-700/50'
+                }`}>
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
                       <span className="text-parchment font-medium">{item.name}</span>
+                      {item.itemType && (
+                        <span className={`ml-2 text-xs px-1 rounded ${
+                          item.itemType === 'weapon' ? 'bg-red-500/30 text-red-300' :
+                          item.itemType === 'armor' ? 'bg-blue-500/30 text-blue-300' :
+                          item.itemType === 'potion' ? 'bg-green-500/30 text-green-300' :
+                          item.itemType === 'clue' ? 'bg-amber-500/30 text-amber-300' :
+                          item.itemType === 'scroll' ? 'bg-purple-500/30 text-purple-300' :
+                          item.itemType === 'wondrous' ? 'bg-pink-500/30 text-pink-300' :
+                          'bg-gray-500/30 text-gray-300'
+                        }`}>
+                          {item.itemType}
+                        </span>
+                      )}
                       {item.attackBonus !== undefined && item.attackBonus > 0 && (
                         <span className="text-green-400 ml-1">+{item.attackBonus > 5 ? item.attackBonus - 5 : item.attackBonus}</span>
                       )}
@@ -336,8 +351,15 @@ export function StorePanel({ isDm, players = [], onDistributeItem, onDistributeS
                   {item.effect && (
                     <p className="text-purple-400 text-sm mt-1">{item.effect}</p>
                   )}
-                  {item.description && !item.effect && (
-                    <p className="text-parchment/70 text-sm mt-1">{item.description}</p>
+                  {/* Always show description for clues, otherwise show if no effect */}
+                  {item.itemType === 'clue' && item.description ? (
+                    <p className="text-amber-300 text-sm mt-1 italic bg-amber-900/30 p-1 rounded border-l-2 border-amber-500">
+                      📜 {item.description}
+                    </p>
+                  ) : (
+                    item.description && !item.effect && (
+                      <p className="text-parchment/70 text-sm mt-1">{item.description}</p>
+                    )
                   )}
                 </div>
               ))}

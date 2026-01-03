@@ -575,12 +575,28 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     const finalScores = getFinalAbilityScores();
     const conMod = getAbilityModifier(finalScores.constitution);
 
+    let baseHp: number;
     if (hpMethod === 'roll' && rolledHp !== null) {
       // Rolled HP: roll result + CON modifier (minimum 1)
-      return Math.max(1, rolledHp + conMod);
+      baseHp = Math.max(1, rolledHp + conMod);
+    } else {
+      // Standard: max hit die + CON modifier (minimum 1)
+      baseHp = Math.max(1, hitDie + conMod);
     }
-    // Standard: max hit die + CON modifier (minimum 1)
-    return Math.max(1, hitDie + conMod);
+
+    // Tough feat: +2 HP per level
+    const hasTough = (originFeat?.name === 'Tough') || (humanBonusFeat === 'Tough');
+    if (hasTough) {
+      baseHp += 2 * level;
+    }
+
+    // Dwarven Toughness (Hill Dwarf): +1 HP per level
+    const hasDwarvenToughness = species === 'dwarf' && speciesChoice === 'hill-dwarf';
+    if (hasDwarvenToughness) {
+      baseHp += level;
+    }
+
+    return baseHp;
   };
 
   const swapAbilities = (a: keyof AbilityScores, b: keyof AbilityScores) => {

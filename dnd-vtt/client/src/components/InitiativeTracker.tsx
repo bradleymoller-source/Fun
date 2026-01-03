@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { useSessionStore } from '../stores/sessionStore';
-import type { InitiativeEntry, Condition } from '../types';
+import type { InitiativeEntry, Condition, Character } from '../types';
+import { getProficiencyBonus, getAbilityModifier } from '../data/dndData';
 
 // Condition colors and icons for visual display
 const CONDITION_INFO: Record<Condition, { icon: string; color: string; description: string }> = {
@@ -44,6 +45,7 @@ interface InitiativeTrackerProps {
   playerId?: string;
   playerName?: string;
   playerMaxHp?: number;
+  character?: Character | null;  // Character for feat bonuses (Alert, etc.)
 }
 
 export function InitiativeTracker({
@@ -59,6 +61,7 @@ export function InitiativeTracker({
   playerId,
   playerName,
   playerMaxHp,
+  character,
 }: InitiativeTrackerProps) {
   const { initiative, isInCombat } = useSessionStore();
   const [newName, setNewName] = useState('');
@@ -127,10 +130,24 @@ export function InitiativeTracker({
 
     const roll = Math.floor(Math.random() * 20) + 1;
 
+    // Calculate initiative bonus
+    let initBonus = 0;
+
+    // Add DEX modifier if character exists
+    if (character) {
+      initBonus += getAbilityModifier(character.abilityScores.dexterity);
+
+      // Alert feat: Add proficiency bonus to initiative
+      const hasAlert = character.features?.some(f => f.name === 'Alert');
+      if (hasAlert) {
+        initBonus += getProficiencyBonus(character.level);
+      }
+    }
+
     const entry: InitiativeEntry = {
       id: `init-player-${playerId}`,
       name: playerName,
-      initiative: roll,
+      initiative: roll + initBonus,
       isNpc: false,
       isActive: false,
       playerId: playerId,
