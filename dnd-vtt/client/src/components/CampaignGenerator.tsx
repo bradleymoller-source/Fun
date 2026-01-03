@@ -1606,7 +1606,41 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
                       </div>
                     ))}
                     {campaign.act3.bossEncounter.rewards.villainLoot && (
-                      <p className="text-amber-300/70 text-xs mt-1 italic">Villain: {campaign.act3.bossEncounter.rewards.villainLoot}</p>
+                      <div className="mt-2 border-t border-yellow-500/20 pt-2">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-amber-300 text-xs font-medium">Villain's Possessions:</span>
+                          {Array.isArray(campaign.act3.bossEncounter.rewards.villainLoot) && campaign.act3.bossEncounter.rewards.villainLoot.length > 0 && (
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => {
+                                const lootItems = campaign.act3.bossEncounter.rewards.villainLoot.map((item: any) => ({
+                                  item: item.name,
+                                  value: item.value || '0gp',
+                                  type: item.type,
+                                  effect: item.description,
+                                }));
+                                handleAddToLoot(lootItems, 'Villain Loot');
+                              }}
+                              className="text-xs py-0.5 px-2"
+                            >
+                              Add to Loot
+                            </Button>
+                          )}
+                        </div>
+                        {Array.isArray(campaign.act3.bossEncounter.rewards.villainLoot) ? (
+                          campaign.act3.bossEncounter.rewards.villainLoot.map((item: any, i: number) => (
+                            <div key={i} className="text-amber-200/80 text-xs pl-2 border-l border-amber-500/30 mt-1">
+                              <span className="font-medium">{item.name}</span>
+                              {item.value && item.value !== '0gp' && <span className="text-parchment/50"> - {item.value}</span>}
+                              {item.type && <span className="text-orange-300/70 ml-1">({item.type})</span>}
+                              {item.description && <p className="text-parchment/60 text-xs">{item.description}</p>}
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-amber-300/70 text-xs italic">{campaign.act3.bossEncounter.rewards.villainLoot}</p>
+                        )}
+                      </div>
                     )}
                   </div>
                 )}
@@ -1762,6 +1796,37 @@ export function CampaignGenerator({ onCampaignGenerated, onDungeonGenerated, add
                     <ul className="text-xs text-parchment/70 list-disc list-inside">
                       {npc.keyInformation.map((info: string, j: number) => <li key={j}>{info}</li>)}
                     </ul>
+                  </div>
+                )}
+                {npc.skillChecks && (
+                  <div className="mt-2 bg-indigo-900/20 p-2 rounded border border-indigo-500/30">
+                    <strong className="text-xs text-indigo-300">Skill Checks to Learn More:</strong>
+                    <div className="text-xs space-y-1 mt-1">
+                      {npc.skillChecks.persuasion?.dc && (
+                        <p className="text-green-300">
+                          <span className="font-medium">DC {npc.skillChecks.persuasion.dc} Persuasion:</span>
+                          <span className="text-parchment/70 ml-1">{npc.skillChecks.persuasion.reveals}</span>
+                        </p>
+                      )}
+                      {npc.skillChecks.intimidation?.dc && (
+                        <p className="text-red-300">
+                          <span className="font-medium">DC {npc.skillChecks.intimidation.dc} Intimidation:</span>
+                          <span className="text-parchment/70 ml-1">{npc.skillChecks.intimidation.reveals}</span>
+                        </p>
+                      )}
+                      {npc.skillChecks.insight?.dc && (
+                        <p className="text-blue-300">
+                          <span className="font-medium">DC {npc.skillChecks.insight.dc} Insight:</span>
+                          <span className="text-parchment/70 ml-1">{npc.skillChecks.insight.reveals}</span>
+                        </p>
+                      )}
+                      {npc.skillChecks.bribe?.cost && (
+                        <p className="text-yellow-300">
+                          <span className="font-medium">Bribe ({npc.skillChecks.bribe.cost}):</span>
+                          <span className="text-parchment/70 ml-1">{npc.skillChecks.bribe.reveals}</span>
+                        </p>
+                      )}
+                    </div>
                   </div>
                 )}
                 {npc.services && npc.services.length > 0 && (

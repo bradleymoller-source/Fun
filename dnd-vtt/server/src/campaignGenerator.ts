@@ -653,7 +653,20 @@ const campaignFunctionDeclarations = [
           },
           description: "2-3 magic items or special loot with full descriptions"
         },
-        villainLoot: { type: SchemaType.STRING, description: "Everything on the villain's body: equipment, notes, keys, etc." }
+        villainLoot: {
+          type: SchemaType.ARRAY,
+          items: {
+            type: SchemaType.OBJECT,
+            properties: {
+              name: { type: SchemaType.STRING, description: "Item name" },
+              type: { type: SchemaType.STRING, description: "weapon, armor, gear, key, document, treasure" },
+              value: { type: SchemaType.STRING, description: "Gold value (e.g. '50gp')" },
+              description: { type: SchemaType.STRING, description: "What the item is and why it's significant" }
+            },
+            required: ["name", "type", "value", "description"]
+          },
+          description: "Items on the villain's body: equipment, notes, keys, gems, coins - each as an object"
+        }
       },
       required: ["title", "overview", "chamberReadAloud", "chamberFeatures", "chamberDimensions", "villainName", "villainAppearance", "villainType", "villainCR", "villainHP", "villainAC", "villainACType", "villainInitiative", "villainSpeed", "villainMotivation", "villainPersonality", "villainDialogueOpening", "villainDialogueMidFight", "villainDialogueDefeat", "villainTactics", "villainAttacks", "villainWeakness", "legendaryActions", "phaseChanges", "throughlinePayoffs", "rewardXP", "rewardGold", "rewardItems", "villainLoot"]
     }
@@ -1050,15 +1063,30 @@ ${bossRoom || 'Final chamber with boss encounter'}
    }
    The reveals should be STORY-RELEVANT and help players learn about the villain, dungeon, or plot.
 
-3. SHOPS MUST HAVE INVENTORY - addShop requires inventory array:
-   Blacksmiths sell: weapons, armor, shields, ammunition
-   General stores sell: adventuring gear, rations, rope, torches
-   Apothecaries sell: potions, antidotes, herbs
-   Example inventory: [
-     {item: "Longsword", cost: "15gp", type: "weapon", effect: "1d8 slashing, versatile (1d10)"},
-     {item: "Potion of Healing", cost: "50gp", type: "potion", effect: "Heals 2d4+2 HP"},
-     {item: "Chain Mail", cost: "75gp", type: "armor", effect: "AC 16, disadvantage on Stealth"}
-   ]
+3. SHOPS MUST HAVE INVENTORY MATCHING THEIR TYPE - addShop requires inventory array:
+   IMPORTANT: The "keeper" field should be a CHARACTER NAME (e.g. "Grimjaw", "Martha", "Old Theo"), NOT a title like "Barkeep" or "Shopkeeper"!
+
+   BLACKSMITH (shopType: "blacksmith"):
+   - Name examples: "Ironheart Forge", "The Anvil's Song"
+   - Sells ONLY: weapons (swords, axes, daggers), armor (chain, plate, leather), shields, ammunition
+   - Example: {item: "Longsword", cost: "15gp", type: "weapon", effect: "1d8 slashing, versatile (1d10)"}
+
+   GENERAL STORE (shopType: "general"):
+   - Name examples: "Dusty's Goods", "The Trading Post"
+   - Sells ONLY: adventuring gear (rope, torches, rations, bedrolls, backpacks, lanterns, oil)
+   - Example: {item: "Rope (50 ft)", cost: "1gp", type: "gear", effect: "Hemp rope, holds 500 lbs"}
+
+   APOTHECARY (shopType: "apothecary"):
+   - Name examples: "Martha's Remedies", "The Herb Garden"
+   - Sells ONLY: potions (healing, antidote), herbs, remedies, alchemical supplies
+   - Example: {item: "Potion of Healing", cost: "50gp", type: "potion", effect: "Heals 2d4+2 HP"}
+
+   MAGIC SHOP (shopType: "magic"):
+   - Name examples: "Arcane Artifacts", "The Enchanted Emporium"
+   - Sells ONLY: scrolls, wands, magic items, spell components
+   - Example: {item: "Scroll of Detect Magic", cost: "25gp", type: "scroll", effect: "Cast Detect Magic once"}
+
+   DO NOT mix item types! A blacksmith does NOT sell potions. An apothecary does NOT sell weapons.
 
 4. ROOM TREASURE - REQUIRED for every room:
    Every room needs the treasure array with 1-4 items:
@@ -1175,8 +1203,13 @@ ${bossRoom || 'Final chamber with boss encounter'}
 
    REWARDS - ALL REQUIRED:
    - rewardXP: 1800 (number)
-   - rewardGold: "450 gold pieces, 3 gems worth 50gp each"
-   - villainLoot: "Ornate dagger, bloodstained journal, key to treasure vault"
+   - rewardGold: "450 gold pieces"
+   - villainLoot: [
+       {name: "Ornate Ceremonial Dagger", type: "weapon", value: "75gp", description: "A silver dagger with cult symbols - worth more to collectors"},
+       {name: "Bloodstained Journal", type: "document", value: "0gp", description: "Details the villain's plans and mentions a greater threat"},
+       {name: "Key to Treasure Vault", type: "key", value: "0gp", description: "Opens the locked chest in the villain's chamber"},
+       {name: "Pouch of Gems", type: "treasure", value: "150gp", description: "3 gems worth 50gp each"}
+     ]
    - rewardItems: [
        {name: "Staff of the Void", type: "staff", rarity: "rare", value: "2000gp",
         effect: "+1 to spell attack rolls. Can cast Darkness 1/day.", attunement: true}
