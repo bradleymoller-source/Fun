@@ -387,8 +387,10 @@ export interface Character {
 
   // Class Feature Choices
   fightingStyle?: string;  // Selected fighting style ID (fighter, paladin, ranger)
+  divineOrder?: string;    // Divine Order choice (cleric): 'protector' or 'thaumaturge'
+  primalOrder?: string;    // Primal Order choice (druid): 'magician' or 'warden'
   eldritchInvocations?: string[];  // Selected invocation IDs (warlock)
-  expertiseSkills?: SkillName[];  // Skills with expertise (rogue, bard)
+  expertiseSkills?: SkillName[];  // Skills with expertise (rogue, bard, ranger)
   weaponMasteries?: string[];  // Weapons with mastery selected (fighter, barbarian, monk, paladin, ranger)
 
   // Ability Scores

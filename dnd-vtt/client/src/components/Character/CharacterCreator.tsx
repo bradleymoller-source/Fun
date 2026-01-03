@@ -54,6 +54,8 @@ import {
   // Class feature choices
   FIGHTING_STYLES,
   FIGHTING_STYLE_CLASSES,
+  DIVINE_ORDER_OPTIONS,
+  PRIMAL_ORDER_OPTIONS,
   WARLOCK_INVOCATIONS_KNOWN,
   getAvailableInvocations,
   EXPERTISE_CLASSES,
@@ -62,6 +64,8 @@ import {
   MUSICAL_INSTRUMENTS,
   // Species trait choices
   HIGH_ELF_CANTRIPS,
+  // Class cantrips for order choices
+  CLASS_CANTRIPS,
   // Class resources
   getCharacterResources,
   // Weapon Mastery
@@ -173,6 +177,10 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
   const [subclass, setSubclass] = useState<string>('');
   const [subclassChoices, setSubclassChoices] = useState<Record<string, string[]>>({});
   const [fightingStyle, setFightingStyle] = useState<string>('');
+  const [divineOrder, setDivineOrder] = useState<string>('protector');  // Cleric Divine Order choice
+  const [primalOrder, setPrimalOrder] = useState<string>('magician');    // Druid Primal Order choice
+  const [divineOrderCantrip, setDivineOrderCantrip] = useState<string>(''); // Extra cantrip for Thaumaturge
+  const [primalOrderCantrip, setPrimalOrderCantrip] = useState<string>(''); // Extra cantrip for Magician
   const [eldritchInvocations, setEldritchInvocations] = useState<string[]>([]);
   const [pactOfTomeCantrips, setPactOfTomeCantrips] = useState<string[]>([]); // Cantrips from Pact of the Tome
   const [lessonsCantrip, setLessonsCantrip] = useState<string>(''); // Cantrip from Lessons of the First Ones
@@ -314,6 +322,16 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       setFightingStyle(fightingStyleData.options[0]);
     } else {
       setFightingStyle('');
+    }
+    // Reset Divine Order for cleric
+    if (characterClass === 'cleric') {
+      setDivineOrder('protector');
+      setDivineOrderCantrip('');
+    }
+    // Reset Primal Order for druid
+    if (characterClass === 'druid') {
+      setPrimalOrder('magician');
+      setPrimalOrderCantrip('');
     }
     setEldritchInvocations([]);
     setPactOfTomeCantrips([]);
@@ -988,6 +1006,10 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
           baseAC = pack.armor.armorClass + dexMod;
         } else if (armorType === 'medium') {
           baseAC = pack.armor.armorClass + Math.min(dexMod, 2);
+          // Primal Order Warden adds +1 AC while wearing medium armor
+          if (characterClass === 'druid' && primalOrder === 'warden') {
+            baseAC += 1;
+          }
         } else {
           baseAC = pack.armor.armorClass;
         }
@@ -1107,11 +1129,18 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
 
       if (armorItem && armorItem.armorClass) {
         if (armorItem.name.includes('Leather') || armorItem.name.includes('Padded') || armorItem.name.includes('Studded')) {
+          // Light armor - full DEX
           baseAC = armorItem.armorClass + dexMod;
-        } else if (armorItem.name.includes('Chain Mail') || armorItem.name.includes('Ring Mail')) {
+        } else if (armorItem.name.includes('Chain Mail') || armorItem.name.includes('Ring Mail') || armorItem.name.includes('Splint') || armorItem.name.includes('Plate')) {
+          // Heavy armor - no DEX
           baseAC = armorItem.armorClass;
         } else {
+          // Medium armor - max +2 DEX
           baseAC = armorItem.armorClass + Math.min(dexMod, 2);
+          // Primal Order Warden adds +1 AC while wearing medium armor
+          if (characterClass === 'druid' && primalOrder === 'warden') {
+            baseAC += 1;
+          }
         }
         // Defense fighting style adds +1 AC while wearing armor
         if (hasDefense) {
@@ -1273,10 +1302,27 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     });
 
     // Convert armor proficiencies to strings
-    const armorProfs: string[] = formatArmorProficiencies(classProficiencies.armor).split(', ');
+    let armorProfs: string[] = formatArmorProficiencies(classProficiencies.armor).split(', ');
 
     // Convert weapon proficiencies to strings
-    const weaponProfs: string[] = formatWeaponProficiencies(classProficiencies.weapons).split(', ');
+    let weaponProfs: string[] = formatWeaponProficiencies(classProficiencies.weapons).split(', ');
+
+    // Apply Divine Order (Cleric) proficiencies
+    if (characterClass === 'cleric' && divineOrder === 'protector') {
+      if (!armorProfs.includes('Heavy Armor')) {
+        armorProfs.push('Heavy Armor');
+      }
+      if (!weaponProfs.includes('Martial Weapons')) {
+        weaponProfs.push('Martial Weapons');
+      }
+    }
+
+    // Apply Primal Order (Druid) proficiencies
+    if (characterClass === 'druid' && primalOrder === 'warden') {
+      if (!weaponProfs.includes('Martial Weapons')) {
+        weaponProfs.push('Martial Weapons');
+      }
+    }
 
     // Add Unarmed Strike for Monks (Martial Arts feature)
     if (characterClass === 'monk') {
@@ -1347,6 +1393,8 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       subclass: subclass || undefined,
       subclassChoices: Object.keys(subclassChoices).length > 0 ? subclassChoices : undefined,
       fightingStyle: fightingStyle || undefined,
+      divineOrder: characterClass === 'cleric' ? divineOrder : undefined,
+      primalOrder: characterClass === 'druid' ? primalOrder : undefined,
       eldritchInvocations: eldritchInvocations.length > 0 ? eldritchInvocations : undefined,
       expertiseSkills: expertiseSkills.length > 0 ? expertiseSkills : undefined,
       weaponMasteries: weaponMasteries.length > 0 ? weaponMasteries : undefined,
@@ -1402,6 +1450,10 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
         ...(lessonsCantrip ? [lessonsCantrip] : []),
         // Human bonus feat (Magic Initiate) cantrips
         ...humanFeatCantrips,
+        // Divine Order (Thaumaturge) extra cantrip
+        ...(characterClass === 'cleric' && divineOrder === 'thaumaturge' && divineOrderCantrip ? [divineOrderCantrip] : []),
+        // Primal Order (Magician) extra cantrip
+        ...(characterClass === 'druid' && primalOrder === 'magician' && primalOrderCantrip ? [primalOrderCantrip] : []),
       ],
       spells: [
         ...selectedSpells,
@@ -1634,6 +1686,118 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
             <p className="text-parchment/70 text-xs mt-2">
               {FIGHTING_STYLES.find(s => s.id === fightingStyle)?.description}
             </p>
+          )}
+        </div>
+      )}
+
+      {/* Divine Order (Cleric Level 1) */}
+      {characterClass === 'cleric' && (
+        <div className="bg-yellow-900/20 border border-yellow-500/50 p-3 rounded">
+          <label className="block text-yellow-400 text-sm mb-1">Divine Order</label>
+          <p className="text-parchment/70 text-xs mb-2">Choose how your deity has prepared you for service.</p>
+          <div className="grid grid-cols-2 gap-2">
+            {DIVINE_ORDER_OPTIONS.map(option => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => {
+                  setDivineOrder(option.id);
+                  if (option.id !== 'thaumaturge') setDivineOrderCantrip('');
+                }}
+                className={`p-2 rounded text-left text-sm transition-colors ${
+                  divineOrder === option.id
+                    ? 'bg-yellow-600/30 border-2 border-yellow-500 text-parchment'
+                    : 'bg-dark-wood border border-leather text-parchment/70 hover:border-yellow-500/50'
+                }`}
+              >
+                <div className="font-semibold text-yellow-400">{option.name}</div>
+                <div className="text-xs mt-1">{option.description}</div>
+              </button>
+            ))}
+          </div>
+          {divineOrder && (
+            <div className="mt-2 text-xs text-parchment/70">
+              <strong>Benefits:</strong> {DIVINE_ORDER_OPTIONS.find(o => o.id === divineOrder)?.benefits.join(', ')}
+            </div>
+          )}
+          {/* Thaumaturge cantrip selection */}
+          {divineOrder === 'thaumaturge' && CLASS_CANTRIPS.cleric && (
+            <div className="mt-3 p-2 bg-yellow-900/30 rounded border border-yellow-500/30">
+              <label className="block text-yellow-300 text-xs mb-1">Extra Cleric Cantrip (Thaumaturge)</label>
+              <select
+                value={divineOrderCantrip}
+                onChange={(e) => setDivineOrderCantrip(e.target.value)}
+                className="w-full bg-parchment text-dark-wood px-2 py-1 rounded text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
+              >
+                <option value="">Select a cantrip...</option>
+                {CLASS_CANTRIPS.cleric
+                  .filter(c => !selectedCantrips.includes(c.name)) // Don't show already selected cantrips
+                  .map(cantrip => (
+                    <option key={cantrip.name} value={cantrip.name}>{cantrip.name}</option>
+                  ))}
+              </select>
+              {divineOrderCantrip && (
+                <p className="text-parchment/60 text-xs mt-1">
+                  {CLASS_CANTRIPS.cleric.find(c => c.name === divineOrderCantrip)?.description}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Primal Order (Druid Level 1) */}
+      {characterClass === 'druid' && (
+        <div className="bg-green-900/20 border border-green-500/50 p-3 rounded">
+          <label className="block text-green-400 text-sm mb-1">Primal Order</label>
+          <p className="text-parchment/70 text-xs mb-2">Choose your connection to the primal forces of nature.</p>
+          <div className="grid grid-cols-2 gap-2">
+            {PRIMAL_ORDER_OPTIONS.map(option => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => {
+                  setPrimalOrder(option.id);
+                  if (option.id !== 'magician') setPrimalOrderCantrip('');
+                }}
+                className={`p-2 rounded text-left text-sm transition-colors ${
+                  primalOrder === option.id
+                    ? 'bg-green-600/30 border-2 border-green-500 text-parchment'
+                    : 'bg-dark-wood border border-leather text-parchment/70 hover:border-green-500/50'
+                }`}
+              >
+                <div className="font-semibold text-green-400">{option.name}</div>
+                <div className="text-xs mt-1">{option.description}</div>
+              </button>
+            ))}
+          </div>
+          {primalOrder && (
+            <div className="mt-2 text-xs text-parchment/70">
+              <strong>Benefits:</strong> {PRIMAL_ORDER_OPTIONS.find(o => o.id === primalOrder)?.benefits.join(', ')}
+            </div>
+          )}
+          {/* Magician cantrip selection */}
+          {primalOrder === 'magician' && CLASS_CANTRIPS.druid && (
+            <div className="mt-3 p-2 bg-green-900/30 rounded border border-green-500/30">
+              <label className="block text-green-300 text-xs mb-1">Extra Druid Cantrip (Magician)</label>
+              <select
+                value={primalOrderCantrip}
+                onChange={(e) => setPrimalOrderCantrip(e.target.value)}
+                className="w-full bg-parchment text-dark-wood px-2 py-1 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              >
+                <option value="">Select a cantrip...</option>
+                {CLASS_CANTRIPS.druid
+                  .filter(c => !selectedCantrips.includes(c.name)) // Don't show already selected cantrips
+                  .map(cantrip => (
+                    <option key={cantrip.name} value={cantrip.name}>{cantrip.name}</option>
+                  ))}
+              </select>
+              {primalOrderCantrip && (
+                <p className="text-parchment/60 text-xs mt-1">
+                  {CLASS_CANTRIPS.druid.find(c => c.name === primalOrderCantrip)?.description}
+                </p>
+              )}
+            </div>
           )}
         </div>
       )}

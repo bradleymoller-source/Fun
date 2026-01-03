@@ -553,6 +553,54 @@ export const FIGHTING_STYLE_CLASSES: Partial<Record<CharacterClass, { level: num
   },
 };
 
+// ============ DIVINE ORDER (Cleric Level 1) ============
+
+export interface DivineOrderOption {
+  id: string;
+  name: string;
+  description: string;
+  benefits: string[];
+}
+
+export const DIVINE_ORDER_OPTIONS: DivineOrderOption[] = [
+  {
+    id: 'protector',
+    name: 'Protector',
+    description: 'Trained for battle, you gain proficiency with martial weapons and heavy armor.',
+    benefits: ['Martial weapon proficiency', 'Heavy armor proficiency']
+  },
+  {
+    id: 'thaumaturge',
+    name: 'Thaumaturge',
+    description: 'You know one extra cantrip from the Cleric spell list, and gain a bonus to Religion checks.',
+    benefits: ['One extra Cleric cantrip', '+WIS modifier to Religion checks']
+  }
+];
+
+// ============ PRIMAL ORDER (Druid Level 1) ============
+
+export interface PrimalOrderOption {
+  id: string;
+  name: string;
+  description: string;
+  benefits: string[];
+}
+
+export const PRIMAL_ORDER_OPTIONS: PrimalOrderOption[] = [
+  {
+    id: 'magician',
+    name: 'Magician',
+    description: 'You know one extra cantrip from the Druid spell list.',
+    benefits: ['One extra Druid cantrip']
+  },
+  {
+    id: 'warden',
+    name: 'Warden',
+    description: 'Trained for battle, you gain proficiency with martial weapons and +1 AC when wearing medium armor.',
+    benefits: ['Martial weapon proficiency', '+1 AC in medium armor (no shield required)']
+  }
+];
+
 // ============ ELDRITCH INVOCATIONS (2024 PHB) ============
 
 export interface EldritchInvocation {
