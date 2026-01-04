@@ -175,8 +175,8 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
   const [subclass, setSubclass] = useState<string>('');
   const [subclassChoices, setSubclassChoices] = useState<Record<string, string[]>>({});
   const [fightingStyle, setFightingStyle] = useState<string>('');
-  const [divineOrder, setDivineOrder] = useState<string>('protector');  // Cleric Divine Order choice
-  const [primalOrder, setPrimalOrder] = useState<string>('magician');    // Druid Primal Order choice
+  const [divineOrder, setDivineOrder] = useState<string>('');  // Cleric Divine Order choice
+  const [primalOrder, setPrimalOrder] = useState<string>('');    // Druid Primal Order choice
   const [divineOrderCantrip, setDivineOrderCantrip] = useState<string>(''); // Extra cantrip for Thaumaturge
   const [primalOrderCantrip, setPrimalOrderCantrip] = useState<string>(''); // Extra cantrip for Magician
   const [eldritchInvocations, setEldritchInvocations] = useState<string[]>([]);
@@ -420,6 +420,9 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
   const canProceed = () => {
     switch (step) {
       case 'basics':
+        // Require Divine Order for Cleric, Primal Order for Druid
+        if (characterClass === 'cleric' && !divineOrder) return false;
+        if (characterClass === 'druid' && !primalOrder) return false;
         return name.trim().length > 0;
       case 'skills':
         return selectedClassSkills.length === classInfo.numSkillChoices;
@@ -1690,8 +1693,10 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
 
       {/* Divine Order (Cleric Level 1) */}
       {characterClass === 'cleric' && (
-        <div className="bg-yellow-900/20 border border-yellow-500/50 p-3 rounded">
-          <label className="block text-yellow-400 text-sm mb-1">Divine Order</label>
+        <div className={`bg-yellow-900/20 border p-3 rounded ${!divineOrder ? 'border-red-500/70' : 'border-yellow-500/50'}`}>
+          <label className="block text-yellow-400 text-sm mb-1">
+            Divine Order <span className="text-red-400">*</span>
+          </label>
           <p className="text-parchment/70 text-xs mb-2">Choose how your deity has prepared you for service.</p>
           <div className="grid grid-cols-2 gap-2">
             {DIVINE_ORDER_OPTIONS.map(option => (
@@ -1746,8 +1751,10 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
 
       {/* Primal Order (Druid Level 1) */}
       {characterClass === 'druid' && (
-        <div className="bg-green-900/20 border border-green-500/50 p-3 rounded">
-          <label className="block text-green-400 text-sm mb-1">Primal Order</label>
+        <div className={`bg-green-900/20 border p-3 rounded ${!primalOrder ? 'border-red-500/70' : 'border-green-500/50'}`}>
+          <label className="block text-green-400 text-sm mb-1">
+            Primal Order <span className="text-red-400">*</span>
+          </label>
           <p className="text-parchment/70 text-xs mb-2">Choose your connection to the primal forces of nature.</p>
           <div className="grid grid-cols-2 gap-2">
             {PRIMAL_ORDER_OPTIONS.map(option => (
