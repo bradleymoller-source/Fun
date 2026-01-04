@@ -24,22 +24,29 @@ This document outlines the comprehensive plan to implement a full character leve
 | Fighting Styles | ✅ Complete | All styles defined |
 | Weapon Masteries | ✅ Complete | All masteries with class counts |
 
-### What's Missing for Full Leveling
+### What's Missing for V1 (Levels 1-5)
 
-| Component | Priority | Complexity |
-|-----------|----------|------------|
-| Higher-level spells (2-6) | High | Medium |
-| Subclass features (L6, L10, L14) | High | Medium |
-| Spell learning on level-up | High | High |
-| Subclass selection at L3 | High | Medium |
-| Cantrip progression by level | Medium | Low |
-| Spells known progression | Medium | Low |
-| Feat selection at ASI levels | Medium | Medium |
-| General Feats (non-origin) | Medium | Medium |
-| Feature choices on level-up | Medium | Medium |
-| Proficiency bonus application | Medium | Low |
-| Character level history | Low | Medium |
-| Multiclassing | Low | Very High |
+| Component | Priority | Complexity | Status |
+|-----------|----------|------------|--------|
+| Level 2-3 spells | High | Medium | To do |
+| Spell learning on level-up | High | High | To do |
+| Subclass selection at L3 | High | Medium | To do |
+| Cantrip progression by level | Medium | Low | To do |
+| Spells known progression | Medium | Low | To do |
+| Feat selection at ASI levels (L4) | Medium | Medium | To do |
+| General Feats (non-origin) | Medium | Medium | To do |
+| Feature choices on level-up | Medium | Medium | To do |
+| Proficiency bonus increase (L5) | Medium | Low | To do |
+| Spell Preparation UI | Medium | Medium | To do |
+| Character level history | Low | Medium | To do |
+
+### Deferred to Future Phases
+
+| Component | Reason |
+|-----------|--------|
+| Multiclassing | Excluded from V1 - adds significant complexity |
+| Level 4-6 spells | Scope limited to levels 1-5 for V1 |
+| Subclass features (L6, L10, L14) | Only needed for levels 6+ |
 
 ---
 
@@ -49,39 +56,41 @@ This document outlines the comprehensive plan to implement a full character leve
 
 **Current State:** Only level 1 spells defined (`CLASS_SPELLS_LEVEL_1`)
 
-**Required:** Spells for levels 2-6 (level 12 characters can cast up to 6th level)
+**V1 Required:** Spells for levels 2-3 only (level 5 characters can cast up to 3rd level)
+
+**Format:** Abbreviated spell data (name + 1-line description) per decision
 
 ```typescript
-// Add to dndData.ts
+// Add to dndData.ts - abbreviated format
 export const CLASS_SPELLS_LEVEL_2: Partial<Record<CharacterClass, SpellInfo[]>> = {
   bard: [
-    { name: 'Hold Person', description: 'Paralyze a humanoid' },
-    { name: 'Invisibility', description: 'Target becomes invisible' },
-    { name: 'Shatter', description: '3d8 thunder damage in area' },
+    { name: 'Hold Person', description: 'Paralyze a humanoid creature' },
+    { name: 'Invisibility', description: 'Target becomes invisible for 1 hour' },
+    { name: 'Shatter', description: '3d8 thunder damage in a 10-foot radius' },
     // ... 10 spells per class
   ],
   // ... all spellcasting classes
 };
 
 export const CLASS_SPELLS_LEVEL_3: Partial<Record<CharacterClass, SpellInfo[]>>;
-export const CLASS_SPELLS_LEVEL_4: Partial<Record<CharacterClass, SpellInfo[]>>;
-export const CLASS_SPELLS_LEVEL_5: Partial<Record<CharacterClass, SpellInfo[]>>;
-export const CLASS_SPELLS_LEVEL_6: Partial<Record<CharacterClass, SpellInfo[]>>;
+// Level 4-6 spells deferred to future phase
 ```
 
-**Spells Needed Per Class:**
+**V1 Spells Needed Per Class (Levels 2-3 Only):**
 
 | Class | Spell Levels Needed | Est. Spells |
 |-------|---------------------|-------------|
-| Bard | 2-6 | 50 |
-| Cleric | 2-6 | 50 |
-| Druid | 2-6 | 50 |
-| Paladin | 2-5 (half-caster) | 40 |
-| Ranger | 2-5 (half-caster) | 40 |
-| Sorcerer | 2-6 | 50 |
-| Warlock | 2-5 (Pact Magic caps) | 40 |
-| Wizard | 2-6 | 50 |
-| **Total** | | **~370 spells** |
+| Bard | 2-3 | 20 |
+| Cleric | 2-3 | 20 |
+| Druid | 2-3 | 20 |
+| Paladin | 2 (gets L2 at character L5) | 10 |
+| Ranger | 2 (gets L2 at character L5) | 10 |
+| Sorcerer | 2-3 | 20 |
+| Warlock | 2 (Pact Magic) | 10 |
+| Wizard | 2-3 | 20 |
+| **V1 Total** | | **~130 spells** |
+
+*Note: Full spell descriptions can be enhanced in future iterations*
 
 ### 1.2 Cantrip Progression Data (Medium Priority)
 
@@ -691,51 +700,57 @@ export const XP_THRESHOLDS: Record<number, number> = {
 
 ---
 
-## Phase 7: Implementation Order
+## Phase 7: Implementation Order (Levels 1-5 Focus)
 
-### Sprint 1: Foundation (Week 1-2)
-1. Add `CANTRIPS_KNOWN_BY_LEVEL` data
-2. Add `SPELLS_KNOWN_BY_LEVEL` data
-3. Add level 2 spells for all classes
+### Sprint 1: Foundation
+1. Add `CANTRIPS_KNOWN_BY_LEVEL` data (levels 1-5)
+2. Add `SPELLS_KNOWN_BY_LEVEL` data (levels 1-5)
+3. Add level 2 spells for all classes (abbreviated: name + 1-line description)
 4. Update `Character` type with new fields
 5. Add helper functions for spell progression
 
-### Sprint 2: Core Level-Up (Week 3-4)
+### Sprint 2: Core Level-Up
 1. Refactor `LevelUpWizard` with new step system
 2. Implement conditional step logic
 3. Add HP step (already done, minor tweaks)
 4. Add basic features step (already done, add choice handling)
 5. Add cantrip learning step
 
-### Sprint 3: Spellcasting (Week 5-6)
-1. Add level 3-4 spells for all classes
-2. Implement spell learning step for known casters
-3. Implement spell preparation for prepared casters
+### Sprint 3: Spellcasting
+1. Add level 3 spells for all classes (abbreviated: name + 1-line description)
+2. Implement spell learning step for known casters (Bard, Sorcerer, Ranger, Warlock)
+3. Implement spell preparation UI for prepared casters (Cleric, Druid, Paladin, Wizard)
 4. Add wizard spellbook management
 5. Update spell slot tracking
 
-### Sprint 4: Subclasses (Week 7-8)
-1. Add subclass features for levels 6, 10, 14
-2. Implement subclass selection step (level 3)
-3. Implement subclass feature application
-4. Handle subclass-specific choices
-5. Add domain spells for clerics
+### Sprint 4: Subclasses & Choices
+1. Implement subclass selection step (level 3)
+2. Implement subclass feature application
+3. Handle subclass-specific choices (maneuvers, land types, etc.)
+4. Implement ASI/Feat selection (level 4)
+5. Add `GENERAL_FEATS` data
 
-### Sprint 5: Advanced Features (Week 9-10)
-1. Add level 5-6 spells for all classes
-2. Implement ASI/Feat selection
-3. Add `GENERAL_FEATS` data
-4. Implement expertise selection step
-5. Implement metamagic selection (Sorcerer)
-6. Implement invocation management (Warlock)
+### Sprint 5: Class-Specific Features
+1. Implement expertise selection step (Bard L2, Rogue L1)
+2. Implement metamagic selection (Sorcerer L2)
+3. Implement invocation management (Warlock L2+)
+4. Implement Pact Boon selection (Warlock L3)
+5. Handle Extra Attack and proficiency bonus increase (L5)
 
-### Sprint 6: Polish & Testing (Week 11-12)
+### Sprint 6: Polish & Testing
 1. Add level history tracking
 2. Derived stats recalculation
 3. Resource maximum updates
-4. Comprehensive testing for all 12 classes
+4. Comprehensive testing for all 12 classes (levels 1-5)
 5. Edge case handling
 6. Performance optimization
+
+### Future Phase: Levels 6-12
+*To be planned after V1 (Levels 1-5) is stable*
+- Add level 4-6 spells
+- Add subclass features at levels 6, 10
+- Extend all progression tables
+- Additional expertise/metamagic options at higher levels
 
 ---
 
@@ -769,48 +784,68 @@ export const XP_THRESHOLDS: Record<number, number> = {
 
 ---
 
-## Open Questions for Discussion
+## Decisions Made
 
-### Critical Decisions Needed
+### Confirmed Decisions
 
-1. **Spell Data Source**:
-   - Option A: Manually curate ~370 spells with full descriptions
-   - Option B: Use abbreviated spell data (name + 1-line description)
-   - Option C: External API integration (D&D Beyond, Open5e)
-   - **Recommendation**: Option B for MVP, enhance later
+1. **Scope: Levels 1-5 First**
+   - Initial implementation will focus on levels 1-5
+   - Levels 6-12 will be added in a subsequent phase
+   - This reduces initial data volume significantly (~150 spells instead of ~370)
 
-2. **Subclass Feature Depth**:
-   - How detailed should subclass feature descriptions be?
-   - Should we track all mechanical effects or just display text?
-   - **Recommendation**: Start with text display, add mechanics incrementally
+2. **Spell Data Source**: ✅ **Option B - Abbreviated Spell Data**
+   - Use abbreviated spell data (name + 1-line description)
+   - Open5e API was considered but rejected because:
+     - It primarily contains 2014 5e SRD content, not 2024 PHB
+     - 2024 SRD content is still in planning stages for community APIs
+     - We need 5e 2024 accuracy for this VTT
+   - Enhance with full descriptions in future iterations
 
-3. **Multiclassing**:
-   - Should we support multiclassing in this phase?
-   - **Recommendation**: Exclude from v1, add in future phase
+3. **Subclass Feature Depth**: ✅ **Option B - Text Display**
+   - Start with text display for subclass features
+   - Add mechanical tracking incrementally
+   - Reduces initial complexity while maintaining usability
 
-4. **Spell Preparation UI**:
-   - Daily preparation interface for prepared casters?
-   - **Recommendation**: Yes, on character sheet outside level-up
+4. **Spell Preparation UI**: ✅ **Option A - Yes**
+   - Include daily preparation interface for prepared casters
+   - This will be on the character sheet, outside the level-up wizard
+   - Essential for Cleric, Druid, Paladin, and Wizard gameplay
 
-5. **Retroactive Changes**:
-   - How to handle ASI that changes spellcasting modifier?
-   - How to handle retroactive HP from CON increase?
-   - **Recommendation**: Current system handles HP; add spell DC/attack recalc
+5. **Multiclassing**: ✅ **Excluded from V1**
+   - No multiclass support in version 1
+   - Will be added in a future phase after core leveling is stable
+   - Significantly reduces complexity for initial implementation
+
+6. **Retroactive Changes**:
+   - Current system handles retroactive HP from CON increase
+   - Add spell DC/attack recalculation on ASI completion
 
 ---
 
 ## Appendix: Data Volume Estimates
 
+### V1 Scope (Levels 1-5)
+
 | Data Type | Items | Est. Lines of Code |
 |-----------|-------|-------------------|
-| Level 2-6 Spells | ~370 | 3,700 |
-| Subclass Features (L6-14) | ~192 | 1,920 |
-| Cantrip Progression Tables | 6 classes × 20 levels | 120 |
-| Spell Known Tables | 4 classes × 20 levels | 80 |
+| Level 2-3 Spells | ~150 | 1,500 |
+| Subclass Features (L3 only) | ~48 | Already done |
+| Cantrip Progression Tables | 6 classes × 5 levels | 30 |
+| Spell Known Tables | 4 classes × 5 levels | 20 |
 | General Feats | ~40 | 800 |
 | Helper Functions | ~20 | 400 |
 | Level-Up Components | ~8 | 2,000 |
-| **Total Estimated** | | **~9,000 lines** |
+| Spell Preparation UI | ~1 | 300 |
+| **V1 Total Estimated** | | **~5,050 lines** |
+
+### Future Scope (Levels 6-12)
+
+| Data Type | Items | Est. Lines of Code |
+|-----------|-------|-------------------|
+| Level 4-6 Spells | ~220 | 2,200 |
+| Subclass Features (L6, L10) | ~96 | 960 |
+| Extended Progression Tables | 6 classes × 7 levels | 42 |
+| **Future Total** | | **~3,200 lines** |
 
 ---
 
@@ -824,6 +859,18 @@ export const XP_THRESHOLDS: Record<number, number> = {
 
 ---
 
-*Document Version: 1.0*
+*Document Version: 1.1*
 *Created: January 2026*
-*Last Updated: January 2026*
+*Last Updated: January 4, 2026*
+
+## Changelog
+
+### v1.1 (January 4, 2026)
+- **Scope reduced to Levels 1-5** for V1 implementation
+- **Spell data source**: Confirmed Option B (abbreviated format, name + 1-line description)
+- **Open5e API rejected**: Contains 2014 SRD, not 2024 PHB content
+- **Subclass features**: Text display first, mechanics added incrementally
+- **Spell preparation UI**: Confirmed for prepared casters
+- **Multiclassing**: Explicitly excluded from V1
+- Updated data volume estimates (~5,050 lines for V1)
+- Consolidated sprint plan for 1-5 focus
