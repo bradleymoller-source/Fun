@@ -1156,7 +1156,14 @@ ${bossRoom || 'Final chamber with boss encounter'}
    - 3-5 obvious contents, 2-3 hidden contents with DCs
    - Story connections to throughlines
 
-6. ENCOUNTERS - Add exactly 3 combat encounters with FULL MONSTER STATS:
+6. ENCOUNTERS - Add exactly 4 combat encounters matching the dungeon structure:
+
+   ENCOUNTER LOCATIONS (match these to rooms!):
+   1. FIRST FIGHT (Guard Post/Sentry Room) - Easy encounter, guards/sentries
+   2. TREASURE GUARDIAN (Locked Vault/Treasury) - Medium encounter, guardian protecting loot
+   3. RITUAL FIGHT (Ritual Chamber/Dark Shrine) - Medium encounter, cultists performing ritual
+   4. PRE-BOSS FIGHT (Antechamber/Gate Room) - Hard encounter, elite guards before boss
+
    Each enemy needs COMPLETE statblock information:
    - name, count, cr, hp, ac, acType (natural armor, leather, etc.)
    - initiative: The creature's DEX modifier (e.g. 2 for a creature with 14 DEX)
@@ -1332,7 +1339,9 @@ ${bossRoom || 'Final chamber with boss encounter'}
 10. addRoom for EACH room in ACT 2 ROOMS - include ALL rooms (corridors, secrets, treasures, rituals)
     - EVERY room MUST have treasure array with 1-4 items
     - 2-4 rooms should have trap field populated with full trap details
-11. addEncounter x3 - COMPLETE MONSTER STATBLOCKS required for each enemy:
+11. addEncounter x4 - One for EACH battle room (see ENCOUNTER LOCATIONS above):
+    - 1st: Guard Post (easy) - 2nd: Treasure Room (medium) - 3rd: Ritual Chamber (medium) - 4th: Antechamber (hard)
+    - COMPLETE MONSTER STATBLOCKS required for each enemy:
     - name, count, cr, hp, ac, acType (natural armor, etc.)
     - initiative: DEX modifier bonus (e.g. 2 for +2)
     - speed: "30 ft." or "30 ft., fly 60 ft."
@@ -4348,7 +4357,7 @@ CRITICAL REQUIREMENTS:
 2. Include specific DC checks throughout (Perception, Investigation, Insight, Persuasion, etc.)
 3. **CREATE AT LEAST 6 DISTINCT NPCs** in Act 1 - each with unique name, personality, dialogue, and purpose (innkeeper, blacksmith, merchant, priest, elder/historian, mysterious figure, etc.)
 4. NPCs need distinct personalities with actual dialogue lines and useful information/services
-5. **ACT 2 MUST HAVE EXACTLY 3 COMBAT ENCOUNTERS** - an easy entry fight, medium mid-dungeon fight, and hard pre-boss fight
+5. **ACT 2 MUST HAVE EXACTLY 4 COMBAT ENCOUNTERS** matching dungeon rooms: (1) First fight at Guard Post, (2) Treasure room guardian, (3) Ritual chamber cultists, (4) Hard pre-boss fight at Antechamber
 6. Combat encounters need tactical depth - terrain, enemy tactics, dynamic elements
 7. Puzzles need multiple hint paths and clear solutions
 8. Use D&D 5e SRD monsters with appropriate CR for level ${request.partyLevel}
@@ -4370,7 +4379,7 @@ CONSISTENCY REQUIREMENTS (VERY IMPORTANT):
     - Include what it does (e.g., "restores 2d4+2 HP")
     - If magical, describe the effect briefly
 15. **ACT 2 ROOMS MUST BE SEQUENTIAL**: Number rooms 1, 2, 3, 4, 5, etc. in the order players encounter them. The first room is the entrance, the last is before the boss.
-16. **ENCOUNTERS MATCH ROOMS**: Each encounter's "location" field must match an actual room id/number. Room 1 = Entry encounter, Room 3-4 = Mid-dungeon, Room 5+ = Pre-boss.
+16. **ENCOUNTERS MATCH ROOMS**: Each encounter's "location" field must match an actual room id/number. Guard Post = First fight, Treasure Room = Guardian, Ritual Chamber = Cultists, Antechamber = Pre-boss.
 17. **TRAPS/PUZZLES IN ROOMS**: When a room contains a trap or puzzle, the room's "readAloud" description MUST describe the trap/puzzle elements. Don't have a "trap room" with a description of "empty corridor".
 18. **ROOM TYPES MATCH CONTENT**: If you define a room as containing a trap, the trap details must be in that room's description. Same for puzzles and treasure.
 19. **NO EMPTY PROMISES**: If an NPC says "I can help you with X" or "I have something that might aid you", you MUST specify exactly what that help/item is.`;
