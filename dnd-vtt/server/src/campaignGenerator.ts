@@ -1054,6 +1054,25 @@ Instead, create evocative names that match the theme and setting:
 - For corrupt themes: The Tainted Wells, Blightreach, Canker's Rest
 Each town, dungeon, and NPC name should feel unique to THIS specific adventure.
 
+=== VARIETY REQUIREMENTS ===
+CRITICAL: Every adventure must feel distinct. NEVER reuse these overused tropes:
+- AVOID BOSSES: Necromancers named Malachar/Vexor, Shadow cultists, generic liches
+- AVOID MONSTERS: Default to zombies/skeletons, shadow creatures, generic demons
+- AVOID PLOTS: "Cult performing dark ritual", "ancient evil awakening", "corrupted artifact"
+
+BOSS VARIETY - Pick UNEXPECTED combinations:
+Archetypes (vary these!): Fallen paladin, mad alchemist, cursed noble, fey trickster,
+  elemental binder, dream-eater, bone collector, plague doctor, toymaker, mirror mage,
+  beast whisperer, architect of flesh, memory thief, soundweaver, void priest
+
+Personality types: Sympathetic villain with tragic past, jovial but deadly, coldly logical,
+  theatrical showman, reluctant villain, zealous believer, nihilistic philosopher,
+  protective parent-figure gone wrong, scorned lover, obsessive perfectionist
+
+Combat styles: Controller (battlefield manipulation), Skirmisher (mobile, hit-and-run),
+  Artillery (ranged specialist), Brute (raw damage), Support (buffs minions),
+  Summoner, Trickster (illusions/deception), Siege (area denial)
+
 === DUNGEON STRUCTURE ===
 
 ACT 2 ROOMS (generate these with addRoom):
@@ -1112,11 +1131,21 @@ ${bossRoom || 'Final chamber with boss encounter'}
      {item: "Potion of Healing", value: "50gp", type: "potion", effect: "Heals 2d4+2 HP", hidden: true, findDC: 14},
      {item: "Longsword +1", value: "200gp", type: "weapon", damage: "1d8+1 slashing", attackBonus: 1, baseWeaponType: "longsword", effect: "+1 magic weapon"},
      {item: "Chain Mail", value: "75gp", type: "armor", armorClass: 16, effect: "AC 16, disadvantage on Stealth"},
-     {item: "Tattered Map Case", value: "5gp", type: "clue", description: "Contains a partial map of the dungeon with 'X' marked near the boss chamber and a note: 'The ritual must be stopped before the blood moon rises'"}
+     {item: "Torn Letter Fragment", value: "0gp", type: "clue", description: "A water-stained letter reads: 'Brother, the shipment arrives at midnight. Tell no one of the lower caves - the Baron's men still patrol the eastern roads. Burn this after reading. -M'"}
    ]
    WEAPONS MUST include: damage (e.g. "1d8+1 slashing"), attackBonus (magic bonus only: 0 for mundane, 1 for +1, 2 for +2, 3 for +3), AND baseWeaponType (e.g. "longsword", "dagger", "greataxe")
    ARMOR MUST include: armorClass (number)
-   CLUE ITEMS MUST include: description with story-relevant content explaining what the clue reveals
+
+   CLUE ITEMS - WRITE ACTUAL NARRATIVE CONTENT:
+   For type:"clue" items (notes, letters, journals, diaries, maps with annotations):
+   - WRITE the actual text that appears on the document, not a summary
+   - Use in-character voice appropriate to the author
+   - Include specific details (names, locations, dates, events from this adventure)
+   - Make it immersive - players will read this aloud!
+   Example: "A bloodstained diary entry: 'Day 12 - The fever grows worse. Gavril says the cure lies
+   in the old temple, but the priest warned us never to enter the north crypts. I have no choice.
+   If I don't return, tell my wife I tried. Tell her I'm sorry about the lies.'"
+
    Include: gold, gems, potions, scrolls, weapons, story clues, keys, maps.
    Some should be hidden (hidden: true, findDC: 12-16).
 
@@ -1239,7 +1268,7 @@ ${bossRoom || 'Final chamber with boss encounter'}
    Example FORMAT only (create your own items with different names/effects):
    villainLoot: [
        {name: "[UNIQUE NAME]", type: "weapon", value: "75gp", description: "[STORY-RELEVANT DESC]"},
-       {name: "[VILLAIN'S JOURNAL/NOTES]", type: "document", value: "0gp", description: "[PLOT DETAILS]"}
+       {name: "[VILLAIN'S JOURNAL/NOTES]", type: "document", value: "0gp", description: "[FULL NARRATIVE - SEE BELOW]"}
      ]
    rewardItems: [
        {name: "[UNIQUE MAGIC WEAPON +1]", type: "weapon", rarity: "uncommon", value: "500gp",
@@ -1248,6 +1277,28 @@ ${bossRoom || 'Final chamber with boss encounter'}
        {name: "[UNIQUE WONDROUS ITEM]", type: "wondrous", rarity: "uncommon", value: "500gp",
         effect: "[UNIQUE EFFECT]", attunement: true/false}
      ]
+
+   === DOCUMENT/JOURNAL NARRATIVE CONTENT (CRITICAL!) ===
+   When creating documents, journals, letters, or notes - WRITE THE ACTUAL CONTENT!
+   Do NOT use placeholders like "[plot details]" - write immersive in-character text.
+
+   The description field for type:"document" items MUST contain FULL narrative text that:
+   - Is written in-character from the author's perspective (diary entry, letter, research notes)
+   - Reveals the villain's motivation, backstory, or plans
+   - References specific events, places, and NPCs from this adventure
+   - Uses appropriate voice (scholarly notes, frantic scrawl, formal letter, etc.)
+   - Is 3-6 sentences minimum
+
+   GOOD EXAMPLE:
+   {name: "Elara's Research Journal", type: "document", value: "0gp", description:
+    "Day 47: The specimens continue to resist the binding. Three more villagers have gone missing
+    and I've had to relocate my laboratory deeper into the caves. The Church suspects nothing -
+    Father Aldric still believes the disappearances are wolf attacks. If only he knew his own
+    blessed water is the key ingredient. By the blood moon, I will perfect the ritual and show
+    them all what true power looks like. Mother's death will finally be avenged."}
+
+   BAD EXAMPLE (DO NOT DO THIS):
+   {name: "Villain's Journal", type: "document", value: "0gp", description: "Contains plot details about the ritual"}
 
    Ideas for varied boss rewards based on theme:
    - Undead theme: Gravebane weapons, Spirit-touched items, Lifedrinking blades
