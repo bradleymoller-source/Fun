@@ -251,6 +251,36 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
     const currentSpells = character.spellsKnown || character.spells || [];
     const updatedSpellsKnown = [...currentSpells, ...newSpellsLearned];
 
+    // Update spellcasting stats if applicable
+    let updatedSpellcasting = character.spellcasting;
+    if (updatedSpellcasting) {
+      const newProfBonus = getProficiencyBonus(newLevel);
+      const spellAbility = updatedSpellcasting.ability;
+      const newAbilityMod = getAbilityModifier(newAbilityScores[spellAbility]);
+
+      // Get new spell slots
+      let newSlots: number[] = [];
+      if (isFullCaster) {
+        newSlots = SPELL_SLOTS_BY_LEVEL[newLevel] || [];
+      } else if (isHalfCaster) {
+        newSlots = HALF_CASTER_SPELL_SLOTS[newLevel] || [];
+      } else if (isWarlock) {
+        const warlockData = WARLOCK_SPELL_SLOTS[newLevel];
+        // Warlock has special slot handling - slots are all at the same level
+        newSlots = Array(9).fill(0);
+        if (warlockData) {
+          newSlots[warlockData.level - 1] = warlockData.slots;
+        }
+      }
+
+      updatedSpellcasting = {
+        ...updatedSpellcasting,
+        spellSaveDC: 8 + newProfBonus + newAbilityMod,
+        spellAttackBonus: newProfBonus + newAbilityMod,
+        spellSlots: newSlots,
+      };
+    }
+
     const updatedCharacter: Character = {
       ...character,
       level: newLevel,
@@ -263,6 +293,8 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
       features: updatedFeatures,
       experiencePoints: character.experiencePoints,
       updatedAt: new Date().toISOString(),
+      // Updated spellcasting
+      ...(updatedSpellcasting && { spellcasting: updatedSpellcasting }),
       // Subclass
       ...(selectedSubclass && {
         subclass: selectedSubclass,
