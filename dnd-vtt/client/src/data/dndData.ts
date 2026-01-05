@@ -554,7 +554,7 @@ export const FIGHTING_STYLE_CLASSES: Partial<Record<CharacterClass, { level: num
 };
 
 // Check if a class needs to choose a fighting style at this level
-// Returns true if character should have a fighting style but doesn't
+// Returns true if character should have a fighting style but doesn't have a valid one
 export function needsFightingStyle(
   characterClass: CharacterClass,
   level: number,
@@ -562,8 +562,10 @@ export function needsFightingStyle(
 ): boolean {
   const classInfo = FIGHTING_STYLE_CLASSES[characterClass];
   if (!classInfo) return false;
-  // Allow selection if at or past the required level and still missing the style
-  return level >= classInfo.level && !currentFightingStyle;
+  // Allow selection if at or past the required level and missing a valid style
+  // Check that currentFightingStyle is actually one of the valid options
+  const hasValidStyle = currentFightingStyle && classInfo.options.includes(currentFightingStyle);
+  return level >= classInfo.level && !hasValidStyle;
 }
 
 // Get available fighting style options for a class
@@ -721,22 +723,34 @@ export const PACT_BOONS: PactBoon[] = [
   },
 ];
 
+// Valid pact boon IDs
+const VALID_PACT_BOONS = ['blade', 'chain', 'tome'];
+
 // Check if a warlock needs to choose a pact boon
 export function needsPactBoon(characterClass: CharacterClass, level: number, currentPactBoon?: string): boolean {
   // Pact Boon is gained at level 3 in 2024 PHB (via invocations)
-  return characterClass === 'warlock' && level >= 3 && !currentPactBoon;
+  const hasValidPactBoon = currentPactBoon && VALID_PACT_BOONS.includes(currentPactBoon);
+  return characterClass === 'warlock' && level >= 3 && !hasValidPactBoon;
 }
+
+// Valid divine order IDs
+const VALID_DIVINE_ORDERS = ['protector', 'thaumaturge'];
 
 // Helper function: Does this Cleric need to select a Divine Order?
 export function needsDivineOrder(characterClass: CharacterClass, level: number, currentDivineOrder?: string): boolean {
   // Divine Order is a level 1 feature - allow selection if missing at any level
-  return characterClass === 'cleric' && level >= 1 && !currentDivineOrder;
+  const hasValidOrder = currentDivineOrder && VALID_DIVINE_ORDERS.includes(currentDivineOrder);
+  return characterClass === 'cleric' && level >= 1 && !hasValidOrder;
 }
+
+// Valid primal order IDs
+const VALID_PRIMAL_ORDERS = ['magician', 'warden'];
 
 // Helper function: Does this Druid need to select a Primal Order?
 export function needsPrimalOrder(characterClass: CharacterClass, level: number, currentPrimalOrder?: string): boolean {
   // Primal Order is a level 1 feature - allow selection if missing at any level
-  return characterClass === 'druid' && level >= 1 && !currentPrimalOrder;
+  const hasValidOrder = currentPrimalOrder && VALID_PRIMAL_ORDERS.includes(currentPrimalOrder);
+  return characterClass === 'druid' && level >= 1 && !hasValidOrder;
 }
 
 // ============ PRIMAL KNOWLEDGE (Barbarian L3) ============
@@ -758,7 +772,8 @@ export function needsPrimalKnowledge(
   currentPrimalKnowledgeSkill?: string
 ): boolean {
   // Primal Knowledge is a level 3 feature - allow selection if missing at level 3+
-  return characterClass === 'barbarian' && level >= 3 && !currentPrimalKnowledgeSkill;
+  const hasValidSkill = currentPrimalKnowledgeSkill && PRIMAL_KNOWLEDGE_SKILLS.includes(currentPrimalKnowledgeSkill as SkillName);
+  return characterClass === 'barbarian' && level >= 3 && !hasValidSkill;
 }
 
 // ============ EXPERTISE ============
@@ -4956,8 +4971,9 @@ export function needsWeaponMastery(
   const masteryCount = WEAPON_MASTERY_CLASSES[characterClass];
   if (masteryCount === 0) return false;
   // Weapon mastery is a level 1 feature - allow selection if missing at any level
-  // If already have enough masteries, don't need to choose again
-  if (currentMasteries && currentMasteries.length >= masteryCount) return false;
+  // Only count masteries that are actually valid weapons in WEAPON_MASTERIES
+  const validMasteries = currentMasteries?.filter(m => m && WEAPON_MASTERIES[m]) || [];
+  if (validMasteries.length >= masteryCount) return false;
   return true;
 }
 
