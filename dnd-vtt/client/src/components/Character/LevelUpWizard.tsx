@@ -107,7 +107,7 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
   const gainsInvocations = character.characterClass === 'warlock' && gainsInvocationsAtLevel(newLevel);
   const invocationsToLearn = gainsInvocations ? getInvocationsKnownAtLevel(newLevel) - getInvocationsKnownAtLevel(character.level) : 0;
 
-  // Pact Boon (Warlock L3)
+  // Pact Boon (Warlock L1)
   const [selectedPactBoon, setSelectedPactBoon] = useState<string | null>(null);
   const requiresPactBoon = needsPactBoon(character.characterClass, newLevel, character.pactBoon);
 

@@ -721,7 +721,7 @@ export const PACT_BOONS: PactBoon[] = [
 
 // Check if a warlock needs to choose a pact boon
 export function needsPactBoon(characterClass: CharacterClass, level: number, currentPactBoon?: string): boolean {
-  return characterClass === 'warlock' && level === 3 && !currentPactBoon;
+  return characterClass === 'warlock' && level === 1 && !currentPactBoon;
 }
 
 // Helper function: Does this Cleric need to select a Divine Order?
@@ -2806,6 +2806,7 @@ export const CLASS_FEATURES: Record<CharacterClass, ClassFeature[]> = {
     { name: 'Weapon Mastery', description: 'Choose 2 weapon masteries from your proficient weapons', level: 1 },
     { name: 'Danger Sense', description: 'Advantage on DEX saves against effects you can see (traps, spells). Not blinded/deafened/incapacitated.', level: 2 },
     { name: 'Reckless Attack', description: 'When you attack on your turn, gain advantage on STR attacks but attacks against you have advantage.', level: 2 },
+    { name: 'Primal Path', description: 'Choose your Barbarian subclass: Path of the Berserker, Wild Heart, World Tree, or Zealot.', level: 3 },
     { name: 'Primal Knowledge', description: 'Gain proficiency in one skill from: Animal Handling, Athletics, Intimidation, Nature, Perception, Survival.', level: 3 },
     { name: 'Ability Score Improvement', description: 'Increase one ability by 2, or two abilities by 1 each. Max 20.', level: 4 },
     { name: 'Extra Attack', description: 'Attack twice when you take the Attack action.', level: 5 },
@@ -2826,6 +2827,7 @@ export const CLASS_FEATURES: Record<CharacterClass, ClassFeature[]> = {
     { name: 'Spellcasting', description: 'Cast bard spells using CHA. Know 4 cantrips and 2 spells at level 1.', level: 1 },
     { name: 'Expertise', description: 'Double proficiency for 2 skill proficiencies or one skill and thieves\' tools.', level: 2 },
     { name: 'Jack of All Trades', description: 'Add half proficiency (round down) to any ability check not using proficiency.', level: 2 },
+    { name: 'Bard College', description: 'Choose your Bard subclass: College of Dance, Glamour, Lore, or Valor.', level: 3 },
     { name: 'Ability Score Improvement', description: 'Increase one ability by 2, or two abilities by 1 each. Max 20.', level: 4 },
     { name: 'Font of Inspiration', description: 'Bardic Inspiration now refreshes on short or long rest.', level: 5 },
     { name: 'Countercharm', description: 'Action to give yourself and allies within 30 ft advantage on saves vs frightened/charmed.', level: 7 },
@@ -2843,6 +2845,7 @@ export const CLASS_FEATURES: Record<CharacterClass, ClassFeature[]> = {
     { name: 'Divine Order', description: 'Choose Protector (martial weapon + heavy armor proficiency) or Thaumaturge (extra cantrip)', level: 1 },
     { name: 'Spellcasting', description: 'Cast cleric spells using WIS. Know 3 cantrips, prepare WIS mod + level spells.', level: 1 },
     { name: 'Channel Divinity', description: 'Use Channel Divinity 1/rest. Turn Undead: undead within 30 ft flee for 1 min if fail WIS save.', level: 2 },
+    { name: 'Divine Domain', description: 'Choose your Cleric subclass: Life, Light, Trickery, or War Domain.', level: 3 },
     { name: 'Ability Score Improvement', description: 'Increase one ability by 2, or two abilities by 1 each. Max 20.', level: 4 },
     { name: 'Sear Undead', description: 'When you Turn Undead, deal radiant damage equal to cleric level to affected undead.', level: 5 },
     { name: 'Channel Divinity (2/rest)', description: 'You can now use Channel Divinity twice per rest.', level: 6 },
@@ -2862,6 +2865,7 @@ export const CLASS_FEATURES: Record<CharacterClass, ClassFeature[]> = {
     { name: 'Spellcasting', description: 'Cast druid spells using WIS. Know 2 cantrips, prepare WIS mod + level spells.', level: 1 },
     { name: 'Wild Shape', description: 'Transform into beasts 2/rest. CR limit and hours = level/3 (round down). Gain temp HP = level × 4.', level: 2 },
     { name: 'Wild Companion', description: 'Expend a Wild Shape to cast Find Familiar without material components.', level: 2 },
+    { name: 'Druid Circle', description: 'Choose your Druid subclass: Circle of the Land, Moon, Sea, or Stars.', level: 3 },
     { name: 'Ability Score Improvement', description: 'Increase one ability by 2, or two abilities by 1 each. Max 20.', level: 4 },
     { name: 'Wild Resurgence', description: 'When you have no Wild Shape uses, regain one by expending a spell slot (bonus action).', level: 5 },
     { name: 'Ability Score Improvement', description: 'Increase one ability by 2, or two abilities by 1 each. Max 20.', level: 8 },
@@ -2878,6 +2882,7 @@ export const CLASS_FEATURES: Record<CharacterClass, ClassFeature[]> = {
     { name: 'Weapon Mastery', description: 'Choose 3 weapon masteries from your proficient weapons', level: 1 },
     { name: 'Action Surge', description: 'Take one additional action on your turn. 1/rest.', level: 2 },
     { name: 'Tactical Mind', description: 'Add 1d10 to a failed ability check. If still fails, use isn\'t expended. Uses = 2/rest.', level: 2 },
+    { name: 'Martial Archetype', description: 'Choose your Fighter subclass: Battle Master, Champion, Eldritch Knight, or Psi Warrior.', level: 3 },
     { name: 'Ability Score Improvement', description: 'Increase one ability by 2, or two abilities by 1 each. Max 20.', level: 4 },
     { name: 'Extra Attack', description: 'Attack twice when you take the Attack action.', level: 5 },
     { name: 'Tactical Shift', description: 'When you use Second Wind, move up to half speed without provoking opportunity attacks.', level: 5 },
@@ -2904,6 +2909,7 @@ export const CLASS_FEATURES: Record<CharacterClass, ClassFeature[]> = {
     { name: 'Unarmored Movement', description: 'Speed increases by 10 ft when not wearing armor. Increases at higher levels.', level: 2 },
     { name: 'Uncanny Metabolism', description: 'When you roll initiative, regain all Focus Points if you have none.', level: 2 },
     { name: 'Deflect Attacks', description: 'Reaction to reduce ranged attack damage by 1d10 + DEX + monk level. Can catch and throw back.', level: 3 },
+    { name: 'Monastic Tradition', description: 'Choose your Monk subclass: Way of Mercy, Shadow, the Four Elements, or Open Hand.', level: 3 },
     { name: 'Ability Score Improvement', description: 'Increase one ability by 2, or two abilities by 1 each. Max 20.', level: 4 },
     { name: 'Slow Fall', description: 'Reduce falling damage by 5 × monk level.', level: 4 },
     { name: 'Extra Attack', description: 'Attack twice when you take the Attack action.', level: 5 },
@@ -2930,6 +2936,7 @@ export const CLASS_FEATURES: Record<CharacterClass, ClassFeature[]> = {
     { name: 'Divine Smite', description: 'Expend spell slot to deal +2d8 radiant on hit (+1d8 per slot above 1st, +1d8 vs undead/fiend). Max 5d8.', level: 2 },
     { name: 'Fighting Style', description: 'Choose a fighting style: Defense (+1 AC), Dueling (+2 one-handed), Great Weapon Fighting, etc.', level: 2 },
     { name: 'Channel Divinity', description: 'Channel Divinity 1/rest. Divine Sense: know location of celestials/fiends/undead within 60 ft.', level: 3 },
+    { name: 'Sacred Oath', description: 'Choose your Paladin subclass: Oath of Devotion, Glory, the Ancients, or Vengeance.', level: 3 },
     { name: 'Ability Score Improvement', description: 'Increase one ability by 2, or two abilities by 1 each. Max 20.', level: 4 },
     { name: 'Faithful Steed', description: 'Can always cast Find Steed without a spell slot.', level: 5 },
     { name: 'Extra Attack', description: 'Attack twice when you take the Attack action.', level: 5 },
@@ -2951,6 +2958,7 @@ export const CLASS_FEATURES: Record<CharacterClass, ClassFeature[]> = {
     { name: 'Spellcasting', description: 'Cast ranger spells using WIS. Know 2 spells at level 1.', level: 1 },
     { name: 'Weapon Mastery', description: 'Choose 2 weapon masteries from your proficient weapons', level: 1 },
     { name: 'Fighting Style', description: 'Choose a fighting style: Archery (+2 ranged), Defense (+1 AC), Dueling, Two-Weapon Fighting.', level: 2 },
+    { name: 'Ranger Conclave', description: 'Choose your Ranger subclass: Beast Master, Fey Wanderer, Gloom Stalker, or Hunter.', level: 3 },
     { name: 'Ability Score Improvement', description: 'Increase one ability by 2, or two abilities by 1 each. Max 20.', level: 4 },
     { name: 'Extra Attack', description: 'Attack twice when you take the Attack action.', level: 5 },
     { name: 'Roving', description: 'Speed increases by 10 ft. Gain climbing and swimming speed equal to your walking speed.', level: 6 },
@@ -2970,6 +2978,7 @@ export const CLASS_FEATURES: Record<CharacterClass, ClassFeature[]> = {
     { name: 'Thieves\' Cant', description: 'You know Thieves\' Cant, a secret mix of dialect and coded messages.', level: 1 },
     { name: 'Cunning Action', description: 'Bonus action to Dash, Disengage, or Hide.', level: 2 },
     { name: 'Steady Aim', description: 'Bonus action: don\'t move this turn, gain advantage on next attack.', level: 3 },
+    { name: 'Roguish Archetype', description: 'Choose your Rogue subclass: Arcane Trickster, Assassin, Soulknife, or Thief.', level: 3 },
     { name: 'Ability Score Improvement', description: 'Increase one ability by 2, or two abilities by 1 each. Max 20.', level: 4 },
     { name: 'Cunning Strike', description: 'When you Sneak Attack, forgo some dice to: Disarm, Poison, Trip, or Withdraw.', level: 5 },
     { name: 'Uncanny Dodge', description: 'Reaction to halve attack damage from an attacker you can see.', level: 5 },
@@ -2992,6 +3001,7 @@ export const CLASS_FEATURES: Record<CharacterClass, ClassFeature[]> = {
     { name: 'Spellcasting', description: 'Cast sorcerer spells using CHA. Know 4 cantrips and 2 spells at level 1.', level: 1 },
     { name: 'Font of Magic', description: 'Gain Sorcery Points = sorcerer level. Convert between spell slots and points.', level: 2 },
     { name: 'Metamagic', description: 'Learn 2 Metamagic options to enhance spells: Careful, Distant, Empowered, Extended, Heightened, etc.', level: 2 },
+    { name: 'Sorcerous Origin', description: 'Choose your Sorcerer subclass: Aberrant Sorcery, Clockwork Sorcery, Draconic Sorcery, or Wild Magic Sorcery.', level: 3 },
     { name: 'Ability Score Improvement', description: 'Increase one ability by 2, or two abilities by 1 each. Max 20.', level: 4 },
     { name: 'Sorcerous Restoration', description: 'When you finish a short rest, regain Sorcery Points = half sorcerer level (round down).', level: 5 },
     { name: 'Ability Score Improvement', description: 'Increase one ability by 2, or two abilities by 1 each. Max 20.', level: 8 },
@@ -3003,8 +3013,9 @@ export const CLASS_FEATURES: Record<CharacterClass, ClassFeature[]> = {
   warlock: [
     { name: 'Eldritch Invocations', description: 'Learn 1 invocation at level 1. Customize your warlock with special abilities.', level: 1 },
     { name: 'Pact Magic', description: 'Cast warlock spells using CHA. Have 1 spell slot (regains on short rest). Know 2 cantrips and 2 spells.', level: 1 },
+    { name: 'Pact Boon', description: 'Choose: Pact of the Blade (create weapon), Pact of the Chain (familiar), Pact of the Tome (extra cantrips).', level: 1 },
     { name: 'Magical Cunning', description: 'Perform a 1-minute ritual to regain half your expended Pact Magic slots (round up). 1/long rest.', level: 2 },
-    { name: 'Pact Boon', description: 'Choose: Pact of the Blade (create weapon), Pact of the Chain (familiar), Pact of the Tome (extra cantrips).', level: 3 },
+    { name: 'Otherworldly Patron', description: 'Choose your Warlock subclass: Archfey Patron, Celestial Patron, Fiend Patron, or Great Old One Patron.', level: 3 },
     { name: 'Ability Score Improvement', description: 'Increase one ability by 2, or two abilities by 1 each. Max 20.', level: 4 },
     { name: 'Ability Score Improvement', description: 'Increase one ability by 2, or two abilities by 1 each. Max 20.', level: 8 },
     { name: 'Contact Patron', description: 'Cast Contact Other Plane to contact your patron. Always succeeds without risk.', level: 9 },
@@ -3021,6 +3032,7 @@ export const CLASS_FEATURES: Record<CharacterClass, ClassFeature[]> = {
     { name: 'Arcane Recovery', description: 'Once per day during short rest, recover spell slots with combined level ≤ half wizard level (round up).', level: 1 },
     { name: 'Spellcasting', description: 'Cast wizard spells using INT. Know 3 cantrips. Spellbook has 6 spells, prepare INT mod + level.', level: 1 },
     { name: 'Scholar', description: 'Gain expertise in Arcana, History, Investigation, Nature, or Religion. Learn 2 languages.', level: 2 },
+    { name: 'Arcane Tradition', description: 'Choose your Wizard subclass: School of Abjuration, Divination, Evocation, or Illusion.', level: 3 },
     { name: 'Ability Score Improvement', description: 'Increase one ability by 2, or two abilities by 1 each. Max 20.', level: 4 },
     { name: 'Memorize Spell', description: 'Spend 1 minute to replace one prepared spell with another from your spellbook.', level: 5 },
     { name: 'Ability Score Improvement', description: 'Increase one ability by 2, or two abilities by 1 each. Max 20.', level: 8 },
