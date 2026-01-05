@@ -366,6 +366,30 @@ export interface FeatureUse {
   restoreOn: 'short' | 'long' | 'dawn';
 }
 
+// Spellcaster types
+export type SpellcasterType = 'full' | 'half' | 'pact' | 'none';
+export type SpellPreparationType = 'known' | 'prepared' | 'spellbook';
+
+// Record of what happened at each level-up
+export interface LevelUpRecord {
+  level: number;
+  timestamp: string;
+  changes: {
+    hpGained: number;
+    hpMethod: 'average' | 'roll';
+    featuresGained: string[];
+    spellsLearned?: string[];
+    cantripsLearned?: string[];
+    asiChoice?: {
+      method: '+2' | '+1/+1';
+      abilities: (keyof AbilityScores)[];
+    };
+    featTaken?: string;
+    subclassChosen?: string;
+    otherChoices?: Record<string, string | string[]>;
+  };
+}
+
 // Complete character sheet
 export interface Character {
   id: string;
@@ -439,6 +463,16 @@ export interface Character {
   // Simple spell lists (for character creator)
   cantrips?: string[];
   spells?: string[];
+
+  // Spellcasting - Enhanced for level-up tracking
+  cantripsKnown?: string[];       // All cantrips the character knows
+  spellsKnown?: string[];         // For "known" casters (Bard, Sorcerer, Ranger, Warlock)
+  spellsPrepared?: string[];      // For "prepared" casters (Cleric, Druid, Paladin)
+  spellbook?: string[];           // Wizard's spellbook (all spells they've learned)
+  maxPreparedSpells?: number;     // Calculated: ability mod + level (for prepared casters)
+
+  // Level-up history
+  levelHistory?: LevelUpRecord[]; // Track all level-up choices made
 
   // Spellcasting (optional)
   spellcasting?: {

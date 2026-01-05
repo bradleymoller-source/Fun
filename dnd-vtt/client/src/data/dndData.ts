@@ -1001,6 +1001,404 @@ export const ORIGIN_FEATS: Record<OriginFeatName, OriginFeat> = {
   },
 };
 
+// General Feats (can be taken at ASI levels instead of ability score increase)
+export interface GeneralFeat {
+  name: string;
+  description: string;
+  benefits: string[];
+  prerequisites?: {
+    level?: number;
+    abilityScore?: { ability: keyof AbilityScores; minimum: number };
+    proficiency?: string;
+    spellcasting?: boolean;
+    armorProficiency?: 'light' | 'medium' | 'heavy';
+  };
+  abilityBonus?: { ability: keyof AbilityScores | 'choice'; bonus: number };
+}
+
+export const GENERAL_FEATS: GeneralFeat[] = [
+  {
+    name: 'Actor',
+    description: 'Skilled at mimicry and dramatics.',
+    benefits: [
+      'Increase Charisma by 1 (max 20)',
+      'Advantage on Deception and Performance to disguise yourself',
+      'Mimic speech or sounds of creatures you\'ve heard for 1+ minute',
+    ],
+    abilityBonus: { ability: 'charisma', bonus: 1 },
+  },
+  {
+    name: 'Athlete',
+    description: 'You have undergone extensive physical training.',
+    benefits: [
+      'Increase Strength or Dexterity by 1 (max 20)',
+      'Standing from prone uses only 5 feet of movement',
+      'Climbing doesn\'t cost extra movement',
+      'Running long/high jump needs only 5 feet movement',
+    ],
+    abilityBonus: { ability: 'choice', bonus: 1 },
+  },
+  {
+    name: 'Charger',
+    description: 'You can charge headlong into battle.',
+    benefits: [
+      'If you move 10+ feet straight toward a target and hit with a melee attack, deal +1d8 damage',
+      'After Dash action, make one melee attack or shove as bonus action',
+    ],
+  },
+  {
+    name: 'Crossbow Expert',
+    description: 'Thanks to extensive practice, you are an expert with crossbows.',
+    benefits: [
+      'Ignore loading property of crossbows you\'re proficient with',
+      'No disadvantage on ranged attacks within 5 feet of hostile creature',
+      'When you attack with a one-handed weapon, use bonus action for hand crossbow attack',
+    ],
+  },
+  {
+    name: 'Crusher',
+    description: 'You are practiced in bludgeoning attacks.',
+    benefits: [
+      'Increase Strength or Constitution by 1 (max 20)',
+      'Once per turn, push target 5 feet when dealing bludgeoning damage',
+      'Critical hits with bludgeoning grant advantage on attacks against target until end of your next turn',
+    ],
+    abilityBonus: { ability: 'choice', bonus: 1 },
+  },
+  {
+    name: 'Defensive Duelist',
+    description: 'You are skilled at protecting yourself in melee.',
+    prerequisites: { abilityScore: { ability: 'dexterity', minimum: 13 } },
+    benefits: [
+      'When wielding a finesse weapon and hit by melee attack, use reaction to add proficiency bonus to AC',
+    ],
+  },
+  {
+    name: 'Dual Wielder',
+    description: 'You master fighting with two weapons.',
+    benefits: [
+      '+1 AC while wielding a melee weapon in each hand',
+      'Use two-weapon fighting with non-light melee weapons',
+      'Draw or stow two weapons when you would normally draw/stow one',
+    ],
+  },
+  {
+    name: 'Durable',
+    description: 'Hardy and resilient.',
+    benefits: [
+      'Increase Constitution by 1 (max 20)',
+      'When you roll a Hit Die to regain HP, minimum HP equals twice your CON modifier (minimum 2)',
+    ],
+    abilityBonus: { ability: 'constitution', bonus: 1 },
+  },
+  {
+    name: 'Elemental Adept',
+    description: 'You have mastered a damage type.',
+    prerequisites: { spellcasting: true },
+    benefits: [
+      'Choose acid, cold, fire, lightning, or thunder',
+      'Spells ignore resistance to that damage type',
+      'Treat 1s on damage dice as 2s for that damage type',
+    ],
+  },
+  {
+    name: 'Fey Touched',
+    description: 'Your exposure to the Feywild has changed you.',
+    benefits: [
+      'Increase Intelligence, Wisdom, or Charisma by 1 (max 20)',
+      'Learn Misty Step and one 1st-level divination or enchantment spell',
+      'Cast each once per long rest free, or with spell slots',
+    ],
+    abilityBonus: { ability: 'choice', bonus: 1 },
+  },
+  {
+    name: 'Fighting Initiate',
+    description: 'Your martial training includes techniques of various fighting styles.',
+    prerequisites: { proficiency: 'martial weapons' },
+    benefits: [
+      'Learn one Fighting Style from the Fighter class',
+      'Can replace this Fighting Style when you gain an ASI',
+    ],
+  },
+  {
+    name: 'Grappler',
+    description: 'You developed skills to grapple and pin opponents.',
+    prerequisites: { abilityScore: { ability: 'strength', minimum: 13 } },
+    benefits: [
+      'Advantage on attacks against creatures you are grappling',
+      'Can use action to pin a grappled creature (both restrained)',
+    ],
+  },
+  {
+    name: 'Great Weapon Master',
+    description: 'You\'ve learned to maximize heavy weapons.',
+    benefits: [
+      'On your turn, before attacking with a heavy weapon, take -5 to hit for +10 damage',
+      'When you score a critical hit or reduce a creature to 0 HP, make one melee attack as bonus action',
+    ],
+  },
+  {
+    name: 'Heavily Armored',
+    description: 'You have trained to master heavy armor.',
+    prerequisites: { armorProficiency: 'medium' },
+    benefits: [
+      'Increase Strength by 1 (max 20)',
+      'Gain proficiency with heavy armor',
+    ],
+    abilityBonus: { ability: 'strength', bonus: 1 },
+  },
+  {
+    name: 'Heavy Armor Master',
+    description: 'You can shrug off strikes that would devastate others.',
+    prerequisites: { armorProficiency: 'heavy' },
+    benefits: [
+      'Increase Strength by 1 (max 20)',
+      'While wearing heavy armor, reduce bludgeoning/piercing/slashing damage by 3',
+    ],
+    abilityBonus: { ability: 'strength', bonus: 1 },
+  },
+  {
+    name: 'Inspiring Leader',
+    description: 'You can spend 10 minutes inspiring companions.',
+    prerequisites: { abilityScore: { ability: 'charisma', minimum: 13 } },
+    benefits: [
+      'Grant up to 6 creatures temp HP equal to your level + CHA modifier',
+      'Creatures must be able to see/hear you and understand you',
+      'Each creature can only benefit once per short or long rest',
+    ],
+  },
+  {
+    name: 'Keen Mind',
+    description: 'You have a mind that can track time, direction, and detail.',
+    benefits: [
+      'Increase Intelligence by 1 (max 20)',
+      'Always know which way is north',
+      'Always know hours until next sunrise/sunset',
+      'Accurately recall anything seen/heard within past month',
+    ],
+    abilityBonus: { ability: 'intelligence', bonus: 1 },
+  },
+  {
+    name: 'Lightly Armored',
+    description: 'You have trained to master light armor.',
+    benefits: [
+      'Increase Strength or Dexterity by 1 (max 20)',
+      'Gain proficiency with light armor',
+    ],
+    abilityBonus: { ability: 'choice', bonus: 1 },
+  },
+  {
+    name: 'Mage Slayer',
+    description: 'You have practiced techniques for fighting spellcasters.',
+    benefits: [
+      'When creature within 5 feet casts spell, use reaction to make melee attack',
+      'When you damage a concentrating creature, they have disadvantage on the save',
+      'Advantage on saves against spells cast by creatures within 5 feet',
+    ],
+  },
+  {
+    name: 'Medium Armor Master',
+    description: 'You have practiced moving in medium armor.',
+    prerequisites: { armorProficiency: 'medium' },
+    benefits: [
+      'Medium armor doesn\'t impose disadvantage on Stealth',
+      'Add 3 (instead of 2) from Dex modifier to AC in medium armor',
+    ],
+  },
+  {
+    name: 'Moderately Armored',
+    description: 'You have trained to master medium armor and shields.',
+    prerequisites: { armorProficiency: 'light' },
+    benefits: [
+      'Increase Strength or Dexterity by 1 (max 20)',
+      'Gain proficiency with medium armor and shields',
+    ],
+    abilityBonus: { ability: 'choice', bonus: 1 },
+  },
+  {
+    name: 'Mounted Combatant',
+    description: 'You are a dangerous foe while mounted.',
+    benefits: [
+      'Advantage on melee attacks against unmounted creatures smaller than mount',
+      'Force attacks targeting mount to target you instead',
+      'If mount is subjected to Dex save for half damage, it takes none on success and half on fail',
+    ],
+  },
+  {
+    name: 'Observant',
+    description: 'Quick to notice details of your environment.',
+    benefits: [
+      'Increase Intelligence or Wisdom by 1 (max 20)',
+      '+5 to passive Perception and Investigation',
+      'Can read lips if you can see creature\'s mouth and understand language',
+    ],
+    abilityBonus: { ability: 'choice', bonus: 1 },
+  },
+  {
+    name: 'Piercer',
+    description: 'You are practiced in piercing attacks.',
+    benefits: [
+      'Increase Strength or Dexterity by 1 (max 20)',
+      'Once per turn, reroll one piercing damage die',
+      'Critical hits with piercing add one extra damage die',
+    ],
+    abilityBonus: { ability: 'choice', bonus: 1 },
+  },
+  {
+    name: 'Polearm Master',
+    description: 'You keep enemies at bay with reach weapons.',
+    benefits: [
+      'When you Attack with glaive/halberd/quarterstaff/spear, bonus action attack with opposite end (1d4 bludgeoning)',
+      'Creatures provoke opportunity attack when entering your reach',
+    ],
+  },
+  {
+    name: 'Resilient',
+    description: 'Choose an ability score. You gain proficiency in saves using that ability.',
+    benefits: [
+      'Increase chosen ability by 1 (max 20)',
+      'Gain proficiency in saving throws using that ability',
+    ],
+    abilityBonus: { ability: 'choice', bonus: 1 },
+  },
+  {
+    name: 'Ritual Caster',
+    description: 'You have learned rituals from a spellcasting class.',
+    prerequisites: { abilityScore: { ability: 'intelligence', minimum: 13 } },
+    benefits: [
+      'Choose Bard, Cleric, Druid, Sorcerer, Warlock, or Wizard',
+      'Acquire ritual book with two 1st-level ritual spells from that class',
+      'Can cast those spells as rituals (add 10 minutes to casting time)',
+      'Can add more ritual spells you find to the book',
+    ],
+  },
+  {
+    name: 'Sentinel',
+    description: 'You have mastered techniques to defend your position.',
+    benefits: [
+      'Creatures you hit with opportunity attacks have speed reduced to 0',
+      'Creatures don\'t escape your opportunity attacks by Disengaging',
+      'When creature within 5 feet attacks someone other than you, use reaction to make melee attack',
+    ],
+  },
+  {
+    name: 'Shadow Touched',
+    description: 'Your exposure to the Shadowfell has changed you.',
+    benefits: [
+      'Increase Intelligence, Wisdom, or Charisma by 1 (max 20)',
+      'Learn Invisibility and one 1st-level illusion or necromancy spell',
+      'Cast each once per long rest free, or with spell slots',
+    ],
+    abilityBonus: { ability: 'choice', bonus: 1 },
+  },
+  {
+    name: 'Sharpshooter',
+    description: 'You have mastered ranged weapons.',
+    benefits: [
+      'Attacking at long range doesn\'t impose disadvantage',
+      'Ranged attacks ignore half and three-quarters cover',
+      'Before attacking with ranged weapon, take -5 to hit for +10 damage',
+    ],
+  },
+  {
+    name: 'Shield Master',
+    description: 'You use shields for offense and defense.',
+    benefits: [
+      'If you Attack, use bonus action to shove with shield',
+      'Add shield\'s AC bonus to Dex saves against spells/effects that target only you',
+      'If Dex save for half damage, use reaction to take no damage on success',
+    ],
+  },
+  {
+    name: 'Skill Expert',
+    description: 'You have honed your proficiency with particular skills.',
+    benefits: [
+      'Increase one ability score by 1 (max 20)',
+      'Gain proficiency in one skill of your choice',
+      'Choose one skill you\'re proficient in; gain expertise (double proficiency)',
+    ],
+    abilityBonus: { ability: 'choice', bonus: 1 },
+  },
+  {
+    name: 'Skulker',
+    description: 'You are expert at slinking through shadows.',
+    prerequisites: { abilityScore: { ability: 'dexterity', minimum: 13 } },
+    benefits: [
+      'Can try to hide when lightly obscured',
+      'Missing with ranged attack doesn\'t reveal your position',
+      'Dim light doesn\'t impose disadvantage on Perception checks',
+    ],
+  },
+  {
+    name: 'Slasher',
+    description: 'You are practiced in slashing attacks.',
+    benefits: [
+      'Increase Strength or Dexterity by 1 (max 20)',
+      'Once per turn, reduce target\'s speed by 10 feet until start of your next turn',
+      'Critical hits with slashing cause target to have disadvantage on attacks until start of your next turn',
+    ],
+    abilityBonus: { ability: 'choice', bonus: 1 },
+  },
+  {
+    name: 'Speedy',
+    description: 'You are exceptionally quick.',
+    benefits: [
+      'Speed increases by 10 feet',
+      'Difficult terrain doesn\'t cost extra movement when you Dash',
+      'Opportunity attacks have disadvantage against you',
+    ],
+  },
+  {
+    name: 'Spell Sniper',
+    description: 'You have learned techniques to enhance ranged spell attacks.',
+    prerequisites: { spellcasting: true },
+    benefits: [
+      'Attack roll spell range is doubled',
+      'Ranged spell attacks ignore half and three-quarters cover',
+      'Learn one cantrip that requires an attack roll (Cleric, Druid, Sorcerer, Warlock, or Wizard list)',
+    ],
+  },
+  {
+    name: 'Telekinetic',
+    description: 'You can move things with your mind.',
+    benefits: [
+      'Increase Intelligence, Wisdom, or Charisma by 1 (max 20)',
+      'Learn Mage Hand; it\'s invisible and can be cast without components',
+      'Bonus action to shove creature within 30 feet (STR save or move 5 feet)',
+    ],
+    abilityBonus: { ability: 'choice', bonus: 1 },
+  },
+  {
+    name: 'Telepathic',
+    description: 'You can communicate telepathically.',
+    benefits: [
+      'Increase Intelligence, Wisdom, or Charisma by 1 (max 20)',
+      'Speak telepathically to creatures within 60 feet',
+      'Cast Detect Thoughts once per long rest without components',
+    ],
+    abilityBonus: { ability: 'choice', bonus: 1 },
+  },
+  {
+    name: 'War Caster',
+    description: 'You have practiced casting spells in combat.',
+    prerequisites: { spellcasting: true },
+    benefits: [
+      'Advantage on CON saves to maintain concentration',
+      'Perform somatic components with hands full of weapons/shield',
+      'Cast a spell as opportunity attack instead of melee attack',
+    ],
+  },
+  {
+    name: 'Weapon Master',
+    description: 'You have practiced extensively with weapons.',
+    benefits: [
+      'Increase Strength or Dexterity by 1 (max 20)',
+      'Gain proficiency with 4 weapons of your choice',
+    ],
+    abilityBonus: { ability: 'choice', bonus: 1 },
+  },
+];
+
 // Tool proficiency types
 export type ToolProficiency =
   | 'Alchemist\'s Supplies' | 'Brewer\'s Supplies' | 'Calligrapher\'s Supplies' | 'Carpenter\'s Tools'
@@ -2485,6 +2883,240 @@ export function isASILevel(characterClass: CharacterClass, level: number): boole
   return [4, 8, 12, 16, 19].includes(level);
 }
 
+// ============ LEVEL-UP HELPER FUNCTIONS ============
+
+// Check if a class is a spellcaster
+export function isSpellcaster(characterClass: CharacterClass): boolean {
+  const casters: CharacterClass[] = ['bard', 'cleric', 'druid', 'paladin', 'ranger', 'sorcerer', 'warlock', 'wizard'];
+  return casters.includes(characterClass);
+}
+
+// Check if class gains cantrips at a specific level
+export function gainsCantripsAtLevel(characterClass: CharacterClass, level: number): boolean {
+  const progression = CANTRIPS_KNOWN_BY_LEVEL[characterClass];
+  if (!progression) return false;
+
+  const current = progression[level] || 0;
+  const previous = progression[level - 1] || 0;
+  return current > previous;
+}
+
+// Get number of new cantrips gained at a level
+export function getNewCantripsAtLevel(characterClass: CharacterClass, level: number): number {
+  const progression = CANTRIPS_KNOWN_BY_LEVEL[characterClass];
+  if (!progression) return 0;
+
+  const current = progression[level] || 0;
+  const previous = progression[level - 1] || 0;
+  return Math.max(0, current - previous);
+}
+
+// Check if class gains new spells known at a specific level
+export function gainsSpellsAtLevel(characterClass: CharacterClass, level: number): boolean {
+  const progression = SPELLS_KNOWN_BY_LEVEL[characterClass];
+  if (!progression) {
+    // Prepared casters always "gain" access to new spell levels
+    const preparedCasters: CharacterClass[] = ['cleric', 'druid', 'paladin', 'wizard'];
+    return preparedCasters.includes(characterClass) && isSpellcaster(characterClass);
+  }
+
+  const current = progression[level] || 0;
+  const previous = progression[level - 1] || 0;
+  return current > previous;
+}
+
+// Get number of new spells to learn at a level (for known casters)
+export function getNewSpellsAtLevel(characterClass: CharacterClass, level: number): number {
+  const progression = SPELLS_KNOWN_BY_LEVEL[characterClass];
+  if (!progression) return 0;
+
+  const current = progression[level] || 0;
+  const previous = progression[level - 1] || 0;
+  return Math.max(0, current - previous);
+}
+
+// Get the spellcasting type for a class
+export function getSpellcasterType(characterClass: CharacterClass): 'full' | 'half' | 'pact' | 'none' {
+  const fullCasters: CharacterClass[] = ['bard', 'cleric', 'druid', 'sorcerer', 'wizard'];
+  const halfCasters: CharacterClass[] = ['paladin', 'ranger'];
+
+  if (fullCasters.includes(characterClass)) return 'full';
+  if (halfCasters.includes(characterClass)) return 'half';
+  if (characterClass === 'warlock') return 'pact';
+  return 'none';
+}
+
+// Get the spell preparation type for a class
+export function getSpellPreparationType(characterClass: CharacterClass): 'known' | 'prepared' | 'spellbook' | 'none' {
+  const knownCasters: CharacterClass[] = ['bard', 'ranger', 'sorcerer', 'warlock'];
+  const preparedCasters: CharacterClass[] = ['cleric', 'druid', 'paladin'];
+
+  if (knownCasters.includes(characterClass)) return 'known';
+  if (preparedCasters.includes(characterClass)) return 'prepared';
+  if (characterClass === 'wizard') return 'spellbook';
+  return 'none';
+}
+
+// Check if class gains expertise at a level
+export function gainsExpertiseAtLevel(characterClass: CharacterClass, level: number): boolean {
+  if (characterClass === 'rogue') return level === 1 || level === 6;
+  if (characterClass === 'bard') return level === 2 || level === 9;
+  if (characterClass === 'ranger') return level === 9;
+  return false;
+}
+
+// Check if warlock gains invocations at a level
+export function gainsInvocationsAtLevel(level: number): boolean {
+  // Warlocks gain invocations at 2, 5, 7, 9, 12, 15, 18
+  return [2, 5, 7, 9, 12, 15, 18].includes(level);
+}
+
+// Get number of invocations a warlock knows at a level
+export function getInvocationsKnownAtLevel(level: number): number {
+  if (level < 2) return 0;
+  if (level < 5) return 2;
+  if (level < 7) return 3;
+  if (level < 9) return 4;
+  if (level < 12) return 5;
+  if (level < 15) return 6;
+  if (level < 18) return 7;
+  return 8;
+}
+
+// Check if sorcerer gains metamagic at a level
+export function gainsMetamagicAtLevel(level: number): boolean {
+  return level === 2 || level === 10 || level === 17;
+}
+
+// Get number of metamagic options a sorcerer knows at a level
+export function getMetamagicKnownAtLevel(level: number): number {
+  if (level < 2) return 0;
+  if (level < 10) return 2;
+  if (level < 17) return 3;
+  return 4;
+}
+
+// Get the maximum spell level a character can cast
+export function getMaxSpellLevel(characterClass: CharacterClass, level: number): number {
+  const casterType = getSpellcasterType(characterClass);
+
+  if (casterType === 'none') return 0;
+
+  if (casterType === 'full') {
+    // Full casters: spell level = ceil(level / 2), max 9
+    return Math.min(9, Math.ceil(level / 2));
+  }
+
+  if (casterType === 'half') {
+    // Half casters: gain spellcasting at level 2, spell level progression is slower
+    if (level < 2) return 0;
+    return Math.min(5, Math.ceil((level - 1) / 4) + 1);
+  }
+
+  if (casterType === 'pact') {
+    // Warlocks: pact magic progression
+    if (level < 1) return 0;
+    if (level < 3) return 1;
+    if (level < 5) return 2;
+    if (level < 7) return 3;
+    if (level < 9) return 4;
+    return 5;
+  }
+
+  return 0;
+}
+
+// Get all available spells for a class at a given character level
+export function getAvailableSpellsForClass(
+  characterClass: CharacterClass,
+  characterLevel: number
+): { name: string; description: string; level: number }[] {
+  const maxSpellLevel = getMaxSpellLevel(characterClass, characterLevel);
+  const spells: { name: string; description: string; level: number }[] = [];
+
+  // Add level 1 spells
+  const level1Spells = CLASS_SPELLS_LEVEL_1[characterClass] || [];
+  level1Spells.forEach(s => spells.push({ ...s, level: 1 }));
+
+  // Add level 2 spells if accessible
+  if (maxSpellLevel >= 2) {
+    const level2Spells = CLASS_SPELLS_LEVEL_2[characterClass] || [];
+    level2Spells.forEach(s => spells.push({ ...s, level: 2 }));
+  }
+
+  // Add level 3 spells if accessible
+  if (maxSpellLevel >= 3) {
+    const level3Spells = CLASS_SPELLS_LEVEL_3[characterClass] || [];
+    level3Spells.forEach(s => spells.push({ ...s, level: 3 }));
+  }
+
+  return spells;
+}
+
+// Get eligible general feats for a character
+export function getEligibleFeats(
+  character: {
+    characterClass: CharacterClass;
+    level: number;
+    abilityScores: AbilityScores;
+    armorProficiencies?: string[];
+    features?: { name: string }[];
+  }
+): typeof GENERAL_FEATS {
+  return GENERAL_FEATS.filter(feat => {
+    if (!feat.prerequisites) return true;
+
+    const prereqs = feat.prerequisites;
+
+    // Check level prerequisite
+    if (prereqs.level && character.level < prereqs.level) return false;
+
+    // Check ability score prerequisite
+    if (prereqs.abilityScore) {
+      const score = character.abilityScores[prereqs.abilityScore.ability];
+      if (score < prereqs.abilityScore.minimum) return false;
+    }
+
+    // Check spellcasting prerequisite
+    if (prereqs.spellcasting && !isSpellcaster(character.characterClass)) return false;
+
+    // Check armor proficiency prerequisite
+    if (prereqs.armorProficiency) {
+      const armorProfs = character.armorProficiencies || [];
+      if (!armorProfs.includes(prereqs.armorProficiency)) return false;
+    }
+
+    return true;
+  });
+}
+
+// Check if a subclass grants a feature at a specific level
+export function hasSubclassFeatureAtLevel(
+  characterClass: CharacterClass,
+  subclassName: string | undefined,
+  level: number
+): boolean {
+  if (!subclassName) return false;
+
+  // Subclass feature levels vary by class
+  const subclassFeatureLevels: Record<CharacterClass, number[]> = {
+    barbarian: [3, 6, 10, 14],
+    bard: [3, 6, 14],
+    cleric: [3, 6, 8, 17],
+    druid: [3, 6, 10, 14],
+    fighter: [3, 7, 10, 15, 18],
+    monk: [3, 6, 11, 17],
+    paladin: [3, 7, 15, 20],
+    ranger: [3, 7, 11, 15],
+    rogue: [3, 9, 13, 17],
+    sorcerer: [3, 6, 14, 18],
+    warlock: [3, 6, 10, 14],
+    wizard: [3, 6, 10, 14],
+  };
+
+  return subclassFeatureLevels[characterClass]?.includes(level) || false;
+}
+
 // ============ CLASS PROFICIENCIES ============
 
 export type ArmorType = 'light' | 'medium' | 'heavy' | 'shields';
@@ -3779,6 +4411,248 @@ export const SPELLS_AT_LEVEL_1: Partial<Record<CharacterClass, number>> = {
   sorcerer: 2,
   warlock: 2,
   wizard: 6, // In spellbook, prepare Int mod + level
+};
+
+// Cantrips known by level (2024 PHB progression)
+export const CANTRIPS_KNOWN_BY_LEVEL: Partial<Record<CharacterClass, Record<number, number>>> = {
+  bard: { 1: 2, 2: 2, 3: 2, 4: 3, 5: 3, 6: 3, 7: 3, 8: 3, 9: 3, 10: 4, 11: 4, 12: 4 },
+  cleric: { 1: 3, 2: 3, 3: 3, 4: 4, 5: 4, 6: 4, 7: 4, 8: 4, 9: 4, 10: 5, 11: 5, 12: 5 },
+  druid: { 1: 2, 2: 2, 3: 2, 4: 3, 5: 3, 6: 3, 7: 3, 8: 3, 9: 3, 10: 4, 11: 4, 12: 4 },
+  sorcerer: { 1: 4, 2: 4, 3: 4, 4: 5, 5: 5, 6: 5, 7: 5, 8: 5, 9: 5, 10: 6, 11: 6, 12: 6 },
+  warlock: { 1: 2, 2: 2, 3: 2, 4: 3, 5: 3, 6: 3, 7: 3, 8: 3, 9: 3, 10: 4, 11: 4, 12: 4 },
+  wizard: { 1: 3, 2: 3, 3: 3, 4: 4, 5: 4, 6: 4, 7: 4, 8: 4, 9: 4, 10: 5, 11: 5, 12: 5 },
+};
+
+// Spells known by level for "known" casters (Bard, Sorcerer, Ranger, Warlock)
+export const SPELLS_KNOWN_BY_LEVEL: Partial<Record<CharacterClass, Record<number, number>>> = {
+  bard: { 1: 4, 2: 5, 3: 6, 4: 7, 5: 8, 6: 9, 7: 10, 8: 11, 9: 12, 10: 14, 11: 15, 12: 15 },
+  ranger: { 1: 0, 2: 2, 3: 3, 4: 3, 5: 4, 6: 4, 7: 5, 8: 5, 9: 6, 10: 6, 11: 7, 12: 7 },
+  sorcerer: { 1: 2, 2: 3, 3: 4, 4: 5, 5: 6, 6: 7, 7: 8, 8: 9, 9: 10, 10: 11, 11: 12, 12: 12 },
+  warlock: { 1: 2, 2: 3, 3: 4, 4: 5, 5: 6, 6: 7, 7: 8, 8: 9, 9: 10, 10: 10, 11: 11, 12: 11 },
+};
+
+// XP thresholds for character level advancement
+export const XP_THRESHOLDS: Record<number, number> = {
+  1: 0,
+  2: 300,
+  3: 900,
+  4: 2700,
+  5: 6500,
+  6: 14000,
+  7: 23000,
+  8: 34000,
+  9: 48000,
+  10: 64000,
+  11: 85000,
+  12: 100000,
+  13: 120000,
+  14: 140000,
+  15: 165000,
+  16: 195000,
+  17: 225000,
+  18: 265000,
+  19: 305000,
+  20: 355000,
+};
+
+// Level 2 spells by class (abbreviated: name + 1-line description)
+export const CLASS_SPELLS_LEVEL_2: Partial<Record<CharacterClass, { name: string; description: string }[]>> = {
+  bard: [
+    { name: 'Calm Emotions', description: 'Suppress strong emotions in a 20-foot radius' },
+    { name: 'Enhance Ability', description: 'Grant advantage on one ability\'s checks' },
+    { name: 'Enthrall', description: 'Captivate creatures that can see and hear you' },
+    { name: 'Heat Metal', description: 'Heat metal object, causing 2d8 fire damage' },
+    { name: 'Hold Person', description: 'Paralyze a humanoid creature' },
+    { name: 'Invisibility', description: 'Target becomes invisible for 1 hour' },
+    { name: 'Knock', description: 'Open a locked door, chest, or shackle' },
+    { name: 'Lesser Restoration', description: 'End a condition or disease' },
+    { name: 'Shatter', description: '3d8 thunder damage in 10-foot radius' },
+    { name: 'Suggestion', description: 'Suggest a course of action' },
+  ],
+  cleric: [
+    { name: 'Aid', description: 'Increase max HP for up to 3 creatures by 5' },
+    { name: 'Augury', description: 'Receive an omen about a course of action' },
+    { name: 'Blindness/Deafness', description: 'Blind or deafen a creature' },
+    { name: 'Calm Emotions', description: 'Suppress strong emotions' },
+    { name: 'Enhance Ability', description: 'Grant advantage on ability checks' },
+    { name: 'Hold Person', description: 'Paralyze a humanoid' },
+    { name: 'Lesser Restoration', description: 'End one condition or disease' },
+    { name: 'Prayer of Healing', description: 'Heal up to 6 creatures 2d8+mod' },
+    { name: 'Silence', description: 'Create 20-foot radius of silence' },
+    { name: 'Spiritual Weapon', description: 'Create floating weapon, 1d8+mod force' },
+  ],
+  druid: [
+    { name: 'Barkskin', description: 'Target\'s AC can\'t be less than 16' },
+    { name: 'Beast Sense', description: 'See through a beast\'s senses' },
+    { name: 'Enhance Ability', description: 'Grant advantage on ability checks' },
+    { name: 'Flame Blade', description: 'Create 3d6 fire damage blade' },
+    { name: 'Gust of Wind', description: 'Create 60-foot line of strong wind' },
+    { name: 'Heat Metal', description: 'Heat metal, cause 2d8 fire damage' },
+    { name: 'Hold Person', description: 'Paralyze a humanoid' },
+    { name: 'Lesser Restoration', description: 'End one condition' },
+    { name: 'Moonbeam', description: '2d10 radiant in 5-foot cylinder' },
+    { name: 'Spike Growth', description: 'Create 20-foot radius of difficult terrain' },
+  ],
+  paladin: [
+    { name: 'Aid', description: 'Increase max HP for 3 creatures' },
+    { name: 'Branding Smite', description: 'Next hit deals 2d6 radiant, reveals invisible' },
+    { name: 'Find Steed', description: 'Summon a spirit as a mount' },
+    { name: 'Lesser Restoration', description: 'End a condition or disease' },
+    { name: 'Locate Object', description: 'Sense direction to an object' },
+    { name: 'Magic Weapon', description: 'Weapon becomes +1 magic weapon' },
+    { name: 'Protection from Poison', description: 'Neutralize poison, advantage vs poison' },
+    { name: 'Warding Bond', description: 'Share damage with protected creature' },
+    { name: 'Zone of Truth', description: 'Creatures can\'t lie in 15-foot radius' },
+    { name: 'Prayer of Healing', description: 'Heal up to 6 creatures' },
+  ],
+  ranger: [
+    { name: 'Barkskin', description: 'AC can\'t be less than 16' },
+    { name: 'Beast Sense', description: 'See through a beast\'s senses' },
+    { name: 'Cordon of Arrows', description: 'Arrows attack creatures entering area' },
+    { name: 'Find Traps', description: 'Sense presence of traps' },
+    { name: 'Lesser Restoration', description: 'End one condition' },
+    { name: 'Locate Animals or Plants', description: 'Sense direction to creature or plant' },
+    { name: 'Pass Without Trace', description: '+10 to Stealth for group' },
+    { name: 'Protection from Poison', description: 'Neutralize poison' },
+    { name: 'Silence', description: 'Create 20-foot silence radius' },
+    { name: 'Spike Growth', description: 'Create damaging difficult terrain' },
+  ],
+  sorcerer: [
+    { name: 'Alter Self', description: 'Transform your body' },
+    { name: 'Blindness/Deafness', description: 'Blind or deafen a creature' },
+    { name: 'Blur', description: 'Attacks against you have disadvantage' },
+    { name: 'Darkness', description: 'Create magical darkness in 15-foot radius' },
+    { name: 'Enhance Ability', description: 'Grant advantage on ability checks' },
+    { name: 'Hold Person', description: 'Paralyze a humanoid' },
+    { name: 'Invisibility', description: 'Target becomes invisible' },
+    { name: 'Knock', description: 'Open a lock' },
+    { name: 'Mirror Image', description: 'Create 3 illusory duplicates' },
+    { name: 'Misty Step', description: 'Bonus action teleport 30 feet' },
+  ],
+  warlock: [
+    { name: 'Cloud of Daggers', description: '4d4 slashing in 5-foot cube' },
+    { name: 'Crown of Madness', description: 'Charm and control humanoid' },
+    { name: 'Darkness', description: 'Create magical darkness' },
+    { name: 'Enthrall', description: 'Captivate creatures' },
+    { name: 'Hold Person', description: 'Paralyze a humanoid' },
+    { name: 'Invisibility', description: 'Target becomes invisible' },
+    { name: 'Mirror Image', description: 'Create illusory duplicates' },
+    { name: 'Misty Step', description: 'Teleport 30 feet' },
+    { name: 'Ray of Enfeeblement', description: 'Halve target\'s weapon damage' },
+    { name: 'Shatter', description: '3d8 thunder damage' },
+  ],
+  wizard: [
+    { name: 'Alter Self', description: 'Transform your body' },
+    { name: 'Arcane Lock', description: 'Magically lock a door or container' },
+    { name: 'Blindness/Deafness', description: 'Blind or deafen a creature' },
+    { name: 'Blur', description: 'Attacks have disadvantage against you' },
+    { name: 'Darkness', description: 'Create magical darkness' },
+    { name: 'Hold Person', description: 'Paralyze a humanoid' },
+    { name: 'Invisibility', description: 'Target becomes invisible' },
+    { name: 'Knock', description: 'Open a lock' },
+    { name: 'Levitate', description: 'Float a creature or object' },
+    { name: 'Misty Step', description: 'Teleport 30 feet' },
+  ],
+};
+
+// Level 3 spells by class (abbreviated: name + 1-line description)
+export const CLASS_SPELLS_LEVEL_3: Partial<Record<CharacterClass, { name: string; description: string }[]>> = {
+  bard: [
+    { name: 'Bestow Curse', description: 'Curse a creature with various effects' },
+    { name: 'Dispel Magic', description: 'End spells on a target' },
+    { name: 'Fear', description: 'Frighten creatures in a 30-foot cone' },
+    { name: 'Hypnotic Pattern', description: 'Charm creatures in 30-foot cube' },
+    { name: 'Major Image', description: 'Create a detailed illusion' },
+    { name: 'Plant Growth', description: 'Enhance or overgrow plants' },
+    { name: 'Sending', description: 'Send a 25-word message anywhere' },
+    { name: 'Speak with Dead', description: 'Ask a corpse up to 5 questions' },
+    { name: 'Stinking Cloud', description: 'Nauseating 20-foot radius cloud' },
+    { name: 'Tongues', description: 'Understand and speak any language' },
+  ],
+  cleric: [
+    { name: 'Animate Dead', description: 'Create undead servants' },
+    { name: 'Beacon of Hope', description: 'Grant advantage on WIS saves, max healing' },
+    { name: 'Bestow Curse', description: 'Curse a creature' },
+    { name: 'Dispel Magic', description: 'End spells on a target' },
+    { name: 'Glyph of Warding', description: 'Create a magical trap' },
+    { name: 'Mass Healing Word', description: 'Heal up to 6 creatures' },
+    { name: 'Protection from Energy', description: 'Grant resistance to one damage type' },
+    { name: 'Remove Curse', description: 'End curses on a creature' },
+    { name: 'Revivify', description: 'Restore life to creature dead less than 1 minute' },
+    { name: 'Spirit Guardians', description: '3d8 damage to creatures near you' },
+  ],
+  druid: [
+    { name: 'Call Lightning', description: '3d10 lightning from storm cloud' },
+    { name: 'Conjure Animals', description: 'Summon fey spirits as beasts' },
+    { name: 'Daylight', description: 'Create 60-foot bright light sphere' },
+    { name: 'Dispel Magic', description: 'End spells on a target' },
+    { name: 'Plant Growth', description: 'Enhance or overgrow plants' },
+    { name: 'Protection from Energy', description: 'Grant resistance to damage type' },
+    { name: 'Sleet Storm', description: 'Create slippery, obscured area' },
+    { name: 'Speak with Plants', description: 'Communicate with plants' },
+    { name: 'Water Breathing', description: 'Up to 10 creatures can breathe underwater' },
+    { name: 'Wind Wall', description: 'Create wall of strong wind' },
+  ],
+  paladin: [
+    { name: 'Aura of Vitality', description: 'Heal 2d6 as bonus action for 1 minute' },
+    { name: 'Blinding Smite', description: 'Next hit deals 3d8 radiant, may blind' },
+    { name: 'Create Food and Water', description: 'Create food and water for 15 people' },
+    { name: 'Crusader\'s Mantle', description: 'Allies deal +1d4 radiant on hits' },
+    { name: 'Daylight', description: 'Create bright light sphere' },
+    { name: 'Dispel Magic', description: 'End spells on a target' },
+    { name: 'Elemental Weapon', description: 'Weapon becomes +1, deals extra damage' },
+    { name: 'Magic Circle', description: 'Create cylinder warding creature types' },
+    { name: 'Remove Curse', description: 'End curses' },
+    { name: 'Revivify', description: 'Restore life to recently dead' },
+  ],
+  ranger: [
+    { name: 'Conjure Animals', description: 'Summon fey spirits as beasts' },
+    { name: 'Conjure Barrage', description: 'Throw weapon in 60-foot cone, 3d8' },
+    { name: 'Daylight', description: 'Create 60-foot bright light' },
+    { name: 'Lightning Arrow', description: 'Next ranged hit deals 4d8 lightning' },
+    { name: 'Nondetection', description: 'Hide target from divination' },
+    { name: 'Plant Growth', description: 'Enhance plants' },
+    { name: 'Protection from Energy', description: 'Grant damage resistance' },
+    { name: 'Speak with Plants', description: 'Communicate with plants' },
+    { name: 'Water Breathing', description: 'Creatures breathe underwater' },
+    { name: 'Wind Wall', description: 'Create wind barrier' },
+  ],
+  sorcerer: [
+    { name: 'Blink', description: 'Randomly vanish to Ethereal Plane' },
+    { name: 'Counterspell', description: 'Interrupt a spell being cast' },
+    { name: 'Dispel Magic', description: 'End spells on a target' },
+    { name: 'Fear', description: 'Frighten creatures in cone' },
+    { name: 'Fireball', description: '8d6 fire in 20-foot radius' },
+    { name: 'Fly', description: 'Grant 60-foot flying speed' },
+    { name: 'Haste', description: 'Double speed, +2 AC, extra action' },
+    { name: 'Hypnotic Pattern', description: 'Charm creatures in cube' },
+    { name: 'Lightning Bolt', description: '8d6 lightning in 100-foot line' },
+    { name: 'Slow', description: 'Halve speed, -2 AC, limit actions' },
+  ],
+  warlock: [
+    { name: 'Counterspell', description: 'Interrupt a spell' },
+    { name: 'Dispel Magic', description: 'End spells on target' },
+    { name: 'Fear', description: 'Frighten creatures in cone' },
+    { name: 'Fly', description: 'Grant flying speed' },
+    { name: 'Gaseous Form', description: 'Become misty cloud' },
+    { name: 'Hunger of Hadar', description: 'Create void sphere, cold and acid damage' },
+    { name: 'Hypnotic Pattern', description: 'Charm creatures' },
+    { name: 'Magic Circle', description: 'Ward against creature types' },
+    { name: 'Remove Curse', description: 'End curses' },
+    { name: 'Vampiric Touch', description: '3d6 necrotic, heal half damage dealt' },
+  ],
+  wizard: [
+    { name: 'Blink', description: 'Randomly vanish to Ethereal Plane' },
+    { name: 'Counterspell', description: 'Interrupt a spell being cast' },
+    { name: 'Dispel Magic', description: 'End spells on a target' },
+    { name: 'Fear', description: 'Frighten creatures in cone' },
+    { name: 'Fireball', description: '8d6 fire damage in 20-foot radius' },
+    { name: 'Fly', description: 'Grant 60-foot flying speed' },
+    { name: 'Haste', description: 'Double speed, +2 AC, extra action' },
+    { name: 'Hypnotic Pattern', description: 'Charm creatures in 30-foot cube' },
+    { name: 'Lightning Bolt', description: '8d6 lightning in 100-foot line' },
+    { name: 'Slow', description: 'Halve speed, limit actions' },
+  ],
 };
 
 // ============ STARTING EQUIPMENT ============

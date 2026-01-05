@@ -2,6 +2,9 @@ import { useState } from 'react';
 import type { Character, AbilityScores, Feature } from '../../types';
 import { Button } from '../ui/Button';
 import { Panel } from '../ui/Panel';
+import { SubclassSelection } from './SubclassSelection';
+import { SpellLearning } from './SpellLearning';
+import { FeatSelection } from './FeatSelection';
 import {
   CLASS_HIT_DICE,
   CLASS_NAMES,
@@ -15,6 +18,9 @@ import {
   SPELL_SLOTS_BY_LEVEL,
   HALF_CASTER_SPELL_SLOTS,
   WARLOCK_SPELL_SLOTS,
+  getNewSpellsAtLevel,
+  getSpellPreparationType,
+  type GeneralFeat,
 } from '../../data/dndData';
 
 interface LevelUpWizardProps {
@@ -23,7 +29,7 @@ interface LevelUpWizardProps {
   onCancel: () => void;
 }
 
-type LevelUpStep = 'overview' | 'hp' | 'asi' | 'features' | 'spells' | 'review';
+type LevelUpStep = 'overview' | 'hp' | 'subclass' | 'asi' | 'features' | 'spellLearning' | 'spells' | 'review';
 
 export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizardProps) {
   const newLevel = character.level + 1;
@@ -36,9 +42,21 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
 
   // ASI options
   const hasASI = isASILevel(character.characterClass, newLevel);
-  const [asiMethod, setAsiMethod] = useState<'+2' | '+1/+1'>( '+2');
+  const [asiMethod, setAsiMethod] = useState<'+2' | '+1/+1'>('+2');
   const [asiAbility1, setAsiAbility1] = useState<keyof AbilityScores | null>(null);
   const [asiAbility2, setAsiAbility2] = useState<keyof AbilityScores | null>(null);
+  const [showFeatSelection, setShowFeatSelection] = useState(false);
+  const [selectedFeat, setSelectedFeat] = useState<GeneralFeat | null>(null);
+  const [featAbilityChoice, setFeatAbilityChoice] = useState<keyof AbilityScores | null>(null);
+
+  // Subclass selection
+  const needsSubclass = newLevel === 3 && !character.subclass;
+  const [selectedSubclass, setSelectedSubclass] = useState<string | null>(null);
+  const [subclassChoices, setSubclassChoices] = useState<Record<string, string[]>>({});
+
+  // Spell learning
+  const [newSpellsLearned, setNewSpellsLearned] = useState<string[]>([]);
+  const spellsToLearn = getNewSpellsAtLevel(character.characterClass, newLevel);
 
   // Step tracking
   const [step, setStep] = useState<LevelUpStep>('overview');
@@ -51,7 +69,6 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
   const getHpGain = (): number => {
     let baseGain: number;
     if (hpMethod === 'average') {
-      // Average is (die size / 2) + 1 (rounded up)
       baseGain = Math.ceil(hitDie / 2) + 1 + conMod;
     } else if (rolledHp !== null) {
       baseGain = Math.max(1, rolledHp + conMod);
@@ -59,18 +76,14 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
       return 0;
     }
 
-    // Tough feat: +2 HP per level
-    const hasTough = character.features.some(f => f.name === 'Tough');
-    if (hasTough) {
-      baseGain += 2;
-    }
+    // Tough feat
+    const hasTough = character.features.some(f => f.name === 'Tough') || selectedFeat?.name === 'Tough';
+    if (hasTough) baseGain += 2;
 
-    // Dwarven Toughness (Hill Dwarf): +1 HP per level
+    // Dwarven Toughness
     const hasDwarvenToughness = character.species === 'dwarf' &&
       character.features.some(f => f.name === 'Dwarven Toughness');
-    if (hasDwarvenToughness) {
-      baseGain += 1;
-    }
+    if (hasDwarvenToughness) baseGain += 1;
 
     return baseGain;
   };
@@ -84,7 +97,8 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
   const isFullCaster = ['bard', 'cleric', 'druid', 'sorcerer', 'wizard'].includes(character.characterClass);
   const isHalfCaster = ['paladin', 'ranger'].includes(character.characterClass);
   const isWarlock = character.characterClass === 'warlock';
-  const isSpellcaster = isFullCaster || isHalfCaster || isWarlock;
+  const characterIsSpellcaster = isFullCaster || isHalfCaster || isWarlock;
+  const preparationType = getSpellPreparationType(character.characterClass);
 
   // Get spell slots for comparison
   const getCurrentSpellSlots = () => {
@@ -110,9 +124,34 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
   // Determine which steps to show
   const getSteps = (): LevelUpStep[] => {
     const steps: LevelUpStep[] = ['overview', 'hp'];
-    if (hasASI) steps.push('asi');
-    if (newFeatures.length > 0) steps.push('features');
-    if (isSpellcaster) steps.push('spells');
+
+    // Subclass at level 3
+    if (needsSubclass) {
+      steps.push('subclass');
+    }
+
+    // ASI levels
+    if (hasASI) {
+      steps.push('asi');
+    }
+
+    // New class features
+    if (newFeatures.length > 0) {
+      steps.push('features');
+    }
+
+    // Spell learning for known casters or wizard
+    if (characterIsSpellcaster && (preparationType === 'known' || preparationType === 'spellbook')) {
+      if (spellsToLearn > 0 || preparationType === 'spellbook') {
+        steps.push('spellLearning');
+      }
+    }
+
+    // Spell slot progression display
+    if (characterIsSpellcaster) {
+      steps.push('spells');
+    }
+
     steps.push('review');
     return steps;
   };
@@ -136,12 +175,20 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
     switch (step) {
       case 'hp':
         return hpMethod === 'average' || rolledHp !== null;
+      case 'subclass':
+        return selectedSubclass !== null;
       case 'asi':
+        if (showFeatSelection) return false; // Handled by feat selection
+        if (selectedFeat) return true;
         if (asiMethod === '+2') {
           return asiAbility1 !== null;
         } else {
           return asiAbility1 !== null && asiAbility2 !== null && asiAbility1 !== asiAbility2;
         }
+      case 'spellLearning':
+        if (preparationType === 'prepared') return true; // Prepared casters don't need to select
+        if (preparationType === 'spellbook') return newSpellsLearned.length === 2;
+        return newSpellsLearned.length === spellsToLearn;
       default:
         return true;
     }
@@ -150,10 +197,21 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
   const applyLevelUp = () => {
     const hpGain = getHpGain();
 
-    // Calculate new ability scores if ASI was taken
+    // Calculate new ability scores
     const newAbilityScores = { ...character.abilityScores };
+
     if (hasASI) {
-      if (asiMethod === '+2' && asiAbility1) {
+      if (selectedFeat) {
+        // Apply feat ability bonus
+        if (selectedFeat.abilityBonus) {
+          if (selectedFeat.abilityBonus.ability === 'choice' && featAbilityChoice) {
+            newAbilityScores[featAbilityChoice] = Math.min(20, newAbilityScores[featAbilityChoice] + 1);
+          } else if (selectedFeat.abilityBonus.ability !== 'choice') {
+            const ability = selectedFeat.abilityBonus.ability as keyof AbilityScores;
+            newAbilityScores[ability] = Math.min(20, newAbilityScores[ability] + 1);
+          }
+        }
+      } else if (asiMethod === '+2' && asiAbility1) {
         newAbilityScores[asiAbility1] = Math.min(20, newAbilityScores[asiAbility1] + 2);
       } else if (asiMethod === '+1/+1' && asiAbility1 && asiAbility2) {
         newAbilityScores[asiAbility1] = Math.min(20, newAbilityScores[asiAbility1] + 1);
@@ -172,12 +230,26 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
       });
     });
 
+    // Add feat as feature if taken
+    if (selectedFeat) {
+      updatedFeatures.push({
+        id: `feat-${selectedFeat.name.toLowerCase().replace(/\s+/g, '-')}`,
+        name: selectedFeat.name,
+        source: 'Feat',
+        description: selectedFeat.benefits.join(' '),
+      });
+    }
+
     // Recalculate derived stats
     const newConMod = getAbilityModifier(newAbilityScores.constitution);
     const conModDiff = newConMod - conMod;
-    const retroactiveHpGain = conModDiff * newLevel; // Retroactive HP from CON increase
+    const retroactiveHpGain = conModDiff * newLevel;
 
     const newDexMod = getAbilityModifier(newAbilityScores.dexterity);
+
+    // Build updated spells
+    const currentSpells = character.spellsKnown || character.spells || [];
+    const updatedSpellsKnown = [...currentSpells, ...newSpellsLearned];
 
     const updatedCharacter: Character = {
       ...character,
@@ -189,13 +261,24 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
       hitDiceRemaining: character.hitDiceRemaining + 1,
       initiative: newDexMod,
       features: updatedFeatures,
-      experiencePoints: character.experiencePoints, // Keep same XP
+      experiencePoints: character.experiencePoints,
       updatedAt: new Date().toISOString(),
+      // Subclass
+      ...(selectedSubclass && {
+        subclass: selectedSubclass,
+        subclassChoices: subclassChoices,
+      }),
+      // Spells
+      ...(newSpellsLearned.length > 0 && {
+        spellsKnown: updatedSpellsKnown,
+        spells: updatedSpellsKnown,
+      }),
     };
 
     onComplete(updatedCharacter);
   };
 
+  // Render functions
   const renderOverview = () => (
     <div className="space-y-4">
       <div className="text-center">
@@ -216,10 +299,16 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
             <span className="text-green-400">+</span>
             1 Hit Die (now {newLevel}d{hitDie})
           </li>
+          {needsSubclass && (
+            <li className="flex items-center gap-2">
+              <span className="text-purple-400">★</span>
+              Choose your {CLASS_NAMES[character.characterClass]} subclass
+            </li>
+          )}
           {hasASI && (
             <li className="flex items-center gap-2">
               <span className="text-gold">★</span>
-              Ability Score Improvement (+2 to one or +1 to two)
+              Ability Score Improvement or Feat
             </li>
           )}
           {newFeatures.map(f => (
@@ -234,7 +323,13 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
               Proficiency Bonus increases to +{getProficiencyBonus(newLevel)}
             </li>
           )}
-          {isSpellcaster && (
+          {characterIsSpellcaster && (preparationType === 'known' || preparationType === 'spellbook') && spellsToLearn > 0 && (
+            <li className="flex items-center gap-2">
+              <span className="text-cyan-400">✦</span>
+              Learn {spellsToLearn} new spell{spellsToLearn > 1 ? 's' : ''}
+            </li>
+          )}
+          {characterIsSpellcaster && (
             <li className="flex items-center gap-2">
               <span className="text-cyan-400">✦</span>
               Spell slot progression
@@ -297,9 +392,6 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
             <div className="text-center mt-4">
               <div className="text-parchment/70 text-sm">Total HP Gained</div>
               <div className="text-gold text-4xl font-bold">+{getHpGain()}</div>
-              <div className="text-parchment/50 text-xs">
-                ({rolledHp} roll + {conMod} CON = {Math.max(1, rolledHp + conMod)})
-              </div>
             </div>
           )}
         </div>
@@ -311,154 +403,212 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
     </div>
   );
 
+  const renderSubclassStep = () => (
+    <SubclassSelection
+      character={character}
+      onSelect={(subclass, choices) => {
+        setSelectedSubclass(subclass);
+        if (choices) setSubclassChoices(choices);
+        nextStep();
+      }}
+    />
+  );
+
   const renderAsiStep = () => {
+    if (showFeatSelection) {
+      return (
+        <FeatSelection
+          character={character}
+          onSelect={(feat, abilityChoice) => {
+            setSelectedFeat(feat);
+            if (abilityChoice) setFeatAbilityChoice(abilityChoice);
+            setShowFeatSelection(false);
+          }}
+          onCancel={() => setShowFeatSelection(false)}
+        />
+      );
+    }
+
     const abilities = Object.keys(character.abilityScores) as (keyof AbilityScores)[];
 
     return (
       <div className="space-y-4">
-        <h3 className="font-medieval text-lg text-gold">Ability Score Improvement</h3>
-
-        <p className="text-parchment/70 text-sm">
-          Choose to increase one ability by 2, or two abilities by 1 each. Maximum score is 20.
-        </p>
-
-        <div className="flex gap-2 mb-4">
-          <Button
-            variant={asiMethod === '+2' ? 'primary' : 'secondary'}
-            onClick={() => {
-              setAsiMethod('+2');
-              setAsiAbility2(null);
-            }}
-          >
-            +2 to One
-          </Button>
-          <Button
-            variant={asiMethod === '+1/+1' ? 'primary' : 'secondary'}
-            onClick={() => setAsiMethod('+1/+1')}
-          >
-            +1 to Two
-          </Button>
+        <div className="flex justify-between items-center">
+          <div>
+            <h3 className="font-medieval text-lg text-gold">Ability Score Improvement</h3>
+            <p className="text-parchment/70 text-sm">
+              Increase abilities or take a feat
+            </p>
+          </div>
+          {!selectedFeat && (
+            <Button onClick={() => setShowFeatSelection(true)} variant="secondary" size="sm">
+              Take a Feat →
+            </Button>
+          )}
         </div>
 
-        {asiMethod === '+2' ? (
-          <div>
-            <label className="text-parchment text-sm mb-2 block">Choose ability for +2:</label>
-            <div className="grid grid-cols-3 gap-2">
-              {abilities.map(ability => {
-                const currentScore = character.abilityScores[ability];
-                const atMax = currentScore >= 20;
-                const wouldExceed = currentScore >= 19;
-
-                return (
-                  <button
-                    key={ability}
-                    onClick={() => !atMax && setAsiAbility1(ability)}
-                    disabled={atMax}
-                    className={`p-3 rounded border transition-colors ${
-                      asiAbility1 === ability
-                        ? 'bg-gold text-dark-wood border-gold font-bold'
-                        : atMax
-                        ? 'bg-dark-wood/50 text-parchment/30 border-leather/30 cursor-not-allowed'
-                        : 'bg-leather/50 text-parchment border-leather hover:border-gold'
-                    }`}
-                  >
-                    <div className="text-sm">{ABILITY_ABBREVIATIONS[ability]}</div>
-                    <div className="text-lg font-bold">{currentScore}</div>
-                    {asiAbility1 === ability && (
-                      <div className="text-xs text-green-600">
-                        → {Math.min(20, currentScore + 2)}
-                        {wouldExceed && ' (capped)'}
-                      </div>
-                    )}
-                    {atMax && <div className="text-xs">(max)</div>}
-                  </button>
-                );
-              })}
+        {selectedFeat ? (
+          <div className="p-4 bg-gold/20 rounded border border-gold">
+            <div className="flex justify-between items-center">
+              <div>
+                <span className="text-gold font-semibold">{selectedFeat.name}</span>
+                {selectedFeat.abilityBonus && (
+                  <span className="text-parchment/70 text-sm ml-2">
+                    (+1 {featAbilityChoice ? ABILITY_NAMES[featAbilityChoice] :
+                      selectedFeat.abilityBonus.ability !== 'choice' ?
+                      ABILITY_NAMES[selectedFeat.abilityBonus.ability as keyof AbilityScores] : ''})
+                  </span>
+                )}
+              </div>
+              <Button
+                onClick={() => {
+                  setSelectedFeat(null);
+                  setFeatAbilityChoice(null);
+                }}
+                variant="secondary"
+                size="sm"
+              >
+                Change
+              </Button>
             </div>
+            <p className="text-parchment/70 text-xs mt-2">{selectedFeat.description}</p>
           </div>
         ) : (
-          <div className="space-y-4">
-            <div>
-              <label className="text-parchment text-sm mb-2 block">First +1:</label>
-              <div className="grid grid-cols-3 gap-2">
-                {abilities.map(ability => {
-                  const currentScore = character.abilityScores[ability];
-                  const atMax = currentScore >= 20;
+          <>
+            <div className="flex gap-2 mb-4">
+              <Button
+                variant={asiMethod === '+2' ? 'primary' : 'secondary'}
+                onClick={() => {
+                  setAsiMethod('+2');
+                  setAsiAbility2(null);
+                }}
+              >
+                +2 to One
+              </Button>
+              <Button
+                variant={asiMethod === '+1/+1' ? 'primary' : 'secondary'}
+                onClick={() => setAsiMethod('+1/+1')}
+              >
+                +1 to Two
+              </Button>
+            </div>
 
-                  return (
-                    <button
-                      key={ability}
-                      onClick={() => {
-                        if (!atMax) {
-                          setAsiAbility1(ability);
-                          if (asiAbility2 === ability) setAsiAbility2(null);
-                        }
-                      }}
-                      disabled={atMax}
-                      className={`p-2 rounded border transition-colors ${
-                        asiAbility1 === ability
-                          ? 'bg-gold text-dark-wood border-gold font-bold'
-                          : atMax
-                          ? 'bg-dark-wood/50 text-parchment/30 border-leather/30 cursor-not-allowed'
-                          : 'bg-leather/50 text-parchment border-leather hover:border-gold'
-                      }`}
-                    >
-                      <div className="text-xs">{ABILITY_ABBREVIATIONS[ability]}</div>
-                      <div className="font-bold">{currentScore}</div>
-                    </button>
-                  );
-                })}
+            {asiMethod === '+2' ? (
+              <div>
+                <label className="text-parchment text-sm mb-2 block">Choose ability for +2:</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {abilities.map(ability => {
+                    const currentScore = character.abilityScores[ability];
+                    const atMax = currentScore >= 20;
+
+                    return (
+                      <button
+                        key={ability}
+                        onClick={() => !atMax && setAsiAbility1(ability)}
+                        disabled={atMax}
+                        className={`p-3 rounded border transition-colors ${
+                          asiAbility1 === ability
+                            ? 'bg-gold text-dark-wood border-gold font-bold'
+                            : atMax
+                            ? 'bg-dark-wood/50 text-parchment/30 border-leather/30 cursor-not-allowed'
+                            : 'bg-leather/50 text-parchment border-leather hover:border-gold'
+                        }`}
+                      >
+                        <div className="text-sm">{ABILITY_ABBREVIATIONS[ability]}</div>
+                        <div className="text-lg font-bold">{currentScore}</div>
+                        {asiAbility1 === ability && (
+                          <div className="text-xs text-green-600">→ {Math.min(20, currentScore + 2)}</div>
+                        )}
+                        {atMax && <div className="text-xs">(max)</div>}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <label className="text-parchment text-sm mb-2 block">First +1:</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {abilities.map(ability => {
+                      const currentScore = character.abilityScores[ability];
+                      const atMax = currentScore >= 20;
 
-            <div>
-              <label className="text-parchment text-sm mb-2 block">Second +1:</label>
-              <div className="grid grid-cols-3 gap-2">
-                {abilities.map(ability => {
-                  const currentScore = character.abilityScores[ability];
-                  const atMax = currentScore >= 20;
-                  const isSameAsFirst = ability === asiAbility1;
+                      return (
+                        <button
+                          key={ability}
+                          onClick={() => {
+                            if (!atMax) {
+                              setAsiAbility1(ability);
+                              if (asiAbility2 === ability) setAsiAbility2(null);
+                            }
+                          }}
+                          disabled={atMax}
+                          className={`p-2 rounded border transition-colors ${
+                            asiAbility1 === ability
+                              ? 'bg-gold text-dark-wood border-gold font-bold'
+                              : atMax
+                              ? 'bg-dark-wood/50 text-parchment/30 border-leather/30 cursor-not-allowed'
+                              : 'bg-leather/50 text-parchment border-leather hover:border-gold'
+                          }`}
+                        >
+                          <div className="text-xs">{ABILITY_ABBREVIATIONS[ability]}</div>
+                          <div className="font-bold">{currentScore}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
 
-                  return (
-                    <button
-                      key={ability}
-                      onClick={() => !atMax && !isSameAsFirst && setAsiAbility2(ability)}
-                      disabled={atMax || isSameAsFirst}
-                      className={`p-2 rounded border transition-colors ${
-                        asiAbility2 === ability
-                          ? 'bg-gold text-dark-wood border-gold font-bold'
-                          : atMax || isSameAsFirst
-                          ? 'bg-dark-wood/50 text-parchment/30 border-leather/30 cursor-not-allowed'
-                          : 'bg-leather/50 text-parchment border-leather hover:border-gold'
-                      }`}
-                    >
-                      <div className="text-xs">{ABILITY_ABBREVIATIONS[ability]}</div>
-                      <div className="font-bold">{currentScore}</div>
-                    </button>
-                  );
-                })}
+                <div>
+                  <label className="text-parchment text-sm mb-2 block">Second +1:</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {abilities.map(ability => {
+                      const currentScore = character.abilityScores[ability];
+                      const atMax = currentScore >= 20;
+                      const isSameAsFirst = ability === asiAbility1;
+
+                      return (
+                        <button
+                          key={ability}
+                          onClick={() => !atMax && !isSameAsFirst && setAsiAbility2(ability)}
+                          disabled={atMax || isSameAsFirst}
+                          className={`p-2 rounded border transition-colors ${
+                            asiAbility2 === ability
+                              ? 'bg-gold text-dark-wood border-gold font-bold'
+                              : atMax || isSameAsFirst
+                              ? 'bg-dark-wood/50 text-parchment/30 border-leather/30 cursor-not-allowed'
+                              : 'bg-leather/50 text-parchment border-leather hover:border-gold'
+                          }`}
+                        >
+                          <div className="text-xs">{ABILITY_ABBREVIATIONS[ability]}</div>
+                          <div className="font-bold">{currentScore}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        )}
+            )}
 
-        {/* Preview */}
-        {(asiAbility1 || asiAbility2) && (
-          <div className="bg-dark-wood p-3 rounded border border-gold/50">
-            <div className="text-gold text-sm mb-2">Changes:</div>
-            <div className="flex flex-wrap gap-2">
-              {asiAbility1 && (
-                <span className="bg-green-900/30 text-green-300 px-2 py-1 rounded text-sm">
-                  {ABILITY_NAMES[asiAbility1]}: {character.abilityScores[asiAbility1]} → {Math.min(20, character.abilityScores[asiAbility1] + (asiMethod === '+2' ? 2 : 1))}
-                </span>
-              )}
-              {asiMethod === '+1/+1' && asiAbility2 && (
-                <span className="bg-green-900/30 text-green-300 px-2 py-1 rounded text-sm">
-                  {ABILITY_NAMES[asiAbility2]}: {character.abilityScores[asiAbility2]} → {Math.min(20, character.abilityScores[asiAbility2] + 1)}
-                </span>
-              )}
-            </div>
-          </div>
+            {(asiAbility1 || asiAbility2) && (
+              <div className="bg-dark-wood p-3 rounded border border-gold/50">
+                <div className="text-gold text-sm mb-2">Changes:</div>
+                <div className="flex flex-wrap gap-2">
+                  {asiAbility1 && (
+                    <span className="bg-green-900/30 text-green-300 px-2 py-1 rounded text-sm">
+                      {ABILITY_NAMES[asiAbility1]}: {character.abilityScores[asiAbility1]} → {Math.min(20, character.abilityScores[asiAbility1] + (asiMethod === '+2' ? 2 : 1))}
+                    </span>
+                  )}
+                  {asiMethod === '+1/+1' && asiAbility2 && (
+                    <span className="bg-green-900/30 text-green-300 px-2 py-1 rounded text-sm">
+                      {ABILITY_NAMES[asiAbility2]}: {character.abilityScores[asiAbility2]} → {Math.min(20, character.abilityScores[asiAbility2] + 1)}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     );
@@ -481,6 +631,18 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
         ))}
       </div>
     </div>
+  );
+
+  const renderSpellLearningStep = () => (
+    <SpellLearning
+      character={character}
+      newLevel={newLevel}
+      currentSpells={character.spellsKnown || character.spells || []}
+      onSelect={(spells) => {
+        setNewSpellsLearned(spells);
+        nextStep();
+      }}
+    />
   );
 
   const renderSpellsStep = () => {
@@ -533,9 +695,12 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
           </div>
         )}
 
-        <p className="text-parchment/70 text-sm">
-          Remember to update your prepared/known spells as appropriate for your level.
-        </p>
+        {newSpellsLearned.length > 0 && (
+          <div className="p-3 bg-cyan-900/20 rounded border border-cyan-500/30">
+            <div className="text-cyan-300 text-sm font-semibold mb-1">New Spells Learned:</div>
+            <div className="text-parchment text-sm">{newSpellsLearned.join(', ')}</div>
+          </div>
+        )}
       </div>
     );
   };
@@ -570,19 +735,34 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
             </div>
           )}
 
-          {hasASI && asiAbility1 && (
+          {selectedSubclass && (
             <div className="border-t border-leather pt-2 mt-2">
-              <div className="text-parchment text-sm mb-1">Ability Score Improvement:</div>
-              <div className="flex flex-wrap gap-2">
-                <span className="bg-green-900/30 text-green-300 px-2 py-1 rounded text-sm">
-                  {ABILITY_NAMES[asiAbility1]}: +{asiMethod === '+2' ? 2 : 1}
-                </span>
-                {asiMethod === '+1/+1' && asiAbility2 && (
-                  <span className="bg-green-900/30 text-green-300 px-2 py-1 rounded text-sm">
-                    {ABILITY_NAMES[asiAbility2]}: +1
-                  </span>
-                )}
+              <div className="text-parchment text-sm mb-1">Subclass:</div>
+              <span className="text-purple-300 font-semibold">{selectedSubclass}</span>
+            </div>
+          )}
+
+          {hasASI && (selectedFeat || asiAbility1) && (
+            <div className="border-t border-leather pt-2 mt-2">
+              <div className="text-parchment text-sm mb-1">
+                {selectedFeat ? 'Feat:' : 'Ability Score Improvement:'}
               </div>
+              {selectedFeat ? (
+                <span className="text-gold font-semibold">{selectedFeat.name}</span>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {asiAbility1 && (
+                    <span className="bg-green-900/30 text-green-300 px-2 py-1 rounded text-sm">
+                      {ABILITY_NAMES[asiAbility1]}: +{asiMethod === '+2' ? 2 : 1}
+                    </span>
+                  )}
+                  {asiMethod === '+1/+1' && asiAbility2 && (
+                    <span className="bg-green-900/30 text-green-300 px-2 py-1 rounded text-sm">
+                      {ABILITY_NAMES[asiAbility2]}: +1
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -593,6 +773,19 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
                 {newFeatures.map(f => (
                   <span key={f.name} className="bg-blue-900/30 text-blue-300 px-2 py-0.5 rounded text-xs">
                     {f.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {newSpellsLearned.length > 0 && (
+            <div className="border-t border-leather pt-2 mt-2">
+              <div className="text-parchment text-sm mb-1">Spells Learned:</div>
+              <div className="flex flex-wrap gap-1">
+                {newSpellsLearned.map(spell => (
+                  <span key={spell} className="bg-cyan-900/30 text-cyan-300 px-2 py-0.5 rounded text-xs">
+                    {spell}
                   </span>
                 ))}
               </div>
@@ -613,8 +806,10 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
     switch (step) {
       case 'overview': return renderOverview();
       case 'hp': return renderHpStep();
+      case 'subclass': return renderSubclassStep();
       case 'asi': return renderAsiStep();
       case 'features': return renderFeaturesStep();
+      case 'spellLearning': return renderSpellLearningStep();
       case 'spells': return renderSpellsStep();
       case 'review': return renderReview();
       default: return null;
@@ -622,7 +817,7 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
   };
 
   return (
-    <Panel className="max-w-lg mx-auto">
+    <Panel className="max-w-lg mx-auto max-h-[90vh] overflow-y-auto">
       <div className="flex justify-between items-center mb-4">
         <h2 className="font-medieval text-xl text-gold">
           {CLASS_NAMES[character.characterClass]} Level {newLevel}
@@ -649,23 +844,25 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
       {renderCurrentStep()}
 
       {/* Navigation */}
-      <div className="flex justify-between mt-6 pt-4 border-t border-leather">
-        <Button
-          variant="secondary"
-          onClick={currentStepIndex === 0 ? onCancel : prevStep}
-        >
-          {currentStepIndex === 0 ? 'Cancel' : 'Back'}
-        </Button>
-
-        {step !== 'review' && (
+      {step !== 'subclass' && step !== 'spellLearning' && (
+        <div className="flex justify-between mt-6 pt-4 border-t border-leather">
           <Button
-            onClick={nextStep}
-            disabled={!canProceed()}
+            variant="secondary"
+            onClick={currentStepIndex === 0 ? onCancel : prevStep}
           >
-            Next
+            {currentStepIndex === 0 ? 'Cancel' : 'Back'}
           </Button>
-        )}
-      </div>
+
+          {step !== 'review' && (
+            <Button
+              onClick={nextStep}
+              disabled={!canProceed()}
+            >
+              Next
+            </Button>
+          )}
+        </div>
+      )}
     </Panel>
   );
 }
