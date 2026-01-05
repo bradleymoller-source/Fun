@@ -1130,6 +1130,20 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
             </div>
           )}
 
+          {selectedFightingStyle && (
+            <div className="border-t border-leather pt-2 mt-2">
+              <div className="text-parchment text-sm mb-1">Fighting Style:</div>
+              <span className="text-red-300 font-semibold capitalize">{selectedFightingStyle}</span>
+            </div>
+          )}
+
+          {selectedPactBoon && (
+            <div className="border-t border-leather pt-2 mt-2">
+              <div className="text-parchment text-sm mb-1">Pact Boon:</div>
+              <span className="text-purple-300 font-semibold capitalize">{selectedPactBoon.replace(/-/g, ' ')}</span>
+            </div>
+          )}
+
           {selectedWeaponMasteries.length > 0 && (
             <div className="border-t border-leather pt-2 mt-2">
               <div className="text-parchment text-sm mb-1">Weapon Masteries:</div>
