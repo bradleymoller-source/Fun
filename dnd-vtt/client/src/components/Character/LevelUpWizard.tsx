@@ -1,3 +1,6 @@
+// DEBUG: This should log when the file is loaded
+console.log('[LevelUpWizard] FILE LOADED');
+
 import { useState } from 'react';
 import type { Character, AbilityScores, Feature, SkillName, LevelUpRecord } from '../../types';
 import { Button } from '../ui/Button';

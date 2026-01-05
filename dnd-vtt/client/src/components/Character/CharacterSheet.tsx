@@ -1,3 +1,6 @@
+// DEBUG: This should log when the file is loaded
+console.log('[CharacterSheet] FILE LOADED');
+
 import { useState, useRef } from 'react';
 import type { Character, CharacterClass, AbilityScores, SkillName, Condition } from '../../types';
 import { LevelUpWizard } from './LevelUpWizard';
