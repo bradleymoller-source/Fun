@@ -729,9 +729,30 @@ export function needsDivineOrder(characterClass: CharacterClass, level: number, 
   return characterClass === 'cleric' && level === 1 && !currentDivineOrder;
 }
 
-// Helper function: Does this Druid need to select a Primal Order?
+/// Helper function: Does this Druid need to select a Primal Order?
 export function needsPrimalOrder(characterClass: CharacterClass, level: number, currentPrimalOrder?: string): boolean {
   return characterClass === 'druid' && level === 1 && !currentPrimalOrder;
+}
+
+// ============ PRIMAL KNOWLEDGE (Barbarian L3) ============
+
+// Skills available for Primal Knowledge
+export const PRIMAL_KNOWLEDGE_SKILLS: SkillName[] = [
+  'animalHandling',
+  'athletics',
+  'intimidation',
+  'nature',
+  'perception',
+  'survival',
+];
+
+// Helper function: Does this Barbarian need to select a Primal Knowledge skill?
+export function needsPrimalKnowledge(
+  characterClass: CharacterClass,
+  level: number,
+  currentPrimalKnowledgeSkill?: string
+): boolean {
+  return characterClass === 'barbarian' && level === 3 && !currentPrimalKnowledgeSkill;
 }
 
 // ============ EXPERTISE ============
@@ -2878,6 +2899,7 @@ export const CLASS_FEATURES: Record<CharacterClass, ClassFeature[]> = {
   monk: [
     { name: 'Martial Arts', description: 'Use DEX instead of STR for unarmed strikes and monk weapons. Unarmed deals 1d6 (scales with level). Bonus action unarmed strike after Attack action.', level: 1 },
     { name: 'Unarmored Defense', description: 'AC = 10 + DEX mod + WIS mod when not wearing armor or shield', level: 1 },
+    { name: 'Weapon Mastery', description: 'Choose 2 weapon masteries from your proficient weapons (simple weapons and shortswords).', level: 1 },
     { name: 'Focus', description: 'Gain Focus Points = monk level. Spend to fuel special techniques. Regain all on short/long rest.', level: 2 },
     { name: 'Unarmored Movement', description: 'Speed increases by 10 ft when not wearing armor. Increases at higher levels.', level: 2 },
     { name: 'Uncanny Metabolism', description: 'When you roll initiative, regain all Focus Points if you have none.', level: 2 },
@@ -2946,7 +2968,6 @@ export const CLASS_FEATURES: Record<CharacterClass, ClassFeature[]> = {
     { name: 'Expertise', description: 'Double proficiency bonus for 2 skill proficiencies.', level: 1 },
     { name: 'Sneak Attack', description: 'Once per turn, deal extra 1d6 damage when you have advantage or ally adjacent to target.', level: 1 },
     { name: 'Thieves\' Cant', description: 'You know Thieves\' Cant, a secret mix of dialect and coded messages.', level: 1 },
-    { name: 'Weapon Mastery', description: 'Choose 2 weapon masteries from your proficient weapons', level: 1 },
     { name: 'Cunning Action', description: 'Bonus action to Dash, Disengage, or Hide.', level: 2 },
     { name: 'Steady Aim', description: 'Bonus action: don\'t move this turn, gain advantage on next attack.', level: 3 },
     { name: 'Ability Score Improvement', description: 'Increase one ability by 2, or two abilities by 1 each. Max 20.', level: 4 },

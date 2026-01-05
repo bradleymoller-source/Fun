@@ -390,6 +390,7 @@ export interface LevelUpRecord {
     fightingStyleChosen?: string;
     divineOrderChosen?: string;
     primalOrderChosen?: string;
+    primalKnowledgeSkillChosen?: string;
     weaponMasteriesChosen?: string[];
     otherChoices?: Record<string, string | string[]>;
   };
@@ -418,6 +419,7 @@ export interface Character {
   fightingStyle?: string;  // Selected fighting style ID (fighter, paladin, ranger)
   divineOrder?: string;    // Divine Order choice (cleric): 'protector' or 'thaumaturge'
   primalOrder?: string;    // Primal Order choice (druid): 'magician' or 'warden'
+  primalKnowledgeSkill?: string;  // Primal Knowledge skill (barbarian L3)
   pactBoon?: string;       // Pact Boon choice (warlock L3): 'blade', 'chain', or 'tome'
   eldritchInvocations?: string[];  // Selected invocation IDs (warlock)
   metamagicKnown?: string[];       // Selected metamagic IDs (sorcerer)

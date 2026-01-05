@@ -14,6 +14,7 @@ import { FightingStyleSelection } from './FightingStyleSelection';
 import { DivineOrderSelection } from './DivineOrderSelection';
 import { PrimalOrderSelection } from './PrimalOrderSelection';
 import { WeaponMasterySelection } from './WeaponMasterySelection';
+import { PrimalKnowledgeSelection } from './PrimalKnowledgeSelection';
 import {
   CLASS_HIT_DICE,
   CLASS_NAMES,
@@ -43,6 +44,7 @@ import {
   needsDivineOrder,
   needsPrimalOrder,
   needsWeaponMastery,
+  needsPrimalKnowledge,
   getCharacterResources,
   type GeneralFeat,
 } from '../../data/dndData';
@@ -54,7 +56,7 @@ interface LevelUpWizardProps {
 }
 
 type LevelUpStep =
-  | 'overview' | 'hp' | 'subclass' | 'pactBoon' | 'fightingStyle' | 'divineOrder' | 'primalOrder' | 'weaponMastery' | 'asi' | 'features'
+  | 'overview' | 'hp' | 'subclass' | 'pactBoon' | 'fightingStyle' | 'divineOrder' | 'primalOrder' | 'primalKnowledge' | 'weaponMastery' | 'asi' | 'features'
   | 'cantripLearning' | 'spellLearning' | 'spells'
   | 'expertise' | 'metamagic' | 'invocations' | 'review';
 
@@ -124,6 +126,10 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
   // Weapon Mastery (Barbarian, Fighter, Monk, Paladin, Ranger at L1)
   const [selectedWeaponMasteries, setSelectedWeaponMasteries] = useState<string[]>([]);
   const requiresWeaponMastery = needsWeaponMastery(character.characterClass, newLevel, character.weaponMasteries);
+
+  // Primal Knowledge (Barbarian L3)
+  const [selectedPrimalKnowledgeSkill, setSelectedPrimalKnowledgeSkill] = useState<SkillName | null>(null);
+  const requiresPrimalKnowledge = needsPrimalKnowledge(character.characterClass, newLevel, character.primalKnowledgeSkill);
 
   // Step tracking
   const [step, setStep] = useState<LevelUpStep>('overview');
@@ -222,6 +228,11 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
       steps.push('weaponMastery');
     }
 
+    // Primal Knowledge (Barbarian L3)
+    if (requiresPrimalKnowledge) {
+      steps.push('primalKnowledge');
+    }
+
     // ASI levels
     if (hasASI) {
       steps.push('asi');
@@ -299,6 +310,8 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
         return selectedPrimalOrder !== null;
       case 'weaponMastery':
         return selectedWeaponMasteries.length > 0;
+      case 'primalKnowledge':
+        return selectedPrimalKnowledgeSkill !== null;
       case 'asi':
         if (showFeatSelection) return false; // Handled by feat selection
         if (selectedFeat) return true;
@@ -405,6 +418,11 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
       updatedSkillProficiencies[skill] = 'expertise';
     }
 
+    // Add Primal Knowledge skill proficiency (Barbarian L3)
+    if (selectedPrimalKnowledgeSkill) {
+      updatedSkillProficiencies[selectedPrimalKnowledgeSkill] = 'proficient';
+    }
+
     // Update metamagic
     const currentMetamagic = character.metamagicKnown || [];
     const updatedMetamagic = [...currentMetamagic, ...newMetamagic];
@@ -490,6 +508,7 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
         ...(selectedFightingStyle && { fightingStyleChosen: selectedFightingStyle }),
         ...(selectedDivineOrder && { divineOrderChosen: selectedDivineOrder }),
         ...(selectedPrimalOrder && { primalOrderChosen: selectedPrimalOrder }),
+        ...(selectedPrimalKnowledgeSkill && { primalKnowledgeSkillChosen: selectedPrimalKnowledgeSkill }),
         ...(selectedWeaponMasteries.length > 0 && { weaponMasteriesChosen: selectedWeaponMasteries }),
         ...((newExpertise.length > 0 || newMetamagic.length > 0 || newInvocations.length > 0) && {
           otherChoices: {
@@ -555,6 +574,10 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
       // Primal Order (Druid)
       ...(selectedPrimalOrder && {
         primalOrder: selectedPrimalOrder,
+      }),
+      // Primal Knowledge (Barbarian)
+      ...(selectedPrimalKnowledgeSkill && {
+        primalKnowledgeSkill: selectedPrimalKnowledgeSkill,
       }),
       // Weapon Masteries (Barbarian, Fighter, Monk, Paladin, Ranger)
       ...(selectedWeaponMasteries.length > 0 && {
@@ -624,6 +647,12 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
             <li className="flex items-center gap-2">
               <span className="text-orange-400">★</span>
               Choose Weapon Masteries
+            </li>
+          )}
+          {requiresPrimalKnowledge && (
+            <li className="flex items-center gap-2">
+              <span className="text-amber-400">★</span>
+              Choose Primal Knowledge Skill
             </li>
           )}
           {hasASI && (
@@ -1114,6 +1143,13 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
             </div>
           )}
 
+          {selectedPrimalKnowledgeSkill && (
+            <div className="border-t border-leather pt-2 mt-2">
+              <div className="text-parchment text-sm mb-1">Primal Knowledge:</div>
+              <span className="text-amber-300 font-semibold">{selectedPrimalKnowledgeSkill}</span>
+            </div>
+          )}
+
           {hasASI && (selectedFeat || asiAbility1) && (
             <div className="border-t border-leather pt-2 mt-2">
               <div className="text-parchment text-sm mb-1">
@@ -1320,6 +1356,16 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
     />
   );
 
+  const renderPrimalKnowledgeStep = () => (
+    <PrimalKnowledgeSelection
+      character={character}
+      onSelect={(skill) => {
+        setSelectedPrimalKnowledgeSkill(skill);
+        nextStep();
+      }}
+    />
+  );
+
   const renderCurrentStep = () => {
     switch (step) {
       case 'overview': return renderOverview();
@@ -1330,6 +1376,7 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
       case 'divineOrder': return renderDivineOrderStep();
       case 'primalOrder': return renderPrimalOrderStep();
       case 'weaponMastery': return renderWeaponMasteryStep();
+      case 'primalKnowledge': return renderPrimalKnowledgeStep();
       case 'asi': return renderAsiStep();
       case 'features': return renderFeaturesStep();
       case 'expertise': return renderExpertiseStep();
@@ -1371,7 +1418,7 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
       {renderCurrentStep()}
 
       {/* Navigation - hide for steps that auto-advance */}
-      {!['subclass', 'pactBoon', 'fightingStyle', 'divineOrder', 'primalOrder', 'weaponMastery', 'spellLearning', 'cantripLearning', 'expertise', 'metamagic', 'invocations'].includes(step) && (
+      {!['subclass', 'pactBoon', 'fightingStyle', 'divineOrder', 'primalOrder', 'weaponMastery', 'primalKnowledge', 'spellLearning', 'cantripLearning', 'expertise', 'metamagic', 'invocations'].includes(step) && (
         <div className="flex justify-between mt-6 pt-4 border-t border-leather">
           <Button
             variant="secondary"
