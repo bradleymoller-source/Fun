@@ -11,9 +11,13 @@ import { MetamagicSelection } from './MetamagicSelection';
 import { InvocationSelection } from './InvocationSelection';
 import { PactBoonSelection } from './PactBoonSelection';
 import { FightingStyleSelection } from './FightingStyleSelection';
+import { DivineOrderSelection } from './DivineOrderSelection';
+import { PrimalOrderSelection } from './PrimalOrderSelection';
+import { WeaponMasterySelection } from './WeaponMasterySelection';
 import {
   CLASS_HIT_DICE,
   CLASS_NAMES,
+  CLASS_SUBCLASSES,
   ABILITY_NAMES,
   ABILITY_ABBREVIATIONS,
   getAbilityModifier,
@@ -36,6 +40,9 @@ import {
   getInvocationsKnownAtLevel,
   needsPactBoon,
   needsFightingStyle,
+  needsDivineOrder,
+  needsPrimalOrder,
+  needsWeaponMastery,
   getCharacterResources,
   type GeneralFeat,
 } from '../../data/dndData';
@@ -47,7 +54,7 @@ interface LevelUpWizardProps {
 }
 
 type LevelUpStep =
-  | 'overview' | 'hp' | 'subclass' | 'pactBoon' | 'fightingStyle' | 'asi' | 'features'
+  | 'overview' | 'hp' | 'subclass' | 'pactBoon' | 'fightingStyle' | 'divineOrder' | 'primalOrder' | 'weaponMastery' | 'asi' | 'features'
   | 'cantripLearning' | 'spellLearning' | 'spells'
   | 'expertise' | 'metamagic' | 'invocations' | 'review';
 
@@ -105,6 +112,18 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
   // Fighting Style (Fighter L1, Paladin L2, Ranger L2)
   const [selectedFightingStyle, setSelectedFightingStyle] = useState<string | null>(null);
   const requiresFightingStyle = needsFightingStyle(character.characterClass, newLevel, character.fightingStyle);
+
+  // Divine Order (Cleric L1)
+  const [selectedDivineOrder, setSelectedDivineOrder] = useState<string | null>(null);
+  const requiresDivineOrder = needsDivineOrder(character.characterClass, newLevel, character.divineOrder);
+
+  // Primal Order (Druid L1)
+  const [selectedPrimalOrder, setSelectedPrimalOrder] = useState<string | null>(null);
+  const requiresPrimalOrder = needsPrimalOrder(character.characterClass, newLevel, character.primalOrder);
+
+  // Weapon Mastery (Barbarian, Fighter, Monk, Paladin, Ranger at L1)
+  const [selectedWeaponMasteries, setSelectedWeaponMasteries] = useState<string[]>([]);
+  const requiresWeaponMastery = needsWeaponMastery(character.characterClass, newLevel, character.weaponMasteries);
 
   // Step tracking
   const [step, setStep] = useState<LevelUpStep>('overview');
@@ -188,6 +207,21 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
       steps.push('fightingStyle');
     }
 
+    // Divine Order (Cleric L1)
+    if (requiresDivineOrder) {
+      steps.push('divineOrder');
+    }
+
+    // Primal Order (Druid L1)
+    if (requiresPrimalOrder) {
+      steps.push('primalOrder');
+    }
+
+    // Weapon Mastery (Barbarian, Fighter, Monk, Paladin, Ranger at L1)
+    if (requiresWeaponMastery) {
+      steps.push('weaponMastery');
+    }
+
     // ASI levels
     if (hasASI) {
       steps.push('asi');
@@ -259,6 +293,12 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
         return selectedPactBoon !== null;
       case 'fightingStyle':
         return selectedFightingStyle !== null;
+      case 'divineOrder':
+        return selectedDivineOrder !== null;
+      case 'primalOrder':
+        return selectedPrimalOrder !== null;
+      case 'weaponMastery':
+        return selectedWeaponMasteries.length > 0;
       case 'asi':
         if (showFeatSelection) return false; // Handled by feat selection
         if (selectedFeat) return true;
@@ -339,7 +379,21 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
 
     // Build updated spells
     const currentSpells = character.spellsKnown || character.spells || [];
-    const updatedSpellsKnown = [...currentSpells, ...newSpellsLearned];
+    let updatedSpellsKnown = [...currentSpells, ...newSpellsLearned];
+
+    // Add subclass bonus spells (always prepared spells from subclass)
+    if (selectedSubclass) {
+      const subclassInfo = CLASS_SUBCLASSES[character.characterClass]?.find(
+        sub => sub.name === selectedSubclass
+      );
+      if (subclassInfo?.bonusSpells) {
+        // Add bonus spells that aren't already in the spell list
+        const bonusSpellsToAdd = subclassInfo.bonusSpells.filter(
+          spell => !updatedSpellsKnown.includes(spell)
+        );
+        updatedSpellsKnown = [...updatedSpellsKnown, ...bonusSpellsToAdd];
+      }
+    }
 
     // Build updated cantrips
     const currentCantrips = character.cantripsKnown || [];
@@ -434,6 +488,9 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
         ...(selectedSubclass && { subclassChosen: selectedSubclass }),
         ...(selectedPactBoon && { pactBoonChosen: selectedPactBoon }),
         ...(selectedFightingStyle && { fightingStyleChosen: selectedFightingStyle }),
+        ...(selectedDivineOrder && { divineOrderChosen: selectedDivineOrder }),
+        ...(selectedPrimalOrder && { primalOrderChosen: selectedPrimalOrder }),
+        ...(selectedWeaponMasteries.length > 0 && { weaponMasteriesChosen: selectedWeaponMasteries }),
         ...((newExpertise.length > 0 || newMetamagic.length > 0 || newInvocations.length > 0) && {
           otherChoices: {
             ...(newExpertise.length > 0 && { expertise: newExpertise }),
@@ -466,8 +523,8 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
         subclass: selectedSubclass,
         subclassChoices: subclassChoices,
       }),
-      // Spells
-      ...(newSpellsLearned.length > 0 && {
+      // Spells (include when new spells learned OR when subclass adds bonus spells)
+      ...((newSpellsLearned.length > 0 || (selectedSubclass && CLASS_SUBCLASSES[character.characterClass]?.find(sub => sub.name === selectedSubclass)?.bonusSpells?.length)) && {
         spellsKnown: updatedSpellsKnown,
         spells: updatedSpellsKnown,
       }),
@@ -490,6 +547,18 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
       // Fighting Style (Fighter, Paladin, Ranger)
       ...(selectedFightingStyle && {
         fightingStyle: selectedFightingStyle,
+      }),
+      // Divine Order (Cleric)
+      ...(selectedDivineOrder && {
+        divineOrder: selectedDivineOrder,
+      }),
+      // Primal Order (Druid)
+      ...(selectedPrimalOrder && {
+        primalOrder: selectedPrimalOrder,
+      }),
+      // Weapon Masteries (Barbarian, Fighter, Monk, Paladin, Ranger)
+      ...(selectedWeaponMasteries.length > 0 && {
+        weaponMasteries: selectedWeaponMasteries,
       }),
       // Feature uses with updated maximums
       featureUses: updatedFeatureUses,
@@ -537,6 +606,24 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
             <li className="flex items-center gap-2">
               <span className="text-red-400">★</span>
               Choose a Fighting Style
+            </li>
+          )}
+          {requiresDivineOrder && (
+            <li className="flex items-center gap-2">
+              <span className="text-yellow-400">★</span>
+              Choose your Divine Order
+            </li>
+          )}
+          {requiresPrimalOrder && (
+            <li className="flex items-center gap-2">
+              <span className="text-green-400">★</span>
+              Choose your Primal Order
+            </li>
+          )}
+          {requiresWeaponMastery && (
+            <li className="flex items-center gap-2">
+              <span className="text-orange-400">★</span>
+              Choose Weapon Masteries
             </li>
           )}
           {hasASI && (
@@ -1000,6 +1087,33 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
             </div>
           )}
 
+          {selectedDivineOrder && (
+            <div className="border-t border-leather pt-2 mt-2">
+              <div className="text-parchment text-sm mb-1">Divine Order:</div>
+              <span className="text-yellow-300 font-semibold capitalize">{selectedDivineOrder}</span>
+            </div>
+          )}
+
+          {selectedPrimalOrder && (
+            <div className="border-t border-leather pt-2 mt-2">
+              <div className="text-parchment text-sm mb-1">Primal Order:</div>
+              <span className="text-green-300 font-semibold capitalize">{selectedPrimalOrder}</span>
+            </div>
+          )}
+
+          {selectedWeaponMasteries.length > 0 && (
+            <div className="border-t border-leather pt-2 mt-2">
+              <div className="text-parchment text-sm mb-1">Weapon Masteries:</div>
+              <div className="flex flex-wrap gap-1">
+                {selectedWeaponMasteries.map(weapon => (
+                  <span key={weapon} className="bg-orange-900/30 text-orange-300 px-2 py-0.5 rounded text-xs">
+                    {weapon}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           {hasASI && (selectedFeat || asiAbility1) && (
             <div className="border-t border-leather pt-2 mt-2">
               <div className="text-parchment text-sm mb-1">
@@ -1178,6 +1292,34 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
     />
   );
 
+  const renderDivineOrderStep = () => (
+    <DivineOrderSelection
+      onSelect={(divineOrderId) => {
+        setSelectedDivineOrder(divineOrderId);
+        nextStep();
+      }}
+    />
+  );
+
+  const renderPrimalOrderStep = () => (
+    <PrimalOrderSelection
+      onSelect={(primalOrderId) => {
+        setSelectedPrimalOrder(primalOrderId);
+        nextStep();
+      }}
+    />
+  );
+
+  const renderWeaponMasteryStep = () => (
+    <WeaponMasterySelection
+      character={character}
+      onSelect={(weaponMasteries) => {
+        setSelectedWeaponMasteries(weaponMasteries);
+        nextStep();
+      }}
+    />
+  );
+
   const renderCurrentStep = () => {
     switch (step) {
       case 'overview': return renderOverview();
@@ -1185,6 +1327,9 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
       case 'subclass': return renderSubclassStep();
       case 'pactBoon': return renderPactBoonStep();
       case 'fightingStyle': return renderFightingStyleStep();
+      case 'divineOrder': return renderDivineOrderStep();
+      case 'primalOrder': return renderPrimalOrderStep();
+      case 'weaponMastery': return renderWeaponMasteryStep();
       case 'asi': return renderAsiStep();
       case 'features': return renderFeaturesStep();
       case 'expertise': return renderExpertiseStep();
@@ -1226,7 +1371,7 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
       {renderCurrentStep()}
 
       {/* Navigation - hide for steps that auto-advance */}
-      {!['subclass', 'pactBoon', 'fightingStyle', 'spellLearning', 'cantripLearning', 'expertise', 'metamagic', 'invocations'].includes(step) && (
+      {!['subclass', 'pactBoon', 'fightingStyle', 'divineOrder', 'primalOrder', 'weaponMastery', 'spellLearning', 'cantripLearning', 'expertise', 'metamagic', 'invocations'].includes(step) && (
         <div className="flex justify-between mt-6 pt-4 border-t border-leather">
           <Button
             variant="secondary"

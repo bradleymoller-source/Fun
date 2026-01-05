@@ -724,6 +724,16 @@ export function needsPactBoon(characterClass: CharacterClass, level: number, cur
   return characterClass === 'warlock' && level === 3 && !currentPactBoon;
 }
 
+// Helper function: Does this Cleric need to select a Divine Order?
+export function needsDivineOrder(characterClass: CharacterClass, level: number, currentDivineOrder?: string): boolean {
+  return characterClass === 'cleric' && level === 1 && !currentDivineOrder;
+}
+
+// Helper function: Does this Druid need to select a Primal Order?
+export function needsPrimalOrder(characterClass: CharacterClass, level: number, currentPrimalOrder?: string): boolean {
+  return characterClass === 'druid' && level === 1 && !currentPrimalOrder;
+}
+
 // ============ EXPERTISE ============
 
 // Classes that get Expertise and at what level
@@ -3126,20 +3136,14 @@ export function getExpertiseCountAtLevel(characterClass: CharacterClass, level: 
 
 // Check if warlock gains invocations at a level
 export function gainsInvocationsAtLevel(level: number): boolean {
-  // Warlocks gain invocations at 2, 5, 7, 9, 12, 15, 18
-  return [2, 5, 7, 9, 12, 15, 18].includes(level);
+  // Warlocks gain invocations at 1, 2, 5, 7, 9, 12, 15, 18 (per 2024 PHB)
+  // Level 1: 1 invocation, Level 2: gains 2 more (total 3), etc.
+  return [1, 2, 5, 7, 9, 12, 15, 18].includes(level);
 }
 
-// Get number of invocations a warlock knows at a level
+// Get number of invocations a warlock knows at a level (per 2024 PHB)
 export function getInvocationsKnownAtLevel(level: number): number {
-  if (level < 2) return 0;
-  if (level < 5) return 2;
-  if (level < 7) return 3;
-  if (level < 9) return 4;
-  if (level < 12) return 5;
-  if (level < 15) return 6;
-  if (level < 18) return 7;
-  return 8;
+  return WARLOCK_INVOCATIONS_KNOWN[level] || 0;
 }
 
 // Check if sorcerer gains metamagic at a level
@@ -4904,6 +4908,51 @@ export const WEAPON_MASTERY_CLASSES: Record<CharacterClass, number> = {
   warlock: 0,
   wizard: 0,
 };
+
+// Check if a class needs weapon mastery selection at a level
+export function needsWeaponMastery(
+  characterClass: CharacterClass,
+  level: number,
+  currentMasteries?: string[]
+): boolean {
+  const masteryCount = WEAPON_MASTERY_CLASSES[characterClass];
+  if (masteryCount === 0) return false;
+  // Weapon mastery is chosen at level 1
+  if (level !== 1) return false;
+  // If already have masteries, don't need to choose again
+  if (currentMasteries && currentMasteries.length >= masteryCount) return false;
+  return true;
+}
+
+// Get number of weapon masteries a class gets
+export function getWeaponMasteryCount(characterClass: CharacterClass): number {
+  return WEAPON_MASTERY_CLASSES[characterClass];
+}
+
+// Get available weapons for mastery based on weapon proficiencies
+export function getAvailableWeaponsForMastery(weaponProficiencies: string[]): { name: string; mastery: WeaponMasteryType }[] {
+  const available: { name: string; mastery: WeaponMasteryType }[] = [];
+
+  for (const [weapon, mastery] of Object.entries(WEAPON_MASTERIES)) {
+    // Simple check - if character has 'simple' or 'martial' in proficiencies, or specific weapon
+    const shopWeapon = SHOP_WEAPONS.find(w => w.name === weapon);
+    if (!shopWeapon) continue;
+
+    const isSimple = shopWeapon.weaponType === 'simple';
+    const isMartial = shopWeapon.weaponType === 'martial';
+
+    const hasProficiency =
+      weaponProficiencies.includes('simple') && isSimple ||
+      weaponProficiencies.includes('martial') && isMartial ||
+      weaponProficiencies.includes(weapon);
+
+    if (hasProficiency) {
+      available.push({ name: weapon, mastery });
+    }
+  }
+
+  return available.sort((a, b) => a.name.localeCompare(b.name));
+}
 
 // Get weapons a character is proficient with based on class proficiencies
 export function getProficientWeapons(weaponProficiencies: { type: WeaponType; specific?: string[] }[]): string[] {

@@ -388,6 +388,9 @@ export interface LevelUpRecord {
     subclassChosen?: string;
     pactBoonChosen?: string;
     fightingStyleChosen?: string;
+    divineOrderChosen?: string;
+    primalOrderChosen?: string;
+    weaponMasteriesChosen?: string[];
     otherChoices?: Record<string, string | string[]>;
   };
 }
