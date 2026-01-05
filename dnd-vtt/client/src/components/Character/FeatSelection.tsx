@@ -1,76 +1,137 @@
 import { useState } from 'react';
 import type { Character, AbilityScores } from '../../types';
-import { GENERAL_FEATS, getAvailableFeats, ABILITY_NAMES, type GeneralFeat } from '../../data/dndData';
+import { Button } from '../ui/Button';
+import {
+  getEligibleFeats,
+  ABILITY_NAMES,
+  type GeneralFeat,
+} from '../../data/dndData';
 
 interface FeatSelectionProps {
   character: Character;
   onSelect: (feat: GeneralFeat, abilityChoice?: keyof AbilityScores) => void;
-  onCancel: () => void;
+  onCancel: () => void; // Go back to ASI
 }
 
 export function FeatSelection({ character, onSelect, onCancel }: FeatSelectionProps) {
+  const eligibleFeats = getEligibleFeats(character);
   const [selectedFeat, setSelectedFeat] = useState<GeneralFeat | null>(null);
+  const [expandedFeat, setExpandedFeat] = useState<string | null>(null);
   const [abilityChoice, setAbilityChoice] = useState<keyof AbilityScores | null>(null);
 
-  const availableFeats = getAvailableFeats(character);
-
-  // Filter out feats the character already has
-  const existingFeatNames = character.features
-    .filter(f => f.source === 'Feat')
-    .map(f => f.name);
-  const selectableFeats = availableFeats.filter(f => !existingFeatNames.includes(f.name));
-
-  const handleFeatClick = (feat: GeneralFeat) => {
-    if (feat.abilityBonus?.ability === 'choice') {
-      setSelectedFeat(feat);
-      setAbilityChoice(null);
-    } else {
-      onSelect(feat);
-    }
-  };
+  // Check if feat requires ability choice
+  const requiresAbilityChoice = selectedFeat?.abilityBonus?.ability === 'choice';
 
   const handleConfirm = () => {
-    if (selectedFeat && abilityChoice) {
-      onSelect(selectedFeat, abilityChoice);
+    if (selectedFeat) {
+      if (requiresAbilityChoice && abilityChoice) {
+        onSelect(selectedFeat, abilityChoice);
+      } else if (!requiresAbilityChoice) {
+        onSelect(selectedFeat);
+      }
     }
   };
 
-  // If a feat with ability choice is selected, show the ability selection
-  if (selectedFeat && selectedFeat.abilityBonus?.ability === 'choice') {
-    const abilities = Object.keys(character.abilityScores) as (keyof AbilityScores)[];
+  const canConfirm = selectedFeat && (!requiresAbilityChoice || abilityChoice);
 
-    return (
-      <div className="space-y-4">
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center mb-4">
         <div>
-          <h3 className="font-medieval text-lg text-gold">{selectedFeat.name}</h3>
-          <p className="text-parchment/70 text-sm">{selectedFeat.description}</p>
+          <h3 className="font-medieval text-xl text-gold">Choose a Feat</h3>
+          <p className="text-parchment/70 text-sm mt-1">
+            Take a feat instead of an Ability Score Improvement
+          </p>
         </div>
+        <Button onClick={onCancel} variant="secondary" size="sm">
+          ← Back to ASI
+        </Button>
+      </div>
 
-        <div className="bg-dark-wood p-3 rounded border border-leather">
-          <div className="text-parchment text-sm mb-2">Benefits:</div>
-          <ul className="space-y-1">
-            {selectedFeat.benefits.map((benefit, idx) => (
-              <li key={idx} className="text-parchment/80 text-sm flex items-start gap-2">
-                <span className="text-green-400">•</span>
-                {benefit}
-              </li>
-            ))}
-          </ul>
-        </div>
+      {/* Feat List */}
+      <div className="max-h-[350px] overflow-y-auto space-y-2 pr-1">
+        {eligibleFeats.map(feat => {
+          const isSelected = selectedFeat?.name === feat.name;
+          const hasPrereqs = feat.prerequisites && Object.keys(feat.prerequisites).length > 0;
 
-        <div>
-          <h4 className="text-gold font-semibold mb-2">Choose Ability Score (+1)</h4>
+          return (
+            <div
+              key={feat.name}
+              className={`p-3 rounded border cursor-pointer transition-colors ${
+                isSelected
+                  ? 'bg-gold/20 border-gold'
+                  : 'bg-dark-wood border-leather hover:border-gold/50'
+              }`}
+              onClick={() => {
+                setSelectedFeat(feat);
+                setAbilityChoice(null);
+              }}
+            >
+              <div className="flex justify-between items-start">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className={isSelected ? 'text-gold font-semibold' : 'text-parchment font-medium'}>
+                      {feat.name}
+                    </span>
+                    {feat.abilityBonus && (
+                      <span className="text-xs bg-green-900/50 text-green-300 px-1.5 py-0.5 rounded">
+                        +1 {feat.abilityBonus.ability === 'choice' ? 'ability' : ABILITY_NAMES[feat.abilityBonus.ability]}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-parchment/60 text-xs mt-1">{feat.description}</p>
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setExpandedFeat(expandedFeat === feat.name ? null : feat.name);
+                  }}
+                  className="text-parchment/50 text-xs hover:text-gold ml-2"
+                >
+                  {expandedFeat === feat.name ? '▼' : '▶'}
+                </button>
+              </div>
+
+              {/* Expanded details */}
+              {expandedFeat === feat.name && (
+                <div className="mt-3 pt-3 border-t border-leather/50">
+                  {hasPrereqs && (
+                    <div className="text-xs text-parchment/50 mb-2">
+                      Prerequisites: {formatPrerequisites(feat.prerequisites!)}
+                    </div>
+                  )}
+                  <ul className="text-parchment/70 text-sm space-y-1">
+                    {feat.benefits.map((benefit, idx) => (
+                      <li key={idx} className="flex gap-2">
+                        <span className="text-gold">•</span>
+                        <span>{benefit}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Ability Choice (if required) */}
+      {selectedFeat && requiresAbilityChoice && (
+        <div className="p-3 bg-dark-wood rounded border border-leather">
+          <div className="text-parchment text-sm mb-2">
+            Choose an ability score to increase by 1:
+          </div>
           <div className="grid grid-cols-3 gap-2">
-            {abilities.map(ability => {
-              const currentScore = character.abilityScores[ability];
-              const atMax = currentScore >= 20;
+            {(Object.keys(character.abilityScores) as (keyof AbilityScores)[]).map(ability => {
+              const score = character.abilityScores[ability];
+              const atMax = score >= 20;
 
               return (
                 <button
                   key={ability}
                   onClick={() => !atMax && setAbilityChoice(ability)}
                   disabled={atMax}
-                  className={`p-3 rounded border transition-colors ${
+                  className={`p-2 rounded border transition-colors ${
                     abilityChoice === ability
                       ? 'bg-gold text-dark-wood border-gold font-bold'
                       : atMax
@@ -78,89 +139,76 @@ export function FeatSelection({ character, onSelect, onCancel }: FeatSelectionPr
                       : 'bg-leather/50 text-parchment border-leather hover:border-gold'
                   }`}
                 >
-                  <div className="text-sm">{ABILITY_NAMES[ability].slice(0, 3).toUpperCase()}</div>
-                  <div className="text-lg font-bold">{currentScore}</div>
-                  {abilityChoice === ability && (
-                    <div className="text-xs text-green-600">→ {currentScore + 1}</div>
-                  )}
+                  <div className="text-xs">{ABILITY_NAMES[ability].slice(0, 3).toUpperCase()}</div>
+                  <div className="font-bold">{score}</div>
+                  {abilityChoice === ability && <div className="text-xs">→ {score + 1}</div>}
                   {atMax && <div className="text-xs">(max)</div>}
                 </button>
               );
             })}
           </div>
         </div>
+      )}
 
-        <div className="flex gap-2">
-          <button
-            onClick={() => setSelectedFeat(null)}
-            className="px-4 py-2 rounded border border-leather text-parchment hover:border-gold transition-colors"
-          >
-            Back
-          </button>
-          <button
-            onClick={handleConfirm}
-            disabled={!abilityChoice}
-            className={`px-4 py-2 rounded font-semibold transition-colors ${
-              abilityChoice
-                ? 'bg-gold text-dark-wood hover:bg-amber-400'
-                : 'bg-leather/50 text-parchment/50 cursor-not-allowed'
-            }`}
-          >
-            Confirm
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Show feat list
-  return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <div>
-          <h3 className="font-medieval text-lg text-gold">Choose a Feat</h3>
-          <p className="text-parchment/70 text-sm">
-            Select a feat to gain new abilities
-          </p>
-        </div>
-        <button
-          onClick={onCancel}
-          className="px-3 py-1 rounded border border-leather text-parchment hover:border-gold transition-colors text-sm"
-        >
-          ← Back to ASI
-        </button>
-      </div>
-
-      <div className="space-y-2 max-h-96 overflow-y-auto">
-        {selectableFeats.map(feat => (
-          <button
-            key={feat.name}
-            onClick={() => handleFeatClick(feat)}
-            className="w-full p-4 rounded border border-leather bg-dark-wood hover:border-gold hover:bg-leather/30 transition-colors text-left"
-          >
-            <div className="flex justify-between items-start">
-              <div className="text-gold font-semibold">{feat.name}</div>
-              {feat.abilityBonus && (
-                <span className="text-xs bg-green-900/30 text-green-300 px-2 py-0.5 rounded">
-                  +1 {feat.abilityBonus.ability === 'choice' ? 'Choice' : ABILITY_NAMES[feat.abilityBonus.ability].slice(0, 3).toUpperCase()}
+      {/* Selected Feat Summary */}
+      {selectedFeat && (
+        <div className="p-3 bg-gold/10 rounded border border-gold/30">
+          <div className="flex justify-between items-center">
+            <div>
+              <span className="text-gold font-semibold">{selectedFeat.name}</span>
+              {selectedFeat.abilityBonus && (
+                <span className="text-parchment/70 text-sm ml-2">
+                  (+1 {abilityChoice ? ABILITY_NAMES[abilityChoice] :
+                    selectedFeat.abilityBonus.ability === 'choice' ? '?' :
+                    ABILITY_NAMES[selectedFeat.abilityBonus.ability as keyof AbilityScores]})
                 </span>
               )}
             </div>
-            <p className="text-parchment/80 text-sm mt-1">{feat.description}</p>
-            <ul className="mt-2 space-y-1">
-              {feat.benefits.slice(0, 2).map((benefit, idx) => (
-                <li key={idx} className="text-xs text-parchment/60 flex items-start gap-1">
-                  <span className="text-green-400">•</span>
-                  {benefit}
-                </li>
-              ))}
-              {feat.benefits.length > 2 && (
-                <li className="text-xs text-parchment/40">+{feat.benefits.length - 2} more...</li>
-              )}
-            </ul>
-          </button>
-        ))}
-      </div>
+            <Button
+              onClick={handleConfirm}
+              disabled={!canConfirm}
+              variant="primary"
+              size="sm"
+            >
+              Take Feat
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {eligibleFeats.length === 0 && (
+        <div className="p-4 bg-dark-wood rounded border border-leather text-center">
+          <p className="text-parchment/70">
+            No feats available. You may not meet the prerequisites for any feats.
+          </p>
+          <Button onClick={onCancel} variant="secondary" size="sm" className="mt-3">
+            Take ASI Instead
+          </Button>
+        </div>
+      )}
     </div>
   );
+}
+
+function formatPrerequisites(prereqs: NonNullable<GeneralFeat['prerequisites']>): string {
+  const parts: string[] = [];
+
+  if (prereqs.level) {
+    parts.push(`Level ${prereqs.level}+`);
+  }
+  if (prereqs.abilityScore) {
+    parts.push(`${ABILITY_NAMES[prereqs.abilityScore.ability]} ${prereqs.abilityScore.minimum}+`);
+  }
+  if (prereqs.spellcasting) {
+    parts.push('Spellcasting ability');
+  }
+  if (prereqs.armorProficiency) {
+    parts.push(`${prereqs.armorProficiency} armor proficiency`);
+  }
+  if (prereqs.proficiency) {
+    parts.push(`${prereqs.proficiency} proficiency`);
+  }
+
+  return parts.join(', ');
 }

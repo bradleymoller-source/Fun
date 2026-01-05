@@ -1,82 +1,162 @@
 import { useState } from 'react';
 import type { Character } from '../../types';
-import { getAvailableMetamagic, getMetamagicKnownAtLevel } from '../../data/dndData';
+import { Button } from '../ui/Button';
+import {
+  METAMAGIC_OPTIONS,
+  getMetamagicKnownAtLevel,
+} from '../../data/dndData';
 
 interface MetamagicSelectionProps {
   character: Character;
   newLevel: number;
-  currentMetamagic: string[];
-  onSelect: (metamagic: string[]) => void;
+  currentMetamagic: string[]; // IDs of already known metamagic
+  onSelect: (metamagicIds: string[]) => void;
 }
 
-export function MetamagicSelection({ character, newLevel, currentMetamagic, onSelect }: MetamagicSelectionProps) {
+export function MetamagicSelection({
+  character,
+  newLevel,
+  currentMetamagic,
+  onSelect,
+}: MetamagicSelectionProps) {
+  const previousKnown = getMetamagicKnownAtLevel(character.level);
+  const newKnown = getMetamagicKnownAtLevel(newLevel);
+  const metamagicToLearn = newKnown - previousKnown;
+
   const [selectedMetamagic, setSelectedMetamagic] = useState<string[]>([]);
+  const [expandedOption, setExpandedOption] = useState<string | null>(null);
 
-  const metamagicToLearn = getMetamagicKnownAtLevel(newLevel) - getMetamagicKnownAtLevel(character.level);
-  const availableMetamagic = getAvailableMetamagic(newLevel)
-    .filter(m => !currentMetamagic.includes(m.id));
+  // Filter out already known metamagic
+  const availableOptions = METAMAGIC_OPTIONS.filter(
+    option => !currentMetamagic.includes(option.id)
+  );
 
-  const toggleMetamagic = (metamagicId: string) => {
-    if (selectedMetamagic.includes(metamagicId)) {
-      setSelectedMetamagic(selectedMetamagic.filter(m => m !== metamagicId));
-    } else if (selectedMetamagic.length < metamagicToLearn) {
-      setSelectedMetamagic([...selectedMetamagic, metamagicId]);
-    }
+  const handleOptionToggle = (optionId: string) => {
+    setSelectedMetamagic(prev => {
+      if (prev.includes(optionId)) {
+        return prev.filter(id => id !== optionId);
+      } else if (prev.length < metamagicToLearn) {
+        return [...prev, optionId];
+      }
+      return prev;
+    });
   };
 
   const handleConfirm = () => {
-    onSelect(selectedMetamagic);
+    if (selectedMetamagic.length === metamagicToLearn) {
+      onSelect(selectedMetamagic);
+    }
   };
+
+  const getOptionById = (id: string) => METAMAGIC_OPTIONS.find(o => o.id === id);
 
   return (
     <div className="space-y-4">
-      <div>
-        <h3 className="font-medieval text-lg text-gold">Learn Metamagic</h3>
-        <p className="text-parchment/70 text-sm">
-          Choose {metamagicToLearn} Metamagic option{metamagicToLearn > 1 ? 's' : ''} to enhance your spells.
-          {' '}Selected: {selectedMetamagic.length}/{metamagicToLearn}
+      <div className="text-center mb-4">
+        <h3 className="font-medieval text-xl text-gold">Learn Metamagic</h3>
+        <p className="text-parchment/70 text-sm mt-1">
+          Choose {metamagicToLearn} new Metamagic option{metamagicToLearn > 1 ? 's' : ''} to enhance
+          your spells
         </p>
       </div>
 
-      <div className="space-y-2 max-h-80 overflow-y-auto">
-        {availableMetamagic.map(metamagic => {
-          const isSelected = selectedMetamagic.includes(metamagic.id);
+      <div className="p-4 bg-dark-wood rounded border border-leather mb-4">
+        <div className="flex justify-between items-center">
+          <span className="text-parchment">Metamagic to learn:</span>
+          <span className="text-gold font-bold">
+            {selectedMetamagic.length} / {metamagicToLearn}
+          </span>
+        </div>
+        <p className="text-parchment/60 text-xs mt-2">
+          Metamagic lets you twist spells using Sorcery Points
+        </p>
+      </div>
+
+      {/* Current Metamagic (if any) */}
+      {currentMetamagic.length > 0 && (
+        <div className="p-3 bg-purple-900/20 rounded border border-purple-500/30 mb-4">
+          <div className="text-purple-300 text-sm font-semibold mb-1">Current Metamagic:</div>
+          <div className="flex flex-wrap gap-1">
+            {currentMetamagic.map(id => {
+              const option = getOptionById(id);
+              return option ? (
+                <span
+                  key={id}
+                  className="bg-purple-900/30 text-purple-200 px-2 py-0.5 rounded text-xs"
+                >
+                  {option.name}
+                </span>
+              ) : null;
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Metamagic Selection */}
+      <div className="max-h-[300px] overflow-y-auto space-y-2 pr-1">
+        {availableOptions.map(option => {
+          const isSelected = selectedMetamagic.includes(option.id);
+          const isDisabled = !isSelected && selectedMetamagic.length >= metamagicToLearn;
+
           return (
-            <button
-              key={metamagic.id}
-              onClick={() => toggleMetamagic(metamagic.id)}
-              disabled={!isSelected && selectedMetamagic.length >= metamagicToLearn}
-              className={`w-full p-3 rounded border text-left transition-colors ${
+            <div
+              key={option.id}
+              className={`p-3 rounded border cursor-pointer transition-colors ${
                 isSelected
-                  ? 'border-purple-500 bg-purple-900/30 text-purple-300'
-                  : selectedMetamagic.length >= metamagicToLearn
-                  ? 'border-leather/50 bg-dark-wood/50 text-parchment/30 cursor-not-allowed'
-                  : 'border-leather bg-dark-wood hover:border-gold/50'
+                  ? 'bg-gold/20 border-gold'
+                  : isDisabled
+                  ? 'bg-dark-wood/50 border-leather/30 opacity-50 cursor-not-allowed'
+                  : 'bg-leather/30 border-leather hover:border-gold/50'
               }`}
+              onClick={() => !isDisabled && handleOptionToggle(option.id)}
             >
               <div className="flex justify-between items-center">
-                <span className="font-semibold">{metamagic.name}</span>
-                <span className="text-xs bg-purple-900/50 text-purple-300 px-2 py-0.5 rounded">
-                  {metamagic.cost} SP
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className={isSelected ? 'text-gold font-semibold' : 'text-parchment'}>
+                    {option.name}
+                  </span>
+                  <span className="text-xs bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded">
+                    {option.cost} SP
+                  </span>
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setExpandedOption(expandedOption === option.id ? null : option.id);
+                  }}
+                  className="text-parchment/50 text-xs hover:text-gold"
+                >
+                  {expandedOption === option.id ? '▼' : 'ⓘ'}
+                </button>
               </div>
-              <p className="text-sm text-parchment/70 mt-1">{metamagic.description}</p>
-            </button>
+              {expandedOption === option.id && (
+                <p className="text-parchment/70 text-sm mt-2">{option.description}</p>
+              )}
+            </div>
           );
         })}
       </div>
 
-      <button
-        onClick={handleConfirm}
-        disabled={selectedMetamagic.length !== metamagicToLearn}
-        className={`w-full px-4 py-2 rounded font-semibold transition-colors ${
-          selectedMetamagic.length === metamagicToLearn
-            ? 'bg-gold text-dark-wood hover:bg-amber-400'
-            : 'bg-leather/50 text-parchment/50 cursor-not-allowed'
-        }`}
-      >
-        Confirm Metamagic
-      </button>
+      {/* Confirm */}
+      <div className="p-3 bg-gold/10 rounded border border-gold/30">
+        <div className="flex justify-between items-center">
+          <div className="text-parchment text-sm">
+            {selectedMetamagic.length === metamagicToLearn
+              ? `Learning: ${selectedMetamagic.map(id => getOptionById(id)?.name).join(', ')}`
+              : `Select ${metamagicToLearn - selectedMetamagic.length} more option${
+                  metamagicToLearn - selectedMetamagic.length > 1 ? 's' : ''
+                }`}
+          </div>
+          <Button
+            onClick={handleConfirm}
+            disabled={selectedMetamagic.length !== metamagicToLearn}
+            variant="primary"
+            size="sm"
+          >
+            Confirm
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

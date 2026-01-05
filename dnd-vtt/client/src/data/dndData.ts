@@ -554,7 +554,6 @@ export const FIGHTING_STYLE_CLASSES: Partial<Record<CharacterClass, { level: num
 };
 
 // Check if a class needs to choose a fighting style at this level
-// Returns true if character should have a fighting style but doesn't have a valid one
 export function needsFightingStyle(
   characterClass: CharacterClass,
   level: number,
@@ -562,16 +561,15 @@ export function needsFightingStyle(
 ): boolean {
   const classInfo = FIGHTING_STYLE_CLASSES[characterClass];
   console.log('[needsFightingStyle] Input:', { characterClass, level, currentFightingStyle });
-  console.log('[needsFightingStyle] classInfo:', classInfo);
   if (!classInfo) {
-    console.log('[needsFightingStyle] No classInfo, returning false');
+    console.log('[needsFightingStyle] No classInfo for', characterClass);
     return false;
   }
-  // Allow selection if at or past the required level and missing a valid style
-  // Check that currentFightingStyle is actually one of the valid options
+  // Check if current style is actually valid for this class
   const hasValidStyle = currentFightingStyle && classInfo.options.includes(currentFightingStyle);
+  // Allow selection at or past the required level if missing a valid style
   const result = level >= classInfo.level && !hasValidStyle;
-  console.log('[needsFightingStyle] hasValidStyle:', hasValidStyle, 'level >= classInfo.level:', level >= classInfo.level, 'result:', result);
+  console.log('[needsFightingStyle] Result:', result, '(hasValidStyle:', hasValidStyle, ')');
   return result;
 }
 
@@ -730,34 +728,19 @@ export const PACT_BOONS: PactBoon[] = [
   },
 ];
 
-// Valid pact boon IDs
-const VALID_PACT_BOONS = ['blade', 'chain', 'tome'];
-
 // Check if a warlock needs to choose a pact boon
 export function needsPactBoon(characterClass: CharacterClass, level: number, currentPactBoon?: string): boolean {
-  // Pact Boon is gained at level 3 in 2024 PHB (via invocations)
-  const hasValidPactBoon = currentPactBoon && VALID_PACT_BOONS.includes(currentPactBoon);
-  return characterClass === 'warlock' && level >= 3 && !hasValidPactBoon;
+  return characterClass === 'warlock' && level === 1 && !currentPactBoon;
 }
-
-// Valid divine order IDs
-const VALID_DIVINE_ORDERS = ['protector', 'thaumaturge'];
 
 // Helper function: Does this Cleric need to select a Divine Order?
 export function needsDivineOrder(characterClass: CharacterClass, level: number, currentDivineOrder?: string): boolean {
-  // Divine Order is a level 1 feature - allow selection if missing at any level
-  const hasValidOrder = currentDivineOrder && VALID_DIVINE_ORDERS.includes(currentDivineOrder);
-  return characterClass === 'cleric' && level >= 1 && !hasValidOrder;
+  return characterClass === 'cleric' && level === 1 && !currentDivineOrder;
 }
 
-// Valid primal order IDs
-const VALID_PRIMAL_ORDERS = ['magician', 'warden'];
-
-// Helper function: Does this Druid need to select a Primal Order?
+/// Helper function: Does this Druid need to select a Primal Order?
 export function needsPrimalOrder(characterClass: CharacterClass, level: number, currentPrimalOrder?: string): boolean {
-  // Primal Order is a level 1 feature - allow selection if missing at any level
-  const hasValidOrder = currentPrimalOrder && VALID_PRIMAL_ORDERS.includes(currentPrimalOrder);
-  return characterClass === 'druid' && level >= 1 && !hasValidOrder;
+  return characterClass === 'druid' && level === 1 && !currentPrimalOrder;
 }
 
 // ============ PRIMAL KNOWLEDGE (Barbarian L3) ============
@@ -778,9 +761,7 @@ export function needsPrimalKnowledge(
   level: number,
   currentPrimalKnowledgeSkill?: string
 ): boolean {
-  // Primal Knowledge is a level 3 feature - allow selection if missing at level 3+
-  const hasValidSkill = currentPrimalKnowledgeSkill && PRIMAL_KNOWLEDGE_SKILLS.includes(currentPrimalKnowledgeSkill as SkillName);
-  return characterClass === 'barbarian' && level >= 3 && !hasValidSkill;
+  return characterClass === 'barbarian' && level === 3 && !currentPrimalKnowledgeSkill;
 }
 
 // ============ EXPERTISE ============
@@ -2933,7 +2914,7 @@ export const CLASS_FEATURES: Record<CharacterClass, ClassFeature[]> = {
     { name: 'Martial Arts', description: 'Use DEX instead of STR for unarmed strikes and monk weapons. Unarmed deals 1d6 (scales with level). Bonus action unarmed strike after Attack action.', level: 1 },
     { name: 'Unarmored Defense', description: 'AC = 10 + DEX mod + WIS mod when not wearing armor or shield', level: 1 },
     { name: 'Weapon Mastery', description: 'Choose 2 weapon masteries from your proficient weapons (simple weapons and shortswords).', level: 1 },
-    { name: 'Focus', description: 'Gain Focus Points = monk level. Techniques: Flurry of Blows (1 Focus, 2 unarmed strikes as bonus action), Patient Defense (1 Focus, Dodge as bonus action), Step of the Wind (1 Focus, Disengage or Dash as bonus action, double jump distance). Regain all on short/long rest.', level: 2 },
+    { name: 'Focus', description: 'Gain Focus Points = monk level. Spend to fuel special techniques. Regain all on short/long rest.', level: 2 },
     { name: 'Unarmored Movement', description: 'Speed increases by 10 ft when not wearing armor. Increases at higher levels.', level: 2 },
     { name: 'Uncanny Metabolism', description: 'When you roll initiative, regain all Focus Points if you have none.', level: 2 },
     { name: 'Deflect Attacks', description: 'Reaction to reduce ranged attack damage by 1d10 + DEX + monk level. Can catch and throw back.', level: 3 },
@@ -3039,8 +3020,9 @@ export const CLASS_FEATURES: Record<CharacterClass, ClassFeature[]> = {
     { name: 'Arcane Apotheosis', description: 'While Innate Sorcery is active, you can use 1 Metamagic option without spending Sorcery Points once per turn.', level: 20 },
   ],
   warlock: [
-    { name: 'Eldritch Invocations', description: 'Learn 1 invocation at level 1. Invocations include Pact Boons (Pact of the Blade, Chain, or Tome) and other abilities. Gain more invocations as you level.', level: 1 },
+    { name: 'Eldritch Invocations', description: 'Learn 1 invocation at level 1. Customize your warlock with special abilities.', level: 1 },
     { name: 'Pact Magic', description: 'Cast warlock spells using CHA. Have 1 spell slot (regains on short rest). Know 2 cantrips and 2 spells.', level: 1 },
+    { name: 'Pact Boon', description: 'Choose: Pact of the Blade (create weapon), Pact of the Chain (familiar), Pact of the Tome (extra cantrips).', level: 1 },
     { name: 'Magical Cunning', description: 'Perform a 1-minute ritual to regain half your expended Pact Magic slots (round up). 1/long rest.', level: 2 },
     { name: 'Otherworldly Patron', description: 'Choose your Warlock subclass: Archfey Patron, Celestial Patron, Fiend Patron, or Great Old One Patron.', level: 3 },
     { name: 'Ability Score Improvement', description: 'Increase one ability by 2, or two abilities by 1 each. Max 20.', level: 4 },
@@ -4649,7 +4631,7 @@ export const CANTRIPS_KNOWN_BY_LEVEL: Partial<Record<CharacterClass, Record<numb
 // Spells known by level for "known" casters (Bard, Sorcerer, Ranger, Warlock)
 export const SPELLS_KNOWN_BY_LEVEL: Partial<Record<CharacterClass, Record<number, number>>> = {
   bard: { 1: 4, 2: 5, 3: 6, 4: 7, 5: 8, 6: 9, 7: 10, 8: 11, 9: 12, 10: 14, 11: 15, 12: 15 },
-  ranger: { 1: 2, 2: 2, 3: 3, 4: 3, 5: 4, 6: 4, 7: 5, 8: 5, 9: 6, 10: 6, 11: 7, 12: 7 },
+  ranger: { 1: 0, 2: 2, 3: 3, 4: 3, 5: 4, 6: 4, 7: 5, 8: 5, 9: 6, 10: 6, 11: 7, 12: 7 },
   sorcerer: { 1: 2, 2: 3, 3: 4, 4: 5, 5: 6, 6: 7, 7: 8, 8: 9, 9: 10, 10: 11, 11: 12, 12: 12 },
   warlock: { 1: 2, 2: 3, 3: 4, 4: 5, 5: 6, 6: 7, 7: 8, 8: 9, 9: 10, 10: 10, 11: 11, 12: 11 },
 };
@@ -4977,10 +4959,10 @@ export function needsWeaponMastery(
 ): boolean {
   const masteryCount = WEAPON_MASTERY_CLASSES[characterClass];
   if (masteryCount === 0) return false;
-  // Weapon mastery is a level 1 feature - allow selection if missing at any level
-  // Only count masteries that are actually valid weapons in WEAPON_MASTERIES
-  const validMasteries = currentMasteries?.filter(m => m && WEAPON_MASTERIES[m]) || [];
-  if (validMasteries.length >= masteryCount) return false;
+  // Weapon mastery is chosen at level 1
+  if (level !== 1) return false;
+  // If already have masteries, don't need to choose again
+  if (currentMasteries && currentMasteries.length >= masteryCount) return false;
   return true;
 }
 

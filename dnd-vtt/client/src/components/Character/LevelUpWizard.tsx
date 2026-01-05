@@ -115,13 +115,8 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
   const [selectedFightingStyle, setSelectedFightingStyle] = useState<string | null>(null);
   const requiresFightingStyle = needsFightingStyle(character.characterClass, newLevel, character.fightingStyle);
 
-  // DEBUG: Log fighting style check
-  console.log('[LevelUp] Fighting Style Check:', {
-    class: character.characterClass,
-    newLevel,
-    currentFightingStyle: character.fightingStyle,
-    requiresFightingStyle
-  });
+  // DEBUG
+  console.log('[LevelUp] Fighting Style Check:', { class: character.characterClass, newLevel, fightingStyle: character.fightingStyle, requiresFightingStyle });
 
   // Divine Order (Cleric L1)
   const [selectedDivineOrder, setSelectedDivineOrder] = useState<string | null>(null);
@@ -290,7 +285,7 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
   const steps = getSteps();
   const currentStepIndex = steps.indexOf(step);
 
-  // DEBUG: Log computed steps
+  // DEBUG
   console.log('[LevelUp] Computed steps:', steps);
 
   const nextStep = () => {
@@ -1343,18 +1338,15 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
     />
   );
 
-  const renderFightingStyleStep = () => {
-    console.log('[LevelUp] renderFightingStyleStep called');
-    return (
-      <FightingStyleSelection
-        characterClass={character.characterClass}
-        onSelect={(styleId) => {
-          setSelectedFightingStyle(styleId);
-          nextStep();
-        }}
-      />
-    );
-  };
+  const renderFightingStyleStep = () => (
+    <FightingStyleSelection
+      characterClass={character.characterClass}
+      onSelect={(styleId) => {
+        setSelectedFightingStyle(styleId);
+        nextStep();
+      }}
+    />
+  );
 
   const renderDivineOrderStep = () => (
     <DivineOrderSelection

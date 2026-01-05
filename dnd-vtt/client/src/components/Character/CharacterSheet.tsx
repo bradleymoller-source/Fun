@@ -413,10 +413,10 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
             {isEditable && onUpdate && (
               <button
                 onClick={() => setShowLevelUpWizard(true)}
-                className="px-3 py-1 bg-gradient-to-r from-gold to-amber-500 hover:from-amber-500 hover:to-gold text-dark-wood font-bold rounded-lg border-2 border-amber-600 shadow-lg hover:shadow-amber-500/50 transition-all transform hover:scale-105 animate-pulse hover:animate-none"
-                title="Level Up Your Character"
+                className="text-xs px-2 py-0.5 bg-gold/20 hover:bg-gold/40 text-gold rounded border border-gold/50 transition-colors"
+                title="Level Up"
               >
-                ⬆️ Level Up!
+                Level Up ↑
               </button>
             )}
           </div>
@@ -804,26 +804,6 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
 
       {/* Class Resources (Ki, Rage, etc.) */}
       {renderClassResources()}
-
-      {/* Level Up Card */}
-      {isEditable && onUpdate && (
-        <div className="bg-gradient-to-r from-dark-wood via-amber-900/30 to-dark-wood p-4 rounded-lg border-2 border-gold shadow-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-medieval text-xl text-gold">Ready to Advance?</h3>
-              <p className="text-parchment/70 text-sm">
-                Current: Level {character.level} • Next: Level {character.level + 1}
-              </p>
-            </div>
-            <button
-              onClick={() => setShowLevelUpWizard(true)}
-              className="px-6 py-3 bg-gradient-to-r from-gold to-amber-500 hover:from-amber-500 hover:to-gold text-dark-wood font-bold text-lg rounded-lg border-2 border-amber-600 shadow-lg hover:shadow-amber-500/50 transition-all transform hover:scale-105"
-            >
-              ⬆️ Level Up!
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 
