@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import type { Character, CharacterClass, AbilityScores, SkillName, Condition } from '../../types';
+import { LevelUpWizard } from './LevelUpWizard';
 import {
   ABILITY_NAMES,
   ABILITY_ABBREVIATIONS,
@@ -55,6 +56,7 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
   const [importError, setImportError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [usedItems, setUsedItems] = useState<Set<string>>(new Set());
+  const [showLevelUpWizard, setShowLevelUpWizard] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const profBonus = getProficiencyBonus(character.level);
@@ -404,9 +406,20 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
             )}
             <h2 className="font-medieval text-2xl text-gold">{character.name}</h2>
           </div>
-          <p className="text-parchment">
-            Level {character.level} {SPECIES_NAMES[character.species]} {CLASS_NAMES[character.characterClass]}
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-parchment">
+              Level {character.level} {SPECIES_NAMES[character.species]} {CLASS_NAMES[character.characterClass]}
+            </p>
+            {isEditable && onUpdate && (
+              <button
+                onClick={() => setShowLevelUpWizard(true)}
+                className="text-xs px-2 py-0.5 bg-gold/20 hover:bg-gold/40 text-gold rounded border border-gold/50 transition-colors"
+                title="Level Up"
+              >
+                Level Up ↑
+              </button>
+            )}
+          </div>
           {character.subclass && (
             <>
               <p className="text-gold/70 text-sm">{character.subclass}</p>
@@ -2002,30 +2015,46 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
   };
 
   return (
-    <div className="space-y-4">
-      {renderHeader()}
+    <>
+      <div className="space-y-4">
+        {renderHeader()}
 
-      {/* Tab Navigation */}
-      <div className="flex flex-wrap gap-1 bg-dark-wood p-1 rounded border border-leather">
-        {tabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`px-2 py-1 rounded text-xs transition-colors whitespace-nowrap ${
-              activeTab === tab.id
-                ? 'bg-gold text-dark-wood font-semibold'
-                : 'text-parchment hover:bg-leather'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+        {/* Tab Navigation */}
+        <div className="flex flex-wrap gap-1 bg-dark-wood p-1 rounded border border-leather">
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-2 py-1 rounded text-xs transition-colors whitespace-nowrap ${
+                activeTab === tab.id
+                  ? 'bg-gold text-dark-wood font-semibold'
+                  : 'text-parchment hover:bg-leather'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab Content */}
+        <div className="min-h-[300px] max-h-[60vh] overflow-y-auto pr-1">
+          {renderCurrentTab()}
+        </div>
       </div>
 
-      {/* Tab Content */}
-      <div className="min-h-[300px] max-h-[60vh] overflow-y-auto pr-1">
-        {renderCurrentTab()}
-      </div>
-    </div>
+      {/* Level Up Wizard Modal */}
+      {showLevelUpWizard && onUpdate && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <LevelUpWizard
+            character={character}
+            onComplete={(updatedCharacter) => {
+              onUpdate(updatedCharacter);
+              setShowLevelUpWizard(false);
+            }}
+            onCancel={() => setShowLevelUpWizard(false)}
+          />
+        </div>
+      )}
+    </>
   );
 }
