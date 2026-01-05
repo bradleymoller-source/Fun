@@ -561,11 +561,18 @@ export function needsFightingStyle(
   currentFightingStyle?: string
 ): boolean {
   const classInfo = FIGHTING_STYLE_CLASSES[characterClass];
-  if (!classInfo) return false;
+  console.log('[needsFightingStyle] Input:', { characterClass, level, currentFightingStyle });
+  console.log('[needsFightingStyle] classInfo:', classInfo);
+  if (!classInfo) {
+    console.log('[needsFightingStyle] No classInfo, returning false');
+    return false;
+  }
   // Allow selection if at or past the required level and missing a valid style
   // Check that currentFightingStyle is actually one of the valid options
   const hasValidStyle = currentFightingStyle && classInfo.options.includes(currentFightingStyle);
-  return level >= classInfo.level && !hasValidStyle;
+  const result = level >= classInfo.level && !hasValidStyle;
+  console.log('[needsFightingStyle] hasValidStyle:', hasValidStyle, 'level >= classInfo.level:', level >= classInfo.level, 'result:', result);
+  return result;
 }
 
 // Get available fighting style options for a class
