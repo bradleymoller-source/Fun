@@ -9,6 +9,8 @@ import { CantripLearning } from './CantripLearning';
 import { ExpertiseSelection } from './ExpertiseSelection';
 import { MetamagicSelection } from './MetamagicSelection';
 import { InvocationSelection } from './InvocationSelection';
+import { PactBoonSelection } from './PactBoonSelection';
+import { FightingStyleSelection } from './FightingStyleSelection';
 import {
   CLASS_HIT_DICE,
   CLASS_NAMES,
@@ -27,10 +29,14 @@ import {
   gainsCantripsAtLevel,
   getNewCantripsAtLevel,
   gainsExpertiseAtLevel,
+  getExpertiseCountAtLevel,
   gainsMetamagicAtLevel,
   getMetamagicKnownAtLevel,
   gainsInvocationsAtLevel,
   getInvocationsKnownAtLevel,
+  needsPactBoon,
+  needsFightingStyle,
+  getCharacterResources,
   type GeneralFeat,
 } from '../../data/dndData';
 
@@ -41,7 +47,7 @@ interface LevelUpWizardProps {
 }
 
 type LevelUpStep =
-  | 'overview' | 'hp' | 'subclass' | 'asi' | 'features'
+  | 'overview' | 'hp' | 'subclass' | 'pactBoon' | 'fightingStyle' | 'asi' | 'features'
   | 'cantripLearning' | 'spellLearning' | 'spells'
   | 'expertise' | 'metamagic' | 'invocations' | 'review';
 
@@ -80,7 +86,7 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
   // Expertise
   const [newExpertise, setNewExpertise] = useState<SkillName[]>([]);
   const gainsExpertise = gainsExpertiseAtLevel(character.characterClass, newLevel);
-  const expertiseCount = gainsExpertise ? (character.characterClass === 'rogue' ? 2 : character.characterClass === 'bard' ? 2 : 1) : 0;
+  const expertiseCount = getExpertiseCountAtLevel(character.characterClass, newLevel);
 
   // Metamagic (Sorcerer)
   const [newMetamagic, setNewMetamagic] = useState<string[]>([]);
@@ -91,6 +97,14 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
   const [newInvocations, setNewInvocations] = useState<string[]>([]);
   const gainsInvocations = character.characterClass === 'warlock' && gainsInvocationsAtLevel(newLevel);
   const invocationsToLearn = gainsInvocations ? getInvocationsKnownAtLevel(newLevel) - getInvocationsKnownAtLevel(character.level) : 0;
+
+  // Pact Boon (Warlock L3)
+  const [selectedPactBoon, setSelectedPactBoon] = useState<string | null>(null);
+  const requiresPactBoon = needsPactBoon(character.characterClass, newLevel, character.pactBoon);
+
+  // Fighting Style (Fighter L1, Paladin L2, Ranger L2)
+  const [selectedFightingStyle, setSelectedFightingStyle] = useState<string | null>(null);
+  const requiresFightingStyle = needsFightingStyle(character.characterClass, newLevel, character.fightingStyle);
 
   // Step tracking
   const [step, setStep] = useState<LevelUpStep>('overview');
@@ -164,6 +178,16 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
       steps.push('subclass');
     }
 
+    // Pact Boon (Warlock at level 3)
+    if (requiresPactBoon) {
+      steps.push('pactBoon');
+    }
+
+    // Fighting Style (Fighter L1, Paladin/Ranger L2)
+    if (requiresFightingStyle) {
+      steps.push('fightingStyle');
+    }
+
     // ASI levels
     if (hasASI) {
       steps.push('asi');
@@ -231,6 +255,10 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
         return hpMethod === 'average' || rolledHp !== null;
       case 'subclass':
         return selectedSubclass !== null;
+      case 'pactBoon':
+        return selectedPactBoon !== null;
+      case 'fightingStyle':
+        return selectedFightingStyle !== null;
       case 'asi':
         if (showFeatSelection) return false; // Handled by feat selection
         if (selectedFeat) return true;
@@ -361,6 +389,31 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
       };
     }
 
+    // Update feature uses (Ki, Rage, Sorcery Points, etc.) with new maximums
+    const featNames = character.features
+      .filter(f => f.source === 'Feat')
+      .map(f => f.name);
+    if (selectedFeat) {
+      featNames.push(selectedFeat.name);
+    }
+    const newResourceInfo = getCharacterResources(
+      character.characterClass,
+      character.species,
+      newLevel,
+      newAbilityScores,
+      featNames.length > 0 ? featNames : undefined
+    );
+
+    const updatedFeatureUses: Record<string, { used: number; max: number; restoreOn: 'short' | 'long' | 'dawn' }> = {};
+    for (const [resourceId, info] of Object.entries(newResourceInfo)) {
+      const currentUse = character.featureUses?.[resourceId];
+      updatedFeatureUses[resourceId] = {
+        used: currentUse?.used || 0,
+        max: info.max,
+        restoreOn: info.restoreOn === 'short' || info.restoreOn === 'long' ? info.restoreOn : 'long',
+      };
+    }
+
     // Build level history record
     const levelUpRecord: LevelUpRecord = {
       level: newLevel,
@@ -379,6 +432,8 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
         }),
         ...(selectedFeat && { featTaken: selectedFeat.name }),
         ...(selectedSubclass && { subclassChosen: selectedSubclass }),
+        ...(selectedPactBoon && { pactBoonChosen: selectedPactBoon }),
+        ...(selectedFightingStyle && { fightingStyleChosen: selectedFightingStyle }),
         ...((newExpertise.length > 0 || newMetamagic.length > 0 || newInvocations.length > 0) && {
           otherChoices: {
             ...(newExpertise.length > 0 && { expertise: newExpertise }),
@@ -428,6 +483,16 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
       ...(newInvocations.length > 0 && {
         eldritchInvocations: updatedInvocations,
       }),
+      // Pact Boon (Warlock)
+      ...(selectedPactBoon && {
+        pactBoon: selectedPactBoon,
+      }),
+      // Fighting Style (Fighter, Paladin, Ranger)
+      ...(selectedFightingStyle && {
+        fightingStyle: selectedFightingStyle,
+      }),
+      // Feature uses with updated maximums
+      featureUses: updatedFeatureUses,
       // Level history
       levelHistory: updatedLevelHistory,
     };
@@ -460,6 +525,18 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
             <li className="flex items-center gap-2">
               <span className="text-purple-400">★</span>
               Choose your {CLASS_NAMES[character.characterClass]} subclass
+            </li>
+          )}
+          {requiresPactBoon && (
+            <li className="flex items-center gap-2">
+              <span className="text-purple-400">★</span>
+              Choose your Pact Boon
+            </li>
+          )}
+          {requiresFightingStyle && (
+            <li className="flex items-center gap-2">
+              <span className="text-red-400">★</span>
+              Choose a Fighting Style
             </li>
           )}
           {hasASI && (
@@ -1082,11 +1159,32 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
     />
   );
 
+  const renderPactBoonStep = () => (
+    <PactBoonSelection
+      onSelect={(pactBoonId) => {
+        setSelectedPactBoon(pactBoonId);
+        nextStep();
+      }}
+    />
+  );
+
+  const renderFightingStyleStep = () => (
+    <FightingStyleSelection
+      characterClass={character.characterClass}
+      onSelect={(styleId) => {
+        setSelectedFightingStyle(styleId);
+        nextStep();
+      }}
+    />
+  );
+
   const renderCurrentStep = () => {
     switch (step) {
       case 'overview': return renderOverview();
       case 'hp': return renderHpStep();
       case 'subclass': return renderSubclassStep();
+      case 'pactBoon': return renderPactBoonStep();
+      case 'fightingStyle': return renderFightingStyleStep();
       case 'asi': return renderAsiStep();
       case 'features': return renderFeaturesStep();
       case 'expertise': return renderExpertiseStep();
@@ -1128,7 +1226,7 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
       {renderCurrentStep()}
 
       {/* Navigation - hide for steps that auto-advance */}
-      {!['subclass', 'spellLearning', 'cantripLearning', 'expertise', 'metamagic', 'invocations'].includes(step) && (
+      {!['subclass', 'pactBoon', 'fightingStyle', 'spellLearning', 'cantripLearning', 'expertise', 'metamagic', 'invocations'].includes(step) && (
         <div className="flex justify-between mt-6 pt-4 border-t border-leather">
           <Button
             variant="secondary"

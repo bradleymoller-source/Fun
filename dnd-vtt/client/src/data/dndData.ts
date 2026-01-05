@@ -553,6 +553,24 @@ export const FIGHTING_STYLE_CLASSES: Partial<Record<CharacterClass, { level: num
   },
 };
 
+// Check if a class needs to choose a fighting style at this level
+export function needsFightingStyle(
+  characterClass: CharacterClass,
+  level: number,
+  currentFightingStyle?: string
+): boolean {
+  const classInfo = FIGHTING_STYLE_CLASSES[characterClass];
+  if (!classInfo) return false;
+  return level === classInfo.level && !currentFightingStyle;
+}
+
+// Get available fighting style options for a class
+export function getAvailableFightingStyles(characterClass: CharacterClass): FightingStyleOption[] {
+  const classInfo = FIGHTING_STYLE_CLASSES[characterClass];
+  if (!classInfo) return [];
+  return FIGHTING_STYLES.filter(style => classInfo.options.includes(style.id));
+}
+
 // ============ DIVINE ORDER (Cleric Level 1) ============
 
 export interface DivineOrderOption {
@@ -658,6 +676,53 @@ export const WARLOCK_INVOCATIONS_KNOWN: Record<number, number> = {
   1: 1, 2: 3, 3: 3, 4: 3, 5: 5, 6: 5, 7: 6, 8: 6, 9: 7, 10: 7,
   11: 7, 12: 8, 13: 8, 14: 8, 15: 9, 16: 9, 17: 9, 18: 10, 19: 10, 20: 10,
 };
+
+// ============ PACT BOONS (Warlock L3) ============
+
+export interface PactBoon {
+  id: string;
+  name: string;
+  description: string;
+  features: string[];
+}
+
+export const PACT_BOONS: PactBoon[] = [
+  {
+    id: 'blade',
+    name: 'Pact of the Blade',
+    description: 'You can use a bonus action to create a pact weapon in your hand or transform a magic weapon into your pact weapon.',
+    features: [
+      'Conjure Pact Weapon: As a bonus action, create a melee weapon. You are proficient and can use CHA for attack/damage.',
+      'Hex Warrior: Proficiency with medium armor, shields, and martial weapons.',
+      'Transform Weapon: Perform 1-hour ritual to bond with a magic weapon.',
+    ],
+  },
+  {
+    id: 'chain',
+    name: 'Pact of the Chain',
+    description: 'You learn the Find Familiar spell and can cast it as a ritual. Your familiar can be special forms.',
+    features: [
+      'Special Familiars: Imp, Pseudodragon, Quasit, or Sprite.',
+      'Investment: Use your reaction to give your familiar resistance to a damage type.',
+      'Voice of the Chain Master: Communicate telepathically with familiar and perceive through its senses.',
+    ],
+  },
+  {
+    id: 'tome',
+    name: 'Pact of the Tome',
+    description: 'Your patron gives you a grimoire called a Book of Shadows containing cantrips and rituals.',
+    features: [
+      'Book of Shadows: Choose 3 cantrips from any spell list. They count as warlock cantrips.',
+      'Ritual Casting: Write rituals from any spell list into your book (2 hours and 50gp per level).',
+      'Book of Ancient Secrets: At higher levels, add more rituals from any class.',
+    ],
+  },
+];
+
+// Check if a warlock needs to choose a pact boon
+export function needsPactBoon(characterClass: CharacterClass, level: number, currentPactBoon?: string): boolean {
+  return characterClass === 'warlock' && level === 3 && !currentPactBoon;
+}
 
 // ============ EXPERTISE ============
 
@@ -3038,8 +3103,25 @@ export function getSpellPreparationType(characterClass: CharacterClass): 'known'
 export function gainsExpertiseAtLevel(characterClass: CharacterClass, level: number): boolean {
   if (characterClass === 'rogue') return level === 1 || level === 6;
   if (characterClass === 'bard') return level === 2 || level === 9;
-  if (characterClass === 'ranger') return level === 9;
+  if (characterClass === 'ranger') return level === 1 || level === 9; // Deft Explorer at L1, more at L9
   return false;
+}
+
+// Get number of expertise skills to choose at a given level
+export function getExpertiseCountAtLevel(characterClass: CharacterClass, level: number): number {
+  if (characterClass === 'rogue') {
+    if (level === 1) return 2;
+    if (level === 6) return 2;
+  }
+  if (characterClass === 'bard') {
+    if (level === 2) return 2;
+    if (level === 9) return 2;
+  }
+  if (characterClass === 'ranger') {
+    if (level === 1) return 1; // Deft Explorer grants 1 expertise
+    if (level === 9) return 2;
+  }
+  return 0;
 }
 
 // Check if warlock gains invocations at a level
