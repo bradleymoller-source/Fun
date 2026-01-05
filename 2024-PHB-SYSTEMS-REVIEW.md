@@ -177,6 +177,122 @@ The monster database includes 50+ creatures from CR 0 to CR 17 (Adult Red Dragon
 
 ---
 
+## V1 Build Focus: Levels 1-5 Analysis
+
+This section provides a detailed verification of all systems relevant to levels 1-5 gameplay.
+
+### 🐛 BUGS FOUND
+
+#### 1. Ranger Spells Known at Level 1 (HIGH PRIORITY)
+
+**Current Implementation:**
+```typescript
+ranger: { 1: 0, 2: 2, 3: 3, 4: 3, 5: 4, ... }
+```
+
+**2024 PHB Correct Values:**
+```typescript
+ranger: { 1: 2, 2: 2, 3: 3, 4: 3, 5: 4, ... }
+```
+
+**Issue:** Rangers should know **2 spells at level 1**, not 0. In the 2024 PHB, Rangers are "spells known" casters who select their spells at level 1, even though they don't get spell slots until level 2.
+
+**Location:** `dndData.ts` line ~4625 in `SPELLS_KNOWN_BY_LEVEL`
+
+---
+
+### ⚠️ Minor Issues
+
+#### 1. Monk Focus Techniques Not Listed in CLASS_FEATURES
+
+The "Focus" feature description is vague:
+```typescript
+{ name: 'Focus', description: 'Gain Focus Points = monk level. Spend to fuel special techniques...', level: 2 }
+```
+
+The actual techniques (Flurry of Blows, Patient Defense, Step of the Wind) ARE correctly documented in `CLASS_RESOURCES`, but users viewing class features might miss them. Consider adding explicit mention in the feature description.
+
+#### 2. Warlock Pact Boon Structure
+
+Listed as a separate Level 1 feature, but in 2024 PHB, Pact Boons are Eldritch Invocations:
+- Pact of the Blade, Pact of the Chain, and Pact of the Tome are invocations you can select
+- Current implementation works but isn't structurally aligned with 2024 PHB
+
+---
+
+### ✅ Verified Correct for Levels 1-5
+
+#### Class Features by Level
+
+| Class | L1 | L2 | L3 | L4 | L5 |
+|-------|----|----|----|----|-----|
+| **Barbarian** | Rage, Unarmored Defense, Weapon Mastery (2) | Danger Sense, Reckless Attack | Primal Path, Primal Knowledge | ASI | Extra Attack, Fast Movement |
+| **Bard** | Bardic Inspiration, Spellcasting | Expertise (2), Jack of All Trades | Bard College | ASI | Font of Inspiration |
+| **Cleric** | Divine Order, Spellcasting | Channel Divinity | Divine Domain | ASI | Sear Undead |
+| **Druid** | Druidic, Primal Order, Spellcasting | Wild Shape, Wild Companion | Druid Circle | ASI | Wild Resurgence |
+| **Fighter** | Fighting Style, Second Wind, Weapon Mastery (3) | Action Surge, Tactical Mind | Martial Archetype | ASI | Extra Attack, Tactical Shift |
+| **Monk** | Martial Arts, Unarmored Defense, Weapon Mastery (2) | Focus, Unarmored Movement, Uncanny Metabolism | Deflect Attacks, Monastic Tradition | ASI, Slow Fall | Extra Attack, Stunning Strike |
+| **Paladin** | Lay on Hands, Spellcasting, Weapon Mastery (2) | Divine Smite, Fighting Style | Channel Divinity, Sacred Oath | ASI | Faithful Steed, Extra Attack |
+| **Ranger** | Deft Explorer, Favored Enemy, Spellcasting, Weapon Mastery (2) | Fighting Style | Ranger Conclave | ASI | Extra Attack |
+| **Rogue** | Expertise (2), Sneak Attack, Thieves' Cant | Cunning Action | Steady Aim, Roguish Archetype | ASI | Cunning Strike, Uncanny Dodge |
+| **Sorcerer** | Innate Sorcery, Spellcasting | Font of Magic, Metamagic | Sorcerous Origin | ASI | Sorcerous Restoration |
+| **Warlock** | Eldritch Invocations, Pact Magic, Pact Boon | Magical Cunning | Otherworldly Patron | ASI | (slot level increases) |
+| **Wizard** | Arcane Recovery, Spellcasting | Scholar | Arcane Tradition | ASI | Memorize Spell |
+
+#### Spell Slot Progressions (Verified)
+
+**Full Casters (Bard, Cleric, Druid, Sorcerer, Wizard):**
+| Level | 1st | 2nd | 3rd |
+|-------|-----|-----|-----|
+| 1 | 2 | - | - |
+| 2 | 3 | - | - |
+| 3 | 4 | 2 | - |
+| 4 | 4 | 3 | - |
+| 5 | 4 | 3 | 2 |
+
+**Half Casters (Paladin, Ranger):**
+| Level | 1st | 2nd |
+|-------|-----|-----|
+| 1 | 0 | - |
+| 2 | 2 | - |
+| 3 | 3 | - |
+| 4 | 3 | - |
+| 5 | 4 | 2 |
+
+**Warlock (Pact Magic):**
+| Level | Slots | Slot Level |
+|-------|-------|------------|
+| 1 | 1 | 1st |
+| 2 | 2 | 1st |
+| 3 | 2 | 2nd |
+| 4 | 2 | 2nd |
+| 5 | 2 | 3rd |
+
+#### Species Features with Level Requirements (Verified)
+
+| Species | Level 3 Feature | Level 5 Feature |
+|---------|-----------------|-----------------|
+| **Aasimar** | Celestial Revelation (3 forms) | - |
+| **Dragonborn** | - | Draconic Flight |
+| **Drow (Elf)** | Faerie Fire (1/LR) | Darkness (1/LR) |
+| **Goliath** | - | Large Form |
+| **Tiefling (Abyssal)** | Ray of Sickness | Hold Person |
+| **Tiefling (Chthonic)** | False Life | Ray of Enfeeblement |
+| **Tiefling (Infernal)** | Hellish Rebuke | Darkness |
+
+#### Other Verified Systems
+
+- ✅ Cantrip known counts (Bard 2, Cleric 3, Druid 2, Sorcerer 4, Warlock 2, Wizard 3)
+- ✅ Weapon Mastery counts (Barbarian 2, Fighter 3, Monk 2, Paladin 2, Ranger 2)
+- ✅ Fighting Style availability (Fighter L1, Paladin L2, Ranger L2)
+- ✅ Expertise grants (Bard L2, Ranger L1, Rogue L1)
+- ✅ All 16 backgrounds with correct configurations
+- ✅ All 12 origin feats
+- ✅ Starting equipment for all classes
+- ✅ Proficiency bonus (+2 at levels 1-4, +3 at level 5)
+
+---
+
 ## Accuracy Notes
 
 ### Confirmed Accurate to 2024 PHB
