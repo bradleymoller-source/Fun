@@ -1343,15 +1343,18 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
     />
   );
 
-  const renderFightingStyleStep = () => (
-    <FightingStyleSelection
-      characterClass={character.characterClass}
-      onSelect={(styleId) => {
-        setSelectedFightingStyle(styleId);
-        nextStep();
-      }}
-    />
-  );
+  const renderFightingStyleStep = () => {
+    console.log('[LevelUp] renderFightingStyleStep called');
+    return (
+      <FightingStyleSelection
+        characterClass={character.characterClass}
+        onSelect={(styleId) => {
+          setSelectedFightingStyle(styleId);
+          nextStep();
+        }}
+      />
+    );
+  };
 
   const renderDivineOrderStep = () => (
     <DivineOrderSelection

@@ -9,6 +9,9 @@ interface FightingStyleSelectionProps {
 export function FightingStyleSelection({ characterClass, onSelect }: FightingStyleSelectionProps) {
   const availableStyles = getAvailableFightingStyles(characterClass);
 
+  console.log('[FightingStyleSelection] Rendering for class:', characterClass);
+  console.log('[FightingStyleSelection] Available styles:', availableStyles);
+
   return (
     <div className="space-y-4">
       <div>
