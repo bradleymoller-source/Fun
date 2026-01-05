@@ -1,4 +1,5 @@
-import { getAvailableFightingStyles, CLASS_NAMES, type CharacterClass } from '../../data/dndData';
+import type { CharacterClass } from '../../types';
+import { getAvailableFightingStyles, CLASS_NAMES } from '../../data/dndData';
 
 interface FightingStyleSelectionProps {
   characterClass: CharacterClass;
