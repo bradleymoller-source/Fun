@@ -554,6 +554,7 @@ export const FIGHTING_STYLE_CLASSES: Partial<Record<CharacterClass, { level: num
 };
 
 // Check if a class needs to choose a fighting style at this level
+// Returns true if character should have a fighting style but doesn't
 export function needsFightingStyle(
   characterClass: CharacterClass,
   level: number,
@@ -561,7 +562,8 @@ export function needsFightingStyle(
 ): boolean {
   const classInfo = FIGHTING_STYLE_CLASSES[characterClass];
   if (!classInfo) return false;
-  return level === classInfo.level && !currentFightingStyle;
+  // Allow selection if at or past the required level and still missing the style
+  return level >= classInfo.level && !currentFightingStyle;
 }
 
 // Get available fighting style options for a class
@@ -721,17 +723,20 @@ export const PACT_BOONS: PactBoon[] = [
 
 // Check if a warlock needs to choose a pact boon
 export function needsPactBoon(characterClass: CharacterClass, level: number, currentPactBoon?: string): boolean {
-  return characterClass === 'warlock' && level === 1 && !currentPactBoon;
+  // Pact Boon is gained at level 3 in 2024 PHB (via invocations)
+  return characterClass === 'warlock' && level >= 3 && !currentPactBoon;
 }
 
 // Helper function: Does this Cleric need to select a Divine Order?
 export function needsDivineOrder(characterClass: CharacterClass, level: number, currentDivineOrder?: string): boolean {
-  return characterClass === 'cleric' && level === 1 && !currentDivineOrder;
+  // Divine Order is a level 1 feature - allow selection if missing at any level
+  return characterClass === 'cleric' && level >= 1 && !currentDivineOrder;
 }
 
-/// Helper function: Does this Druid need to select a Primal Order?
+// Helper function: Does this Druid need to select a Primal Order?
 export function needsPrimalOrder(characterClass: CharacterClass, level: number, currentPrimalOrder?: string): boolean {
-  return characterClass === 'druid' && level === 1 && !currentPrimalOrder;
+  // Primal Order is a level 1 feature - allow selection if missing at any level
+  return characterClass === 'druid' && level >= 1 && !currentPrimalOrder;
 }
 
 // ============ PRIMAL KNOWLEDGE (Barbarian L3) ============
@@ -752,7 +757,8 @@ export function needsPrimalKnowledge(
   level: number,
   currentPrimalKnowledgeSkill?: string
 ): boolean {
-  return characterClass === 'barbarian' && level === 3 && !currentPrimalKnowledgeSkill;
+  // Primal Knowledge is a level 3 feature - allow selection if missing at level 3+
+  return characterClass === 'barbarian' && level >= 3 && !currentPrimalKnowledgeSkill;
 }
 
 // ============ EXPERTISE ============
@@ -4949,9 +4955,8 @@ export function needsWeaponMastery(
 ): boolean {
   const masteryCount = WEAPON_MASTERY_CLASSES[characterClass];
   if (masteryCount === 0) return false;
-  // Weapon mastery is chosen at level 1
-  if (level !== 1) return false;
-  // If already have masteries, don't need to choose again
+  // Weapon mastery is a level 1 feature - allow selection if missing at any level
+  // If already have enough masteries, don't need to choose again
   if (currentMasteries && currentMasteries.length >= masteryCount) return false;
   return true;
 }
