@@ -414,6 +414,7 @@ export interface Character {
   divineOrder?: string;    // Divine Order choice (cleric): 'protector' or 'thaumaturge'
   primalOrder?: string;    // Primal Order choice (druid): 'magician' or 'warden'
   eldritchInvocations?: string[];  // Selected invocation IDs (warlock)
+  metamagicKnown?: string[];       // Selected metamagic IDs (sorcerer)
   expertiseSkills?: SkillName[];  // Skills with expertise (rogue, bard, ranger)
   weaponMasteries?: string[];  // Weapons with mastery selected (fighter, barbarian, monk, paladin, ranger)
 

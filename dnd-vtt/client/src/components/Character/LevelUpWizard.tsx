@@ -1,10 +1,14 @@
 import { useState } from 'react';
-import type { Character, AbilityScores, Feature } from '../../types';
+import type { Character, AbilityScores, Feature, SkillName } from '../../types';
 import { Button } from '../ui/Button';
 import { Panel } from '../ui/Panel';
 import { SubclassSelection } from './SubclassSelection';
 import { SpellLearning } from './SpellLearning';
 import { FeatSelection } from './FeatSelection';
+import { CantripLearning } from './CantripLearning';
+import { ExpertiseSelection } from './ExpertiseSelection';
+import { MetamagicSelection } from './MetamagicSelection';
+import { InvocationSelection } from './InvocationSelection';
 import {
   CLASS_HIT_DICE,
   CLASS_NAMES,
@@ -20,6 +24,13 @@ import {
   WARLOCK_SPELL_SLOTS,
   getNewSpellsAtLevel,
   getSpellPreparationType,
+  gainsCantripsAtLevel,
+  getNewCantripsAtLevel,
+  gainsExpertiseAtLevel,
+  gainsMetamagicAtLevel,
+  getMetamagicKnownAtLevel,
+  gainsInvocationsAtLevel,
+  getInvocationsKnownAtLevel,
   type GeneralFeat,
 } from '../../data/dndData';
 
@@ -29,7 +40,10 @@ interface LevelUpWizardProps {
   onCancel: () => void;
 }
 
-type LevelUpStep = 'overview' | 'hp' | 'subclass' | 'asi' | 'features' | 'spellLearning' | 'spells' | 'review';
+type LevelUpStep =
+  | 'overview' | 'hp' | 'subclass' | 'asi' | 'features'
+  | 'cantripLearning' | 'spellLearning' | 'spells'
+  | 'expertise' | 'metamagic' | 'invocations' | 'review';
 
 export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizardProps) {
   const newLevel = character.level + 1;
@@ -57,6 +71,26 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
   // Spell learning
   const [newSpellsLearned, setNewSpellsLearned] = useState<string[]>([]);
   const spellsToLearn = getNewSpellsAtLevel(character.characterClass, newLevel);
+
+  // Cantrip learning
+  const [newCantripsLearned, setNewCantripsLearned] = useState<string[]>([]);
+  const cantripsToLearn = getNewCantripsAtLevel(character.characterClass, newLevel);
+  const gainsCantrips = gainsCantripsAtLevel(character.characterClass, newLevel);
+
+  // Expertise
+  const [newExpertise, setNewExpertise] = useState<SkillName[]>([]);
+  const gainsExpertise = gainsExpertiseAtLevel(character.characterClass, newLevel);
+  const expertiseCount = gainsExpertise ? (character.characterClass === 'rogue' ? 2 : character.characterClass === 'bard' ? 2 : 1) : 0;
+
+  // Metamagic (Sorcerer)
+  const [newMetamagic, setNewMetamagic] = useState<string[]>([]);
+  const gainsMetamagic = character.characterClass === 'sorcerer' && gainsMetamagicAtLevel(newLevel);
+  const metamagicToLearn = gainsMetamagic ? getMetamagicKnownAtLevel(newLevel) - getMetamagicKnownAtLevel(character.level) : 0;
+
+  // Invocations (Warlock)
+  const [newInvocations, setNewInvocations] = useState<string[]>([]);
+  const gainsInvocations = character.characterClass === 'warlock' && gainsInvocationsAtLevel(newLevel);
+  const invocationsToLearn = gainsInvocations ? getInvocationsKnownAtLevel(newLevel) - getInvocationsKnownAtLevel(character.level) : 0;
 
   // Step tracking
   const [step, setStep] = useState<LevelUpStep>('overview');
@@ -140,6 +174,26 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
       steps.push('features');
     }
 
+    // Expertise (Rogue, Bard, Ranger)
+    if (gainsExpertise && expertiseCount > 0) {
+      steps.push('expertise');
+    }
+
+    // Metamagic (Sorcerer)
+    if (gainsMetamagic && metamagicToLearn > 0) {
+      steps.push('metamagic');
+    }
+
+    // Invocations (Warlock)
+    if (gainsInvocations && invocationsToLearn > 0) {
+      steps.push('invocations');
+    }
+
+    // Cantrip learning (spellcasters that gain cantrips at this level)
+    if (gainsCantrips && cantripsToLearn > 0) {
+      steps.push('cantripLearning');
+    }
+
     // Spell learning for known casters or wizard
     if (characterIsSpellcaster && (preparationType === 'known' || preparationType === 'spellbook')) {
       if (spellsToLearn > 0 || preparationType === 'spellbook') {
@@ -185,6 +239,14 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
         } else {
           return asiAbility1 !== null && asiAbility2 !== null && asiAbility1 !== asiAbility2;
         }
+      case 'expertise':
+        return newExpertise.length === expertiseCount;
+      case 'metamagic':
+        return newMetamagic.length === metamagicToLearn;
+      case 'invocations':
+        return newInvocations.length === invocationsToLearn;
+      case 'cantripLearning':
+        return newCantripsLearned.length === cantripsToLearn;
       case 'spellLearning':
         if (preparationType === 'prepared') return true; // Prepared casters don't need to select
         if (preparationType === 'spellbook') return newSpellsLearned.length === 2;
@@ -251,6 +313,24 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
     const currentSpells = character.spellsKnown || character.spells || [];
     const updatedSpellsKnown = [...currentSpells, ...newSpellsLearned];
 
+    // Build updated cantrips
+    const currentCantrips = character.cantripsKnown || [];
+    const updatedCantripsKnown = [...currentCantrips, ...newCantripsLearned];
+
+    // Update skill proficiencies with expertise
+    const updatedSkillProficiencies = { ...character.skillProficiencies };
+    for (const skill of newExpertise) {
+      updatedSkillProficiencies[skill] = 'expertise';
+    }
+
+    // Update metamagic
+    const currentMetamagic = character.metamagicKnown || [];
+    const updatedMetamagic = [...currentMetamagic, ...newMetamagic];
+
+    // Update invocations
+    const currentInvocations = character.eldritchInvocations || [];
+    const updatedInvocations = [...currentInvocations, ...newInvocations];
+
     // Update spellcasting stats if applicable
     let updatedSpellcasting = character.spellcasting;
     if (updatedSpellcasting) {
@@ -292,6 +372,7 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
       initiative: newDexMod,
       features: updatedFeatures,
       experiencePoints: character.experiencePoints,
+      skillProficiencies: updatedSkillProficiencies,
       updatedAt: new Date().toISOString(),
       // Updated spellcasting
       ...(updatedSpellcasting && { spellcasting: updatedSpellcasting }),
@@ -304,6 +385,18 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
       ...(newSpellsLearned.length > 0 && {
         spellsKnown: updatedSpellsKnown,
         spells: updatedSpellsKnown,
+      }),
+      // Cantrips
+      ...(newCantripsLearned.length > 0 && {
+        cantripsKnown: updatedCantripsKnown,
+      }),
+      // Metamagic (Sorcerer)
+      ...(newMetamagic.length > 0 && {
+        metamagicKnown: updatedMetamagic,
+      }),
+      // Invocations (Warlock)
+      ...(newInvocations.length > 0 && {
+        eldritchInvocations: updatedInvocations,
       }),
     };
 
@@ -355,6 +448,12 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
               Proficiency Bonus increases to +{getProficiencyBonus(newLevel)}
             </li>
           )}
+          {gainsCantrips && cantripsToLearn > 0 && (
+            <li className="flex items-center gap-2">
+              <span className="text-cyan-400">✦</span>
+              Learn {cantripsToLearn} new cantrip{cantripsToLearn > 1 ? 's' : ''}
+            </li>
+          )}
           {characterIsSpellcaster && (preparationType === 'known' || preparationType === 'spellbook') && spellsToLearn > 0 && (
             <li className="flex items-center gap-2">
               <span className="text-cyan-400">✦</span>
@@ -365,6 +464,24 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
             <li className="flex items-center gap-2">
               <span className="text-cyan-400">✦</span>
               Spell slot progression
+            </li>
+          )}
+          {gainsExpertise && expertiseCount > 0 && (
+            <li className="flex items-center gap-2">
+              <span className="text-purple-400">★</span>
+              Choose {expertiseCount} skill{expertiseCount > 1 ? 's' : ''} for Expertise
+            </li>
+          )}
+          {gainsMetamagic && metamagicToLearn > 0 && (
+            <li className="flex items-center gap-2">
+              <span className="text-purple-400">★</span>
+              Learn {metamagicToLearn} Metamagic option{metamagicToLearn > 1 ? 's' : ''}
+            </li>
+          )}
+          {gainsInvocations && invocationsToLearn > 0 && (
+            <li className="flex items-center gap-2">
+              <span className="text-purple-400">★</span>
+              Learn {invocationsToLearn} Eldritch Invocation{invocationsToLearn > 1 ? 's' : ''}
             </li>
           )}
         </ul>
@@ -811,6 +928,19 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
             </div>
           )}
 
+          {newCantripsLearned.length > 0 && (
+            <div className="border-t border-leather pt-2 mt-2">
+              <div className="text-parchment text-sm mb-1">Cantrips Learned:</div>
+              <div className="flex flex-wrap gap-1">
+                {newCantripsLearned.map(cantrip => (
+                  <span key={cantrip} className="bg-cyan-900/30 text-cyan-300 px-2 py-0.5 rounded text-xs">
+                    {cantrip}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           {newSpellsLearned.length > 0 && (
             <div className="border-t border-leather pt-2 mt-2">
               <div className="text-parchment text-sm mb-1">Spells Learned:</div>
@@ -818,6 +948,45 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
                 {newSpellsLearned.map(spell => (
                   <span key={spell} className="bg-cyan-900/30 text-cyan-300 px-2 py-0.5 rounded text-xs">
                     {spell}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {newExpertise.length > 0 && (
+            <div className="border-t border-leather pt-2 mt-2">
+              <div className="text-parchment text-sm mb-1">Expertise:</div>
+              <div className="flex flex-wrap gap-1">
+                {newExpertise.map(skill => (
+                  <span key={skill} className="bg-purple-900/30 text-purple-300 px-2 py-0.5 rounded text-xs">
+                    {skill}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {newMetamagic.length > 0 && (
+            <div className="border-t border-leather pt-2 mt-2">
+              <div className="text-parchment text-sm mb-1">Metamagic:</div>
+              <div className="flex flex-wrap gap-1">
+                {newMetamagic.map(id => (
+                  <span key={id} className="bg-purple-900/30 text-purple-300 px-2 py-0.5 rounded text-xs">
+                    {id.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {newInvocations.length > 0 && (
+            <div className="border-t border-leather pt-2 mt-2">
+              <div className="text-parchment text-sm mb-1">Invocations:</div>
+              <div className="flex flex-wrap gap-1">
+                {newInvocations.map(id => (
+                  <span key={id} className="bg-purple-900/30 text-purple-300 px-2 py-0.5 rounded text-xs">
+                    {id.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
                   </span>
                 ))}
               </div>
@@ -834,6 +1003,53 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
     );
   };
 
+  const renderCantripLearningStep = () => (
+    <CantripLearning
+      character={character}
+      newLevel={newLevel}
+      currentCantrips={character.cantripsKnown || []}
+      onSelect={(cantrips) => {
+        setNewCantripsLearned(cantrips);
+        nextStep();
+      }}
+    />
+  );
+
+  const renderExpertiseStep = () => (
+    <ExpertiseSelection
+      character={character}
+      expertiseCount={expertiseCount}
+      onSelect={(skills) => {
+        setNewExpertise(skills);
+        nextStep();
+      }}
+    />
+  );
+
+  const renderMetamagicStep = () => (
+    <MetamagicSelection
+      character={character}
+      newLevel={newLevel}
+      currentMetamagic={character.metamagicKnown || []}
+      onSelect={(metamagic) => {
+        setNewMetamagic(metamagic);
+        nextStep();
+      }}
+    />
+  );
+
+  const renderInvocationsStep = () => (
+    <InvocationSelection
+      character={character}
+      newLevel={newLevel}
+      currentInvocations={character.eldritchInvocations || []}
+      onSelect={(invocations) => {
+        setNewInvocations(invocations);
+        nextStep();
+      }}
+    />
+  );
+
   const renderCurrentStep = () => {
     switch (step) {
       case 'overview': return renderOverview();
@@ -841,6 +1057,10 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
       case 'subclass': return renderSubclassStep();
       case 'asi': return renderAsiStep();
       case 'features': return renderFeaturesStep();
+      case 'expertise': return renderExpertiseStep();
+      case 'metamagic': return renderMetamagicStep();
+      case 'invocations': return renderInvocationsStep();
+      case 'cantripLearning': return renderCantripLearningStep();
       case 'spellLearning': return renderSpellLearningStep();
       case 'spells': return renderSpellsStep();
       case 'review': return renderReview();
@@ -875,8 +1095,8 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
 
       {renderCurrentStep()}
 
-      {/* Navigation */}
-      {step !== 'subclass' && step !== 'spellLearning' && (
+      {/* Navigation - hide for steps that auto-advance */}
+      {!['subclass', 'spellLearning', 'cantripLearning', 'expertise', 'metamagic', 'invocations'].includes(step) && (
         <div className="flex justify-between mt-6 pt-4 border-t border-leather">
           <Button
             variant="secondary"

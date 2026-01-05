@@ -668,6 +668,83 @@ export const EXPERTISE_CLASSES: Partial<Record<CharacterClass, { level: number; 
   rogue: { level: 1, count: 2 },  // 2 at level 1, 2 more at level 6
 };
 
+// ============ METAMAGIC OPTIONS (2024 PHB) ============
+
+export interface MetamagicOption {
+  id: string;
+  name: string;
+  description: string;
+  cost: number | string; // Sorcery points cost (can be "1+" for variable costs)
+}
+
+export const METAMAGIC_OPTIONS: MetamagicOption[] = [
+  {
+    id: 'careful-spell',
+    name: 'Careful Spell',
+    description: 'When you cast a spell that forces other creatures to make a saving throw, you can protect some of those creatures. Spend 1 sorcery point and choose up to your CHA modifier creatures. Chosen creatures automatically succeed on their saving throws.',
+    cost: 1,
+  },
+  {
+    id: 'distant-spell',
+    name: 'Distant Spell',
+    description: 'When you cast a spell that has a range of 5 feet or greater, you can spend 1 sorcery point to double the range. When you cast a spell with a range of touch, you can spend 1 sorcery point to make the range 30 feet.',
+    cost: 1,
+  },
+  {
+    id: 'empowered-spell',
+    name: 'Empowered Spell',
+    description: 'When you roll damage for a spell, you can spend 1 sorcery point to reroll up to your CHA modifier damage dice. You must use the new rolls. You can use this even if you\'ve already used another Metamagic option.',
+    cost: 1,
+  },
+  {
+    id: 'extended-spell',
+    name: 'Extended Spell',
+    description: 'When you cast a spell that has a duration of 1 minute or longer, you can spend 1 sorcery point to double its duration, to a maximum of 24 hours.',
+    cost: 1,
+  },
+  {
+    id: 'heightened-spell',
+    name: 'Heightened Spell',
+    description: 'When you cast a spell that forces a creature to make a saving throw, you can spend 3 sorcery points to give one target disadvantage on its first saving throw against the spell.',
+    cost: 3,
+  },
+  {
+    id: 'quickened-spell',
+    name: 'Quickened Spell',
+    description: 'When you cast a spell that has a casting time of 1 action, you can spend 2 sorcery points to change the casting time to 1 bonus action for this casting.',
+    cost: 2,
+  },
+  {
+    id: 'seeking-spell',
+    name: 'Seeking Spell',
+    description: 'If you make an attack roll for a spell and miss, you can spend 2 sorcery points to reroll the d20. You must use the new roll. You can use this even if you\'ve already used another Metamagic option.',
+    cost: 2,
+  },
+  {
+    id: 'subtle-spell',
+    name: 'Subtle Spell',
+    description: 'When you cast a spell, you can spend 1 sorcery point to cast it without any somatic or verbal components.',
+    cost: 1,
+  },
+  {
+    id: 'transmuted-spell',
+    name: 'Transmuted Spell',
+    description: 'When you cast a spell that deals acid, cold, fire, lightning, poison, or thunder damage, you can spend 1 sorcery point to change that damage type to one of the other listed types.',
+    cost: 1,
+  },
+  {
+    id: 'twinned-spell',
+    name: 'Twinned Spell',
+    description: 'When you cast a spell that targets only one creature and doesn\'t have a range of self, you can spend sorcery points equal to the spell\'s level (1 for cantrips) to target a second creature with the same spell.',
+    cost: '1+',
+  },
+];
+
+// Get available metamagic options (all are available from level 2)
+export function getAvailableMetamagic(): MetamagicOption[] {
+  return METAMAGIC_OPTIONS;
+}
+
 // Skill to ability mapping
 export const SKILL_ABILITIES: Record<SkillName, keyof AbilityScores> = {
   athletics: 'strength',
