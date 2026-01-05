@@ -181,42 +181,32 @@ The monster database includes 50+ creatures from CR 0 to CR 17 (Adult Red Dragon
 
 This section provides a detailed verification of all systems relevant to levels 1-5 gameplay.
 
-### 🐛 BUGS FOUND
+### ✅ BUGS FIXED
 
-#### 1. Ranger Spells Known at Level 1 (HIGH PRIORITY)
+#### 1. Ranger Spells Known at Level 1 — FIXED
 
-**Current Implementation:**
+**Was:**
 ```typescript
 ranger: { 1: 0, 2: 2, 3: 3, 4: 3, 5: 4, ... }
 ```
 
-**2024 PHB Correct Values:**
+**Now:**
 ```typescript
 ranger: { 1: 2, 2: 2, 3: 3, 4: 3, 5: 4, ... }
 ```
 
-**Issue:** Rangers should know **2 spells at level 1**, not 0. In the 2024 PHB, Rangers are "spells known" casters who select their spells at level 1, even though they don't get spell slots until level 2.
+Rangers now correctly know 2 spells at level 1.
 
-**Location:** `dndData.ts` line ~4625 in `SPELLS_KNOWN_BY_LEVEL`
+#### 2. Monk Focus Techniques — FIXED
 
----
+The Focus feature description now explicitly lists the techniques:
+- Flurry of Blows (1 Focus, 2 unarmed strikes as bonus action)
+- Patient Defense (1 Focus, Dodge as bonus action)
+- Step of the Wind (1 Focus, Disengage or Dash as bonus action, double jump distance)
 
-### ⚠️ Minor Issues
+#### 3. Warlock Pact Boon Structure — FIXED
 
-#### 1. Monk Focus Techniques Not Listed in CLASS_FEATURES
-
-The "Focus" feature description is vague:
-```typescript
-{ name: 'Focus', description: 'Gain Focus Points = monk level. Spend to fuel special techniques...', level: 2 }
-```
-
-The actual techniques (Flurry of Blows, Patient Defense, Step of the Wind) ARE correctly documented in `CLASS_RESOURCES`, but users viewing class features might miss them. Consider adding explicit mention in the feature description.
-
-#### 2. Warlock Pact Boon Structure
-
-Listed as a separate Level 1 feature, but in 2024 PHB, Pact Boons are Eldritch Invocations:
-- Pact of the Blade, Pact of the Chain, and Pact of the Tome are invocations you can select
-- Current implementation works but isn't structurally aligned with 2024 PHB
+Removed separate "Pact Boon" feature. Updated Eldritch Invocations description to clarify that Pact Boons (Pact of the Blade, Chain, or Tome) are invocations you can select at level 1, aligning with 2024 PHB structure.
 
 ---
 
@@ -236,7 +226,7 @@ Listed as a separate Level 1 feature, but in 2024 PHB, Pact Boons are Eldritch I
 | **Ranger** | Deft Explorer, Favored Enemy, Spellcasting, Weapon Mastery (2) | Fighting Style | Ranger Conclave | ASI | Extra Attack |
 | **Rogue** | Expertise (2), Sneak Attack, Thieves' Cant | Cunning Action | Steady Aim, Roguish Archetype | ASI | Cunning Strike, Uncanny Dodge |
 | **Sorcerer** | Innate Sorcery, Spellcasting | Font of Magic, Metamagic | Sorcerous Origin | ASI | Sorcerous Restoration |
-| **Warlock** | Eldritch Invocations, Pact Magic, Pact Boon | Magical Cunning | Otherworldly Patron | ASI | (slot level increases) |
+| **Warlock** | Eldritch Invocations (incl. Pact Boons), Pact Magic | Magical Cunning | Otherworldly Patron | ASI | (slot level increases) |
 | **Wizard** | Arcane Recovery, Spellcasting | Scholar | Arcane Tradition | ASI | Memorize Spell |
 
 #### Spell Slot Progressions (Verified)
