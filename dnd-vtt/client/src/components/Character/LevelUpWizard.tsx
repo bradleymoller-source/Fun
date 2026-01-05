@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Character, AbilityScores, Feature, SkillName } from '../../types';
+import type { Character, AbilityScores, Feature, SkillName, LevelUpRecord } from '../../types';
 import { Button } from '../ui/Button';
 import { Panel } from '../ui/Panel';
 import { SubclassSelection } from './SubclassSelection';
@@ -361,6 +361,36 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
       };
     }
 
+    // Build level history record
+    const levelUpRecord: LevelUpRecord = {
+      level: newLevel,
+      timestamp: new Date().toISOString(),
+      changes: {
+        hpGained: getHpGain(),
+        hpMethod: hpMethod,
+        featuresGained: newFeatures.map(f => f.name),
+        ...(newSpellsLearned.length > 0 && { spellsLearned: newSpellsLearned }),
+        ...(newCantripsLearned.length > 0 && { cantripsLearned: newCantripsLearned }),
+        ...(hasASI && !selectedFeat && asiAbility1 && {
+          asiChoice: {
+            method: asiMethod,
+            abilities: asiMethod === '+2' ? [asiAbility1] : [asiAbility1, asiAbility2!],
+          },
+        }),
+        ...(selectedFeat && { featTaken: selectedFeat.name }),
+        ...(selectedSubclass && { subclassChosen: selectedSubclass }),
+        ...((newExpertise.length > 0 || newMetamagic.length > 0 || newInvocations.length > 0) && {
+          otherChoices: {
+            ...(newExpertise.length > 0 && { expertise: newExpertise }),
+            ...(newMetamagic.length > 0 && { metamagic: newMetamagic }),
+            ...(newInvocations.length > 0 && { invocations: newInvocations }),
+          },
+        }),
+      },
+    };
+
+    const updatedLevelHistory = [...(character.levelHistory || []), levelUpRecord];
+
     const updatedCharacter: Character = {
       ...character,
       level: newLevel,
@@ -398,6 +428,8 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
       ...(newInvocations.length > 0 && {
         eldritchInvocations: updatedInvocations,
       }),
+      // Level history
+      levelHistory: updatedLevelHistory,
     };
 
     onComplete(updatedCharacter);
