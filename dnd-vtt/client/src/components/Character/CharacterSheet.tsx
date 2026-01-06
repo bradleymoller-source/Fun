@@ -593,7 +593,7 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
     <div className="grid grid-cols-4 gap-2 mb-4">
       <Tooltip content={RULE_TOOLTIPS.armorClass}>
         <div className="bg-dark-wood p-2 rounded border border-leather text-center cursor-help">
-          <div className="text-gold font-bold text-xl">{character.armorClass}</div>
+          <div className="text-gold font-bold text-xl">{calculateAC().ac}</div>
           <div className="text-parchment/70 text-xs">AC</div>
         </div>
       </Tooltip>
