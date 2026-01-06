@@ -1360,6 +1360,26 @@ export const GENERAL_FEATS: GeneralFeat[] = [
       'Learn one Fighting Style from the Fighter class',
       'Can replace this Fighting Style when you gain an ASI',
     ],
+    choices: [
+      {
+        id: 'fighting-style',
+        name: 'Fighting Style',
+        description: 'Choose a Fighting Style to learn',
+        count: 1,
+        options: [
+          { id: 'archery', name: 'Archery', description: '+2 bonus to attack rolls with ranged weapons.' },
+          { id: 'blind-fighting', name: 'Blind Fighting', description: 'You have Blindsight with a range of 10 feet.' },
+          { id: 'defense', name: 'Defense', description: '+1 bonus to AC while wearing armor.' },
+          { id: 'dueling', name: 'Dueling', description: '+2 bonus to damage rolls when wielding a melee weapon in one hand and no other weapons.' },
+          { id: 'great-weapon', name: 'Great Weapon Fighting', description: 'Reroll 1s and 2s on damage dice with two-handed or versatile melee weapons.' },
+          { id: 'interception', name: 'Interception', description: 'Reduce damage to nearby ally by 1d10 + proficiency bonus as a reaction.' },
+          { id: 'protection', name: 'Protection', description: 'Impose disadvantage on attack against nearby ally as a reaction (requires shield).' },
+          { id: 'thrown-weapon', name: 'Thrown Weapon Fighting', description: '+2 bonus to damage with thrown weapons.' },
+          { id: 'two-weapon', name: 'Two-Weapon Fighting', description: 'Add ability modifier to the damage of your off-hand attack.' },
+          { id: 'unarmed', name: 'Unarmed Fighting', description: 'Unarmed strikes deal 1d6 + STR (1d8 if both hands free).' },
+        ],
+      },
+    ],
   },
   {
     name: 'Grappler',
