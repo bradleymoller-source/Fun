@@ -5959,7 +5959,7 @@ export const SPECIES_RESOURCES: SpeciesResourceDefinition[] = [
     id: 'celestial-revelation',
     name: 'Celestial Revelation',
     species: ['aasimar'],
-    description: 'Bonus action: Transform for 1 minute, gaining effects based on your form. Necrotic Shroud: creatures within 10 ft must CHA save or be frightened. Radiant Consumption: deal radiant damage to nearby creatures. Radiant Soul: gain flying speed 30 ft.',
+    description: 'Bonus action: Transform for 1 minute, gaining effects based on your chosen form.',
     restoreOn: 'long',
     maxAtLevel: () => 1,
   },

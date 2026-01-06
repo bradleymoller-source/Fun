@@ -830,7 +830,9 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
           <div className="bg-dark-wood p-2 rounded border border-leather text-center cursor-help">
             <span className="text-parchment/70 text-sm">Passive Perception: </span>
             {(() => {
-              const hasObservant = character.features?.some(f => f.name === 'Observant');
+              // Check features and levelHistory for Observant feat
+              const hasObservant = character.features?.some(f => f.name === 'Observant' || f.name.startsWith('Observant ')) ||
+                character.levelHistory?.some(lh => lh.changes.featTaken === 'Observant');
               const basePassive = 10 + getSkillModifier(
                 character.abilityScores.wisdom,
                 character.skillProficiencies.perception,

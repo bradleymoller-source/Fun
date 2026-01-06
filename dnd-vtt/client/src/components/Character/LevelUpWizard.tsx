@@ -446,6 +446,21 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
         );
         updatedSpellsKnown = [...updatedSpellsKnown, ...bonusSpellsToAdd];
       }
+      // Add bonus spells/cantrips from subclass choices (e.g., Circle of the Land)
+      if (subclassInfo?.choices) {
+        subclassInfo.choices.forEach(choice => {
+          const selectedOptionIds = subclassChoices[choice.id] || [];
+          selectedOptionIds.forEach(optionId => {
+            const option = choice.options.find(o => o.id === optionId);
+            if (option?.bonusSpells) {
+              const choiceSpellsToAdd = option.bonusSpells.filter(
+                spell => !updatedSpellsKnown.includes(spell)
+              );
+              updatedSpellsKnown = [...updatedSpellsKnown, ...choiceSpellsToAdd];
+            }
+          });
+        });
+      }
     }
 
     // Add feat bonus spells (Fey Touched, Shadow Touched, etc.)
@@ -468,7 +483,28 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
 
     // Build updated cantrips
     const currentCantrips = character.cantripsKnown || [];
-    const updatedCantripsKnown = [...currentCantrips, ...newCantripsLearned];
+    let updatedCantripsKnown = [...currentCantrips, ...newCantripsLearned];
+
+    // Add bonus cantrips from subclass choices (e.g., Circle of the Land)
+    if (selectedSubclass) {
+      const subclassInfo = CLASS_SUBCLASSES[character.characterClass]?.find(
+        sub => sub.name === selectedSubclass
+      );
+      if (subclassInfo?.choices) {
+        subclassInfo.choices.forEach(choice => {
+          const selectedOptionIds = subclassChoices[choice.id] || [];
+          selectedOptionIds.forEach(optionId => {
+            const option = choice.options.find(o => o.id === optionId);
+            if (option?.bonusCantrips) {
+              const choiceCantripsToAdd = option.bonusCantrips.filter(
+                cantrip => !updatedCantripsKnown.includes(cantrip)
+              );
+              updatedCantripsKnown = [...updatedCantripsKnown, ...choiceCantripsToAdd];
+            }
+          });
+        });
+      }
+    }
 
     // Update skill proficiencies with expertise
     const updatedSkillProficiencies = { ...character.skillProficiencies };
@@ -603,13 +639,15 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
       // Spells (include when new spells learned OR when subclass/feat adds bonus spells)
       ...((newSpellsLearned.length > 0 ||
            (selectedSubclass && CLASS_SUBCLASSES[character.characterClass]?.find(sub => sub.name === selectedSubclass)?.bonusSpells?.length) ||
+           (selectedSubclass && Object.keys(subclassChoices).length > 0) || // Subclass choice bonus spells
            (selectedFeat?.fixedSpells?.length) ||
            featSpellChoices.length > 0) && {
         spellsKnown: updatedSpellsKnown,
         spells: updatedSpellsKnown,
       }),
-      // Cantrips
-      ...(newCantripsLearned.length > 0 && {
+      // Cantrips (include when new cantrips learned OR when subclass choice adds bonus cantrips)
+      ...((newCantripsLearned.length > 0 ||
+           (selectedSubclass && Object.keys(subclassChoices).length > 0)) && { // Subclass choice bonus cantrips
         cantripsKnown: updatedCantripsKnown,
       }),
       // Metamagic (Sorcerer)
