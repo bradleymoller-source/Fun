@@ -24,6 +24,7 @@ import {
   WEAPON_MASTERIES,
   WEAPON_MASTERY_DESCRIPTIONS,
   FIGHTING_STYLES,
+  GENERAL_FEATS,
 } from '../../data/dndData';
 import { Tooltip, RULE_TOOLTIPS } from '../ui/Tooltip';
 import { Button } from '../ui/Button';
@@ -2258,6 +2259,89 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
                       <span className="text-gold text-sm">{ability.spell}</span>
                     </div>
                     <p className="text-parchment/70 text-xs mt-1">{ability.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Feat-Granted Spells (Telepathic, Fey Touched, Shadow Touched, etc.) */}
+        {(() => {
+          // Check for feats that grant spells
+          const featSpellAbilities: { feat: string; spells: string[]; cantrips: string[]; description: string }[] = [];
+
+          character.features.forEach(feature => {
+            // Check if this is a spell-granting feat
+            const featData = GENERAL_FEATS.find(f =>
+              feature.name === f.name || feature.name.startsWith(f.name + ' ')
+            );
+
+            if (featData && (featData.fixedSpells?.length || featData.bonusCantrips?.length || featData.spellChoices)) {
+              featSpellAbilities.push({
+                feat: feature.name,
+                spells: featData.fixedSpells || [],
+                cantrips: featData.bonusCantrips || [],
+                description: featData.spellChoices
+                  ? `Plus 1 chosen ${featData.spellChoices.schools.join('/')} spell (1/long rest free)`
+                  : featData.fixedSpells?.length
+                    ? 'Cast once per long rest without spell slot'
+                    : '',
+              });
+            }
+          });
+
+          // Also check levelHistory for feats with spell choices
+          character.levelHistory?.forEach(lh => {
+            if (lh.changes.featTaken) {
+              const featName = lh.changes.featTaken;
+              const featData = GENERAL_FEATS.find(f =>
+                featName === f.name || featName.startsWith(f.name + ' ')
+              );
+
+              // Avoid duplicates
+              if (featData && !featSpellAbilities.some(f => f.feat === featName)) {
+                if (featData.fixedSpells?.length || featData.bonusCantrips?.length || featData.spellChoices) {
+                  // Include any chosen spells from the level history
+                  const chosenSpells = lh.changes.featSpellChoices || [];
+                  featSpellAbilities.push({
+                    feat: featName,
+                    spells: [...(featData.fixedSpells || []), ...chosenSpells],
+                    cantrips: featData.bonusCantrips || [],
+                    description: featData.fixedSpells?.length
+                      ? 'Cast once per long rest without spell slot'
+                      : '',
+                  });
+                }
+              }
+            }
+          });
+
+          if (featSpellAbilities.length === 0) return null;
+
+          return (
+            <div>
+              <h4 className="text-emerald-400 font-semibold mb-2">Feat Spells</h4>
+              <div className="space-y-2">
+                {featSpellAbilities.map(ability => (
+                  <div key={ability.feat} className="bg-dark-wood rounded border border-emerald-500/30 p-2">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-emerald-300 font-semibold text-sm">{ability.feat}</span>
+                    </div>
+                    {ability.cantrips.length > 0 && (
+                      <div className="text-parchment/80 text-xs mb-1">
+                        <span className="text-purple-400">Cantrips:</span> {ability.cantrips.join(', ')}
+                      </div>
+                    )}
+                    {ability.spells.length > 0 && (
+                      <div className="text-parchment/80 text-xs mb-1">
+                        <span className="text-blue-400">Spells:</span> {ability.spells.join(', ')}
+                        <span className="text-emerald-400/70 ml-1">(1/long rest free)</span>
+                      </div>
+                    )}
+                    {ability.description && (
+                      <p className="text-parchment/60 text-xs">{ability.description}</p>
+                    )}
                   </div>
                 ))}
               </div>

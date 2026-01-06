@@ -516,6 +516,14 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
       }
     }
 
+    // Add feat bonus cantrips (Telekinetic grants Mage Hand, etc.)
+    if (selectedFeat?.bonusCantrips) {
+      const featCantripsToAdd = selectedFeat.bonusCantrips.filter(
+        cantrip => !updatedCantripsKnown.includes(cantrip)
+      );
+      updatedCantripsKnown = [...updatedCantripsKnown, ...featCantripsToAdd];
+    }
+
     // Update skill proficiencies with expertise
     const updatedSkillProficiencies = { ...character.skillProficiencies };
     for (const skill of newExpertise) {
@@ -640,6 +648,7 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
           },
         }),
         ...(selectedFeat && { featTaken: selectedFeat.name }),
+        ...(featSpellChoices.length > 0 && { featSpellChoices }),
         ...(selectedSubclass && { subclassChosen: selectedSubclass }),
         ...(selectedPactBoon && { pactBoonChosen: selectedPactBoon }),
         ...(selectedFightingStyle && { fightingStyleChosen: selectedFightingStyle }),
@@ -688,9 +697,10 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
         spellsKnown: updatedSpellsKnown,
         spells: updatedSpellsKnown,
       }),
-      // Cantrips (include when new cantrips learned OR when subclass choice adds bonus cantrips)
+      // Cantrips (include when new cantrips learned OR when subclass/feat adds bonus cantrips)
       ...((newCantripsLearned.length > 0 ||
-           (selectedSubclass && Object.keys(subclassChoices).length > 0)) && { // Subclass choice bonus cantrips
+           (selectedSubclass && Object.keys(subclassChoices).length > 0) ||
+           selectedFeat?.bonusCantrips?.length) && {
         cantripsKnown: updatedCantripsKnown,
       }),
       // Metamagic (Sorcerer)

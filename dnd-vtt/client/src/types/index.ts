@@ -385,6 +385,7 @@ export interface LevelUpRecord {
       abilities: (keyof AbilityScores)[];
     };
     featTaken?: string;
+    featSpellChoices?: string[];
     subclassChosen?: string;
     pactBoonChosen?: string;
     fightingStyleChosen?: string;

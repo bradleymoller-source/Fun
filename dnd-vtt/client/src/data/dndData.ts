@@ -240,7 +240,11 @@ export const CLASS_SUBCLASSES: Record<CharacterClass, SubclassInfo[]> = {
     {
       name: 'Circle of the Moon',
       description: 'Druids of this circle are fierce guardians of the wilds.',
-      features: ['Combat Wild Shape: Bonus action Wild Shape, can use Wild Shape to heal'],
+      features: [
+        'Combat Wild Shape: Bonus action to transform, can attack immediately after',
+        'Circle Forms: CR = druid level / 3 (e.g., CR 1 at L3, CR 2 at L6)',
+        'Lunar Form: Spend Wild Shape use to heal 1d8 × Prof Bonus HP',
+      ],
       levelAvailable: 3,
     },
     {
@@ -394,17 +398,22 @@ export const CLASS_SUBCLASSES: Record<CharacterClass, SubclassInfo[]> = {
     {
       name: 'Beast Master',
       description: 'Rangers who emulate this archetype form a bond with a beast companion.',
-      features: ['Primal Companion: Gain a beast companion that obeys your commands'],
+      features: [
+        'Primal Companion: Gain a beast companion that obeys your commands',
+        'Companion Stats: AC = 13 + PB, HP = 5 + (5 × Ranger level)',
+        'Companion Attack: Your spell attack bonus, 1d8 + 2 + PB damage',
+        'Command: Bonus action to command, or uses your Attack action',
+      ],
       levelAvailable: 3,
       choices: [{
         id: 'beast-type',
         name: 'Primal Companion',
-        description: 'Choose the form of your beast companion.',
+        description: 'Choose the form of your beast companion. All have AC 13+PB, HP 5+(5×level), Attack +spell mod, Damage 1d8+2+PB.',
         count: 1,
         options: [
-          { id: 'beast-of-land', name: 'Beast of the Land', description: 'A nimble beast with high movement speed and the ability to charge enemies.' },
-          { id: 'beast-of-sea', name: 'Beast of the Sea', description: 'An aquatic beast with swim speed and the ability to knock enemies prone.' },
-          { id: 'beast-of-sky', name: 'Beast of the Sky', description: 'A flying beast that can assist allies and flyby attack enemies.' },
+          { id: 'beast-of-land', name: 'Beast of the Land', description: 'Speed 40 ft, climb 40 ft. Charge: If moves 20+ ft straight then hits, target takes extra 1d6 slashing and must save or fall prone. Primal Bond: When you or beast hits same target, other gets advantage on next attack vs it.' },
+          { id: 'beast-of-sea', name: 'Beast of the Sea', description: 'Speed 5 ft, swim 60 ft. Binding Strike: Target must STR save or be grappled. Amphibious: Breathes air and water.' },
+          { id: 'beast-of-sky', name: 'Beast of the Sky', description: 'Speed 10 ft, fly 60 ft. Flyby: Doesn\'t provoke opportunity attacks. Aerial Support: When within 5 ft of ally, beast gives that ally advantage on next attack.' },
         ],
       }],
     },
@@ -478,7 +487,12 @@ export const CLASS_SUBCLASSES: Record<CharacterClass, SubclassInfo[]> = {
     {
       name: 'Soulknife',
       description: 'Rogues who harness psionic power to manifest blades of psychic energy.',
-      features: ['Psionic Power: Manifest psychic blades, gain psi-bolstered abilities'],
+      features: [
+        'Psionic Energy Dice: Pool of d6s equal to 2 × Proficiency Bonus',
+        'Psi-Bolstered Knack: Add die to failed skill check (if still fails, die not expended)',
+        'Psychic Whispers: Telepathic bond with creatures = Proficiency Bonus for 1 hour (1 die)',
+        'Psychic Blades: Bonus action summon 1d6 psychic blade (finesse, thrown 60ft)',
+      ],
       levelAvailable: 3,
     },
     {
@@ -1276,6 +1290,7 @@ export interface GeneralFeat {
   abilityBonus?: { ability: keyof AbilityScores | 'choice'; bonus: number };
   // Spell choices for feats like Fey Touched, Shadow Touched
   fixedSpells?: string[];      // Spells always granted by this feat
+  bonusCantrips?: string[];    // Cantrips always granted by this feat
   spellChoices?: {
     schools: string[];         // Allowed spell schools (e.g., ['divination', 'enchantment'])
     level: number;             // Spell level to choose from
@@ -1686,6 +1701,7 @@ export const GENERAL_FEATS: GeneralFeat[] = [
       'Bonus action to shove creature within 30 feet (STR save or move 5 feet)',
     ],
     abilityBonus: { ability: 'choice', bonus: 1 },
+    bonusCantrips: ['Mage Hand'],
   },
   {
     name: 'Telepathic',
@@ -1696,6 +1712,7 @@ export const GENERAL_FEATS: GeneralFeat[] = [
       'Cast Detect Thoughts once per long rest without components',
     ],
     abilityBonus: { ability: 'choice', bonus: 1 },
+    fixedSpells: ['Detect Thoughts'],
   },
   {
     name: 'War Caster',
@@ -3411,9 +3428,14 @@ export function getMaxSpellLevel(characterClass: CharacterClass, level: number):
   }
 
   if (casterType === 'half') {
-    // Half casters: gain spellcasting at level 2, spell level progression is slower
+    // Half casters (Paladin, Ranger): gain spellcasting at level 2
+    // 1st level spells: 2-4, 2nd: 5-8, 3rd: 9-12, 4th: 13-16, 5th: 17+
     if (level < 2) return 0;
-    return Math.min(5, Math.ceil((level - 1) / 4) + 1);
+    if (level < 5) return 1;
+    if (level < 9) return 2;
+    if (level < 13) return 3;
+    if (level < 17) return 4;
+    return 5;
   }
 
   if (casterType === 'pact') {
@@ -6117,6 +6139,55 @@ export const FEAT_RESOURCES: FeatResourceDefinition[] = [
     restoreOn: 'short',
     maxAtLevel: (level) => getProficiencyBonus(level), // Can use on up to Prof Bonus creatures
   },
+  // Feat spells (once per long rest free casting)
+  {
+    id: 'telepathic-detect-thoughts',
+    name: 'Detect Thoughts (Free)',
+    featName: 'Telepathic',
+    description: 'Cast Detect Thoughts once per long rest without expending a spell slot or material components.',
+    restoreOn: 'long',
+    maxAtLevel: () => 1,
+  },
+  {
+    id: 'fey-touched-spells',
+    name: 'Fey Touched Spells',
+    featName: 'Fey Touched',
+    description: 'Cast Misty Step and your chosen enchantment/divination spell once each per long rest without expending spell slots.',
+    restoreOn: 'long',
+    maxAtLevel: () => 2, // Misty Step + 1 chosen spell
+  },
+  {
+    id: 'shadow-touched-spells',
+    name: 'Shadow Touched Spells',
+    featName: 'Shadow Touched',
+    description: 'Cast Invisibility and your chosen illusion/necromancy spell once each per long rest without expending spell slots.',
+    restoreOn: 'long',
+    maxAtLevel: () => 2, // Invisibility + 1 chosen spell
+  },
+  {
+    id: 'telekinetic-shove',
+    name: 'Telekinetic Shove',
+    featName: 'Telekinetic',
+    description: 'Bonus action: target within 30 ft makes STR save or is pushed 5 ft toward/away from you. Unlimited uses.',
+    restoreOn: 'short',
+    maxAtLevel: () => 0, // Unlimited - just tracking for info
+  },
+  {
+    id: 'magic-initiate-spells',
+    name: 'Magic Initiate Spell',
+    featName: 'Magic Initiate',
+    description: 'Cast your chosen 1st-level spell once per long rest without expending a spell slot.',
+    restoreOn: 'long',
+    maxAtLevel: () => 1,
+  },
+  {
+    id: 'ritual-caster-spells',
+    name: 'Ritual Spells',
+    featName: 'Ritual Caster',
+    description: 'Cast your ritual spells as rituals only (adds 10 minutes to casting time).',
+    restoreOn: 'long',
+    maxAtLevel: () => 0, // Unlimited rituals
+  },
 ];
 
 // Subclass resources
@@ -6196,6 +6267,64 @@ export const SUBCLASS_RESOURCES: SubclassResourceDefinition[] = [
     maxAtLevel: () => 1,
     minLevel: 6,
   },
+  // Rogue Subclasses
+  {
+    id: 'psionic-energy-dice',
+    name: 'Psionic Energy Dice',
+    characterClass: 'rogue',
+    subclassName: 'Soulknife',
+    description: 'Pool of d6s (d8 at 5th, d10 at 11th, d12 at 17th level). Use for Psi-Bolstered Knack, Psychic Whispers, Homing Strikes, Psychic Teleportation, Psychic Veil, or Rend Mind. Regain all on long rest, 1 on short rest.',
+    restoreOn: 'long',
+    maxAtLevel: (level) => getProficiencyBonus(level) * 2,
+  },
+  // Druid Subclasses
+  {
+    id: 'lunar-form-healing',
+    name: 'Lunar Form Healing',
+    characterClass: 'druid',
+    subclassName: 'Circle of the Moon',
+    description: 'Spend 1 Wild Shape use (no action) to heal 1d8 × Proficiency Bonus HP while in beast form.',
+    restoreOn: 'short',
+    maxAtLevel: () => 2, // Same as Wild Shape uses
+  },
+];
+
+// Common Wild Shape beast forms
+export interface BeastForm {
+  name: string;
+  cr: number;
+  ac: number;
+  hp: number;
+  speed: string;
+  abilities: { str: number; dex: number; con: number };
+  attacks: { name: string; hit: string; damage: string }[];
+  special?: string[];
+}
+
+export const WILD_SHAPE_FORMS: BeastForm[] = [
+  // CR 0
+  { name: 'Cat', cr: 0, ac: 12, hp: 2, speed: '40 ft, climb 30 ft', abilities: { str: 3, dex: 15, con: 10 }, attacks: [{ name: 'Claws', hit: '+0', damage: '1 slashing' }], special: ['Keen Smell', 'Darkvision 60 ft'] },
+  { name: 'Rat', cr: 0, ac: 10, hp: 1, speed: '20 ft', abilities: { str: 2, dex: 11, con: 9 }, attacks: [{ name: 'Bite', hit: '+0', damage: '1 piercing' }], special: ['Keen Smell', 'Darkvision 30 ft'] },
+  { name: 'Spider', cr: 0, ac: 12, hp: 1, speed: '20 ft, climb 20 ft', abilities: { str: 2, dex: 14, con: 8 }, attacks: [{ name: 'Bite', hit: '+4', damage: '1 piercing' }], special: ['Web Sense', 'Web Walker', 'Darkvision 30 ft'] },
+  // CR 1/4
+  { name: 'Wolf', cr: 0.25, ac: 13, hp: 11, speed: '40 ft', abilities: { str: 12, dex: 15, con: 12 }, attacks: [{ name: 'Bite', hit: '+4', damage: '2d4+2 piercing' }], special: ['Pack Tactics', 'Keen Hearing/Smell'] },
+  { name: 'Boar', cr: 0.25, ac: 11, hp: 11, speed: '40 ft', abilities: { str: 13, dex: 11, con: 12 }, attacks: [{ name: 'Tusk', hit: '+3', damage: '1d6+1 slashing' }], special: ['Charge (+1d6 dmg, DC 11 STR or prone)', 'Relentless (1/rest)'] },
+  { name: 'Giant Frog', cr: 0.25, ac: 11, hp: 18, speed: '30 ft, swim 30 ft', abilities: { str: 12, dex: 13, con: 11 }, attacks: [{ name: 'Bite', hit: '+3', damage: '1d6+1 piercing + grapple' }], special: ['Swallow (Small or smaller)', 'Standing Leap 20 ft'] },
+  // CR 1/2
+  { name: 'Black Bear', cr: 0.5, ac: 11, hp: 19, speed: '40 ft, climb 30 ft', abilities: { str: 15, dex: 10, con: 14 }, attacks: [{ name: 'Multiattack', hit: '', damage: 'Bite + Claws' }, { name: 'Bite', hit: '+4', damage: '1d6+2 piercing' }, { name: 'Claws', hit: '+4', damage: '2d4+2 slashing' }], special: ['Keen Smell'] },
+  { name: 'Crocodile', cr: 0.5, ac: 12, hp: 19, speed: '20 ft, swim 30 ft', abilities: { str: 15, dex: 10, con: 13 }, attacks: [{ name: 'Bite', hit: '+4', damage: '1d10+2 piercing + grapple' }], special: ['Hold Breath 15 min'] },
+  { name: 'Giant Wasp', cr: 0.5, ac: 12, hp: 13, speed: '10 ft, fly 50 ft', abilities: { str: 10, dex: 14, con: 10 }, attacks: [{ name: 'Sting', hit: '+4', damage: '1d6+2 piercing + 3d6 poison (DC 11 CON half)' }] },
+  // CR 1
+  { name: 'Brown Bear', cr: 1, ac: 11, hp: 34, speed: '40 ft, climb 30 ft', abilities: { str: 19, dex: 10, con: 16 }, attacks: [{ name: 'Multiattack', hit: '', damage: 'Bite + Claws' }, { name: 'Bite', hit: '+6', damage: '1d8+4 piercing' }, { name: 'Claws', hit: '+6', damage: '2d6+4 slashing' }], special: ['Keen Smell'] },
+  { name: 'Dire Wolf', cr: 1, ac: 14, hp: 37, speed: '50 ft', abilities: { str: 17, dex: 15, con: 15 }, attacks: [{ name: 'Bite', hit: '+5', damage: '2d6+3 piercing' }], special: ['Pack Tactics', 'Keen Hearing/Smell', 'DC 13 STR or prone'] },
+  { name: 'Giant Spider', cr: 1, ac: 14, hp: 26, speed: '30 ft, climb 30 ft', abilities: { str: 14, dex: 16, con: 12 }, attacks: [{ name: 'Bite', hit: '+5', damage: '1d8+3 piercing + 2d8 poison (DC 11 CON half)' }], special: ['Web (recharge 5-6)', 'Spider Climb', 'Web Sense', 'Darkvision 60 ft'] },
+  { name: 'Giant Toad', cr: 1, ac: 11, hp: 39, speed: '20 ft, swim 40 ft', abilities: { str: 15, dex: 13, con: 13 }, attacks: [{ name: 'Bite', hit: '+4', damage: '1d10+2 piercing + 1d10 poison + swallow' }], special: ['Swallow (Medium or smaller)', 'Standing Leap 20 ft'] },
+  // CR 2
+  { name: 'Giant Constrictor Snake', cr: 2, ac: 12, hp: 60, speed: '30 ft, swim 30 ft', abilities: { str: 19, dex: 14, con: 12 }, attacks: [{ name: 'Bite', hit: '+6', damage: '2d6+4 piercing' }, { name: 'Constrict', hit: '+6', damage: '2d8+4 bludgeoning + grapple' }], special: ['Blindsight 10 ft'] },
+  { name: 'Polar Bear', cr: 2, ac: 12, hp: 42, speed: '40 ft, swim 30 ft', abilities: { str: 20, dex: 10, con: 16 }, attacks: [{ name: 'Multiattack', hit: '', damage: 'Bite + Claws' }, { name: 'Bite', hit: '+7', damage: '1d8+5 piercing' }, { name: 'Claws', hit: '+7', damage: '2d6+5 slashing' }], special: ['Keen Smell'] },
+  { name: 'Giant Elk', cr: 2, ac: 14, hp: 42, speed: '60 ft', abilities: { str: 19, dex: 16, con: 14 }, attacks: [{ name: 'Multiattack', hit: '', damage: 'Ram + Hooves' }, { name: 'Ram', hit: '+6', damage: '2d6+4 bludgeoning' }, { name: 'Hooves', hit: '+6', damage: '4d8+4 bludgeoning' }], special: ['Charge (+2d6 dmg, DC 14 STR or prone)'] },
+  // CR 3
+  { name: 'Giant Scorpion', cr: 3, ac: 15, hp: 52, speed: '40 ft', abilities: { str: 15, dex: 13, con: 15 }, attacks: [{ name: 'Multiattack', hit: '', damage: '2 Claws + Sting' }, { name: 'Claw', hit: '+4', damage: '1d8+2 bludgeoning + grapple' }, { name: 'Sting', hit: '+4', damage: '1d10+2 piercing + 4d10 poison (DC 12 CON half)' }], special: ['Blindsight 60 ft'] },
 ];
 
 // Helper to get all resources for a character
@@ -6284,7 +6413,8 @@ export function getCharacterResources(
   // Add feat resources
   if (feats) {
     for (const resource of FEAT_RESOURCES) {
-      if (feats.includes(resource.featName)) {
+      // Match feat name even if it has parenthetical suffixes (e.g., "Lucky (Constitution)")
+      if (feats.some(f => f === resource.featName || f.startsWith(resource.featName + ' '))) {
         resources[resource.id] = {
           max: resource.maxAtLevel(level),
           restoreOn: resource.restoreOn,
