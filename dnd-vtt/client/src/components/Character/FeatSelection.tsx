@@ -31,14 +31,29 @@ export function FeatSelection({ character, onSelect, onCancel }: FeatSelectionPr
   // Check if feat has spell choices (like Fey Touched, Shadow Touched)
   const hasSpellChoices = selectedFeat?.spellChoices !== undefined;
 
-  // Get available spells for spell choice feats
+  // Get character's known spells (spells from feats are added to these lists when taken)
+  const knownSpells = useMemo(() => {
+    const spells = new Set<string>();
+    // Add all known/prepared spells
+    (character.spellsKnown || []).forEach(s => spells.add(s));
+    (character.spells || []).forEach(s => spells.add(s));
+    (character.cantripsKnown || []).forEach(s => spells.add(s));
+    (character.spellsPrepared || []).forEach(s => spells.add(s));
+    // Add spells from spellcasting structure
+    if (character.spellcasting?.spells) {
+      character.spellcasting.spells.forEach(spell => spells.add(spell.name));
+    }
+    return spells;
+  }, [character]);
+
+  // Get available spells for spell choice feats, filtering out already-known spells
   const availableSpells = useMemo(() => {
     if (!selectedFeat?.spellChoices) return [];
     return getSpellsBySchoolAndLevel(
       selectedFeat.spellChoices.schools,
       selectedFeat.spellChoices.level
-    );
-  }, [selectedFeat?.spellChoices]);
+    ).filter(spell => !knownSpells.has(spell.name));
+  }, [selectedFeat?.spellChoices, knownSpells]);
 
   // Check if all feat choices are made
   const allFeatChoicesMade = !hasFeatChoices || selectedFeat?.choices?.every(choice => {
