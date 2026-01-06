@@ -910,9 +910,15 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
                   </p>
                 )}
                 {hasTavernBrawler && (
-                  <p className="text-orange-300 mt-1">
-                    <span className="font-semibold">Tavern Brawler:</span> Reroll 1s on unarmed damage • Push target 5 ft on unarmed hit (1/turn)
-                  </p>
+                  <div className="text-orange-300 mt-1">
+                    <span className="font-semibold">Tavern Brawler:</span>
+                    <ul className="list-disc list-inside ml-2 text-xs">
+                      <li>Unarmed Strikes deal 1d4 + STR damage</li>
+                      <li>Reroll 1s on unarmed damage</li>
+                      <li>Proficiency with Improvised Weapons</li>
+                      <li>Once per turn: push target 5 ft on unarmed hit</li>
+                    </ul>
+                  </div>
                 )}
               </div>
             )}

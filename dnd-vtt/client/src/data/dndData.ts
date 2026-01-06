@@ -5410,7 +5410,7 @@ export const WARLOCK_SPELL_SLOTS: Record<number, { slots: number; level: number 
   20: { slots: 4, level: 5 },
 };
 
-// ============ CLASS RESOURCES (Ki, Rage, etc.) ============
+// ============ CLASS RESOURCES (Focus, Rage, etc.) ============
 
 export type RestType = 'short' | 'long';
 
@@ -5507,12 +5507,12 @@ export const CLASS_RESOURCES: Record<CharacterClass, ClassResourceDefinition[]> 
   ],
   monk: [
     {
-      id: 'ki-points',
-      name: 'Ki Points',
-      description: 'Resource for martial arts techniques: Flurry of Blows (1 ki, 2 unarmed strikes as bonus action), Patient Defense (1 ki, Dodge as bonus action), Step of the Wind (1 ki, Disengage/Dash as bonus action, double jump). More options unlock at higher levels.',
+      id: 'focus-points',
+      name: 'Focus Points',
+      description: 'Resource for martial arts techniques: Flurry of Blows (1 Focus, 2 unarmed strikes as bonus action), Patient Defense (1 Focus, Dodge as bonus action), Step of the Wind (1 Focus, Disengage/Dash as bonus action, double jump). More options unlock at higher levels.',
       restoreOn: 'short',
       minLevel: 2,
-      maxAtLevel: (level) => level,  // Ki points = monk level
+      maxAtLevel: (level) => level,  // Focus points = monk level
     },
   ],
   paladin: [
