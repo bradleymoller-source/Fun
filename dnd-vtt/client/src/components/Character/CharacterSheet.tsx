@@ -64,6 +64,9 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
   const conditions = character.conditions || [];
   const exhaustionLevel = character.exhaustionLevel || 0;
 
+  // Check for Jack of All Trades (Bard level 2+)
+  const hasJackOfAllTrades = character.characterClass === 'bard' && character.level >= 2;
+
   // Get spell slots for this character's class and level
   const getSpellSlots = (): number[] => {
     if (character.spellcasting?.spellSlots) {
@@ -226,7 +229,8 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
     const modifier = getSkillModifier(
       character.abilityScores[SKILL_ABILITIES[skill]],
       profLevel,
-      profBonus
+      profBonus,
+      hasJackOfAllTrades
     );
     const exhaustionPenalty = exhaustionLevel * -2;
     const totalMod = modifier + exhaustionPenalty;
@@ -828,7 +832,8 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
               {10 + getSkillModifier(
                 character.abilityScores.wisdom,
                 character.skillProficiencies.perception,
-                profBonus
+                profBonus,
+                hasJackOfAllTrades
               )}
             </span>
           </div>
@@ -849,8 +854,12 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
                   const modifier = getSkillModifier(
                     character.abilityScores[SKILL_ABILITIES[skill]],
                     profLevel,
-                    profBonus
+                    profBonus,
+                    hasJackOfAllTrades
                   );
+
+                  // Jack of All Trades applies to non-proficient skills
+                  const hasJoATBonus = hasJackOfAllTrades && profLevel === 'none';
 
                   return (
                     <button
@@ -860,18 +869,23 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
                       className={`w-full flex items-center justify-between p-2 rounded transition-colors ${
                         profLevel !== 'none'
                           ? 'bg-gold/10 border border-gold/30 hover:bg-gold/20'
+                          : hasJoATBonus
+                          ? 'bg-purple-900/20 border border-purple-500/30 hover:bg-purple-900/30'
                           : 'bg-dark-wood border border-leather hover:border-gold/50'
                       } disabled:hover:bg-dark-wood disabled:hover:border-leather`}
                     >
                       <div className="flex items-center gap-2">
-                        <span className={profLevel !== 'none' ? 'text-gold' : 'text-parchment/50'}>
-                          {profLevel === 'expertise' ? '◆' : profLevel === 'proficient' ? '●' : '○'}
+                        <span className={profLevel !== 'none' ? 'text-gold' : hasJoATBonus ? 'text-purple-400' : 'text-parchment/50'}>
+                          {profLevel === 'expertise' ? '◆' : profLevel === 'proficient' ? '●' : hasJoATBonus ? '◐' : '○'}
                         </span>
-                        <span className={profLevel !== 'none' ? 'text-gold' : 'text-parchment'}>
+                        <span className={profLevel !== 'none' ? 'text-gold' : hasJoATBonus ? 'text-purple-300' : 'text-parchment'}>
                           {SKILL_NAMES[skill]}
                         </span>
+                        {hasJoATBonus && (
+                          <span className="text-purple-400 text-xs">(JoAT)</span>
+                        )}
                       </div>
-                      <span className={`font-bold ${profLevel !== 'none' ? 'text-gold' : 'text-parchment/70'}`}>
+                      <span className={`font-bold ${profLevel !== 'none' ? 'text-gold' : hasJoATBonus ? 'text-purple-300' : 'text-parchment/70'}`}>
                         {formatModifier(modifier)}
                       </span>
                     </button>

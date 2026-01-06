@@ -1008,7 +1008,8 @@ export function formatModifier(modifier: number): string {
 export function getSkillModifier(
   abilityScore: number,
   proficiency: ProficiencyLevel,
-  proficiencyBonus: number
+  proficiencyBonus: number,
+  jackOfAllTrades: boolean = false
 ): number {
   const abilityMod = getAbilityModifier(abilityScore);
   switch (proficiency) {
@@ -1017,7 +1018,8 @@ export function getSkillModifier(
     case 'proficient':
       return abilityMod + proficiencyBonus;
     default:
-      return abilityMod;
+      // Jack of All Trades: Add half proficiency (rounded down) to non-proficient skills
+      return abilityMod + (jackOfAllTrades ? Math.floor(proficiencyBonus / 2) : 0);
   }
 }
 
