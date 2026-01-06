@@ -1261,6 +1261,19 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       description: f.description,
     }));
 
+    // Add subclass features if level requirement met
+    if (subclass) {
+      const selectedSubclass = CLASS_SUBCLASSES[characterClass]?.find(sc => sc.name === subclass);
+      if (selectedSubclass && charLevel >= selectedSubclass.levelAvailable) {
+        selectedSubclass.features.forEach((f, idx) => features.push({
+          id: `subclass-${idx}`,
+          name: f.split(':')[0].trim(), // Get feature name before colon
+          source: subclass,
+          description: f.includes(':') ? f.split(':').slice(1).join(':').trim() : f,
+        }));
+      }
+    }
+
     // Add subspecies/lineage-specific features based on speciesChoice
     if (species === 'elf') {
       if (speciesChoice === 'wood-elf') {

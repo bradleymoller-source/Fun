@@ -383,6 +383,23 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
       });
     }
 
+    // Add subclass features when gaining a subclass
+    if (selectedSubclass) {
+      const subclassInfo = CLASS_SUBCLASSES[character.characterClass]?.find(
+        sub => sub.name === selectedSubclass
+      );
+      if (subclassInfo?.features) {
+        subclassInfo.features.forEach((f, idx) => {
+          updatedFeatures.push({
+            id: `subclass-${idx}`,
+            name: f.split(':')[0].trim(), // Get feature name before colon
+            source: selectedSubclass,
+            description: f.includes(':') ? f.split(':').slice(1).join(':').trim() : f,
+          });
+        });
+      }
+    }
+
     // Recalculate derived stats
     const newConMod = getAbilityModifier(newAbilityScores.constitution);
     const conModDiff = newConMod - conMod;
