@@ -1455,6 +1455,9 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       }
     }
 
+    // Check for Tavern Brawler feat (from origin feat or human bonus feat)
+    const hasTavernBrawler = originFeat?.name === 'Tavern Brawler' || humanBonusFeat === 'Tavern Brawler';
+
     // Add Unarmed Strike for Monks (Martial Arts feature)
     if (characterClass === 'monk') {
       // Monk martial arts damage scales with level: 1d6 (1-4), 1d8 (5-10), 1d10 (11-16), 1d12 (17+)
@@ -1475,28 +1478,34 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
         damage: `${martialArtsDie}+${attackMod}`,
         properties: ['Finesse', 'Light'],
         equipped: true,
+        // Note Tavern Brawler benefits if Monk has the feat
+        effect: hasTavernBrawler ? 'Tavern Brawler: Reroll 1s on damage, push 5 ft (1/turn)' : undefined,
       });
     }
 
-    // Add Unarmed Strike for Tavern Brawler feat (from origin feat or human bonus feat)
-    const hasTavernBrawler = originFeat?.name === 'Tavern Brawler' || humanBonusFeat === 'Tavern Brawler';
+    // Add Unarmed Strike for Tavern Brawler feat (non-Monk)
     if (hasTavernBrawler && characterClass !== 'monk') { // Monk already has better unarmed
       const strMod = getAbilityModifier(finalScores.strength);
+      // Unarmed strikes can use STR or DEX (Light property)
+      const attackMod = Math.max(dexMod, strMod);
       const profBonus = getProficiencyBonus(charLevel);
 
       weapons.push({
         id: 'weapon-unarmed-tb',
         name: 'Unarmed Strike (Tavern Brawler)',
-        attackBonus: strMod + profBonus,
-        damage: `1d4+${strMod}`,
+        attackBonus: attackMod + profBonus,
+        damage: `1d4+${attackMod}`,
         properties: ['Light'],
         equipped: true,
+        effect: 'Reroll 1s on damage, push 5 ft (1/turn)',
       });
     }
 
     // Add Unarmed Fighting style if selected (Fighter/Paladin/Ranger)
     if (fightingStyle === 'unarmed' && characterClass !== 'monk') {
       const strMod = getAbilityModifier(finalScores.strength);
+      // Unarmed strikes can use STR or DEX
+      const attackMod = Math.max(dexMod, strMod);
       const profBonus = getProficiencyBonus(charLevel);
 
       // Remove any existing unarmed strike from Tavern Brawler (Fighting Style is better)
@@ -1506,10 +1515,12 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       weapons.push({
         id: 'weapon-unarmed-fs',
         name: 'Unarmed Strike (Unarmed Fighting)',
-        attackBonus: strMod + profBonus,
-        damage: `1d6+${strMod}`, // 1d8 if both hands free, but we use 1d6 as baseline
+        attackBonus: attackMod + profBonus,
+        damage: `1d6+${attackMod}`, // 1d8 if both hands free, but we use 1d6 as baseline
         properties: ['Light'],
         equipped: true,
+        // Note Tavern Brawler benefits if they also have the feat
+        effect: hasTavernBrawler ? 'Tavern Brawler: Reroll 1s on damage, push 5 ft (1/turn)' : undefined,
       });
     }
 
