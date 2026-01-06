@@ -22,7 +22,6 @@ export function SpellLearning({ character, newLevel, currentSpells, onSelect }: 
   const maxSpellLevel = getMaxSpellLevel(character.characterClass, newLevel);
 
   const [selectedSpells, setSelectedSpells] = useState<string[]>([]);
-  const [expandedSpell, setExpandedSpell] = useState<string | null>(null);
 
   // Get available spells filtered by what the character can cast
   const availableSpells = getAvailableSpellsForClass(character.characterClass, newLevel)
@@ -141,19 +140,9 @@ export function SpellLearning({ character, newLevel, currentSpells, onSelect }: 
                           <span className={isSelected ? 'text-gold font-semibold' : 'text-parchment'}>
                             {spell.name}
                           </span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setExpandedSpell(expandedSpell === spell.name ? null : spell.name);
-                            }}
-                            className="text-parchment/50 text-xs hover:text-gold"
-                          >
-                            {expandedSpell === spell.name ? '▼' : 'ⓘ'}
-                          </button>
+                          {isSelected && <span className="text-gold text-xs">✓</span>}
                         </div>
-                        {expandedSpell === spell.name && (
-                          <p className="text-parchment/70 text-xs mt-1">{spell.description}</p>
-                        )}
+                        <p className="text-parchment/60 text-xs mt-1">{spell.description}</p>
                       </div>
                     );
                   })}
@@ -238,19 +227,9 @@ export function SpellLearning({ character, newLevel, currentSpells, onSelect }: 
                         <span className={isSelected ? 'text-gold font-semibold' : 'text-parchment'}>
                           {spell.name}
                         </span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setExpandedSpell(expandedSpell === spell.name ? null : spell.name);
-                          }}
-                          className="text-parchment/50 text-xs hover:text-gold"
-                        >
-                          {expandedSpell === spell.name ? '▼' : 'ⓘ'}
-                        </button>
+                        {isSelected && <span className="text-gold text-xs">✓</span>}
                       </div>
-                      {expandedSpell === spell.name && (
-                        <p className="text-parchment/70 text-xs mt-1">{spell.description}</p>
-                      )}
+                      <p className="text-parchment/60 text-xs mt-1">{spell.description}</p>
                     </div>
                   );
                 })}

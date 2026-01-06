@@ -91,6 +91,7 @@ export const CLASS_SUBCLASSES: Record<CharacterClass, SubclassInfo[]> = {
       description: 'Many barbarians have a spiritual connection to a powerful animal spirit.',
       features: ['Animal Speaker: Cast Speak with Animals and Beast Sense as rituals', 'Rage of the Wilds: Gain special ability while raging based on chosen animal'],
       levelAvailable: 3,
+      bonusSpells: ['Speak with Animals', 'Beast Sense'],
       choices: [{
         id: 'animal-spirit',
         name: 'Animal Spirit',
@@ -286,12 +287,14 @@ export const CLASS_SUBCLASSES: Record<CharacterClass, SubclassInfo[]> = {
       description: 'Monks who follow this tradition weave shadows and darkness.',
       features: ['Shadow Arts: Spend Focus Points to cast Darkness, Darkvision, Pass without Trace, or Silence'],
       levelAvailable: 3,
+      bonusSpells: ['Darkness', 'Darkvision', 'Pass without Trace', 'Silence'],
     },
     {
       name: 'Warrior of the Elements',
       description: 'These monks channel elemental forces through their martial arts.',
       features: ['Elemental Attunement: Learn to manipulate elemental energy, learn Elementalism cantrip'],
       levelAvailable: 3,
+      bonusCantrips: ['Elementalism'],
     },
     {
       name: 'Warrior of the Open Hand',

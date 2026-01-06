@@ -1130,6 +1130,40 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
           }
         });
 
+        // Add subclass choices with full descriptions (Animal Spirit, Maneuvers, Hunter's Prey, etc.)
+        if (character.subclass && character.subclassChoices) {
+          const subclassInfo = CLASS_SUBCLASSES[character.characterClass]?.find(sc => sc.name === character.subclass);
+          subclassInfo?.choices?.forEach(choice => {
+            const selectedIds = character.subclassChoices?.[choice.id] || [];
+            selectedIds.forEach(optionId => {
+              const option = choice.options.find(o => o.id === optionId);
+              if (option) {
+                const lowerDesc = option.description.toLowerCase();
+                // Categorize by action type
+                if (lowerDesc.includes('bonus action')) {
+                  bonusActions.push({
+                    name: `${choice.name}: ${option.name}`,
+                    description: option.description,
+                    source: character.subclass || ''
+                  });
+                } else if (lowerDesc.includes('reaction')) {
+                  reactions.push({
+                    name: `${choice.name}: ${option.name}`,
+                    description: option.description,
+                    source: character.subclass || ''
+                  });
+                } else {
+                  passives.push({
+                    name: `${choice.name}: ${option.name}`,
+                    description: option.description,
+                    source: character.subclass || ''
+                  });
+                }
+              }
+            });
+          });
+        }
+
         const hasCombatActions = bonusActions.length > 0 || reactions.length > 0 || passives.length > 0;
         if (!hasCombatActions) return null;
 
@@ -1960,15 +1994,37 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
           </div>
         )}
 
-        {/* Spells Known - Expandable cards */}
-        {hasSpells && (
-          <div>
-            <h4 className="text-blue-400 font-semibold mb-2">Spells Known</h4>
-            <div className="space-y-1">
-              {character.spells!.map(spell => renderSpellCard(spell, false))}
+        {/* Spells Known - Grouped by level */}
+        {hasSpells && (() => {
+          // Group spells by level
+          const spellsByLevel: Record<number, string[]> = {};
+          character.spells!.forEach(spellName => {
+            const spellData = SPELL_DESCRIPTIONS[spellName];
+            const level = spellData?.level ?? 1;
+            if (!spellsByLevel[level]) spellsByLevel[level] = [];
+            spellsByLevel[level].push(spellName);
+          });
+
+          return (
+            <div>
+              <h4 className="text-blue-400 font-semibold mb-2">Spells Known</h4>
+              <div className="space-y-3">
+                {Object.entries(spellsByLevel)
+                  .sort(([a], [b]) => Number(a) - Number(b))
+                  .map(([level, spells]) => (
+                    <div key={level}>
+                      <div className="text-gold/70 text-xs uppercase tracking-wide mb-1">
+                        {Number(level) === 0 ? 'Cantrips' : `Level ${level}`}
+                      </div>
+                      <div className="space-y-1">
+                        {spells.map(spell => renderSpellCard(spell, Number(level) === 0))}
+                      </div>
+                    </div>
+                  ))}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Invocation Abilities (at-will spells from Eldritch Invocations) */}
         {character.eldritchInvocations && character.eldritchInvocations.length > 0 && (() => {
@@ -2029,17 +2085,35 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
           );
         })()}
 
-        {/* Full Spell List (if spellcasting object exists) */}
-        {hasSpellcasting && character.spellcasting!.spells.length > 0 && (
-          <div>
-            <h4 className="text-gold font-semibold mb-2">Spell List</h4>
-            <div className="space-y-1">
-              {character.spellcasting!.spells
-                .sort((a, b) => a.level - b.level)
-                .map(spell => renderSpellCard(spell.name, spell.level === 0))}
+        {/* Full Spell List (if spellcasting object exists) - Grouped by level */}
+        {hasSpellcasting && character.spellcasting!.spells.length > 0 && (() => {
+          // Group spells by level
+          const spellsByLevel: Record<number, typeof character.spellcasting.spells> = {};
+          character.spellcasting!.spells.forEach(spell => {
+            if (!spellsByLevel[spell.level]) spellsByLevel[spell.level] = [];
+            spellsByLevel[spell.level].push(spell);
+          });
+
+          return (
+            <div>
+              <h4 className="text-gold font-semibold mb-2">Spell List</h4>
+              <div className="space-y-3">
+                {Object.entries(spellsByLevel)
+                  .sort(([a], [b]) => Number(a) - Number(b))
+                  .map(([level, spells]) => (
+                    <div key={level}>
+                      <div className="text-gold/70 text-xs uppercase tracking-wide mb-1">
+                        {Number(level) === 0 ? 'Cantrips' : `Level ${level}`}
+                      </div>
+                      <div className="space-y-1">
+                        {spells.map(spell => renderSpellCard(spell.name, spell.level === 0))}
+                      </div>
+                    </div>
+                  ))}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
     );
   };
