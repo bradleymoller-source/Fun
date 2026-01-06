@@ -78,8 +78,8 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
   const [selectedFeat, setSelectedFeat] = useState<GeneralFeat | null>(null);
   const [featAbilityChoice, setFeatAbilityChoice] = useState<keyof AbilityScores | null>(null);
 
-  // Subclass selection
-  const needsSubclass = newLevel === 3 && !character.subclass;
+  // Subclass selection (level 3 for most classes, but some need it at level 1)
+  const needsSubclass = newLevel >= 3 && !character.subclass;
   const [selectedSubclass, setSelectedSubclass] = useState<string | null>(null);
   const [subclassChoices, setSubclassChoices] = useState<Record<string, string[]>>({});
 

@@ -306,8 +306,9 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       setAbilityScores(CLASS_STANDARD_ARRAYS[characterClass]);
     }
     // Reset subclass when class changes
+    // Only auto-select subclass for classes that get it at level 1 (Cleric, Sorcerer, Warlock)
     const subclasses = CLASS_SUBCLASSES[characterClass];
-    if (subclasses && subclasses.length > 0) {
+    if (subclasses && subclasses.length > 0 && hasLevel1Subclass(characterClass)) {
       setSubclass(subclasses[0].name);
     } else {
       setSubclass('');

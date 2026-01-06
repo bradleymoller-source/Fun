@@ -722,19 +722,19 @@ export const PACT_BOONS: PactBoon[] = [
   },
 ];
 
-// Check if a warlock needs to choose a pact boon
+// Check if a warlock needs to choose a pact boon (Level 3 in 2024 PHB)
 export function needsPactBoon(characterClass: CharacterClass, level: number, currentPactBoon?: string): boolean {
-  return characterClass === 'warlock' && level === 1 && !currentPactBoon;
+  return characterClass === 'warlock' && level >= 3 && !currentPactBoon;
 }
 
 // Helper function: Does this Cleric need to select a Divine Order?
 export function needsDivineOrder(characterClass: CharacterClass, level: number, currentDivineOrder?: string): boolean {
-  return characterClass === 'cleric' && level === 1 && !currentDivineOrder;
+  return characterClass === 'cleric' && level >= 1 && !currentDivineOrder;
 }
 
-/// Helper function: Does this Druid need to select a Primal Order?
+// Helper function: Does this Druid need to select a Primal Order?
 export function needsPrimalOrder(characterClass: CharacterClass, level: number, currentPrimalOrder?: string): boolean {
-  return characterClass === 'druid' && level === 1 && !currentPrimalOrder;
+  return characterClass === 'druid' && level >= 1 && !currentPrimalOrder;
 }
 
 // ============ PRIMAL KNOWLEDGE (Barbarian L3) ============
@@ -755,7 +755,7 @@ export function needsPrimalKnowledge(
   level: number,
   currentPrimalKnowledgeSkill?: string
 ): boolean {
-  return characterClass === 'barbarian' && level === 3 && !currentPrimalKnowledgeSkill;
+  return characterClass === 'barbarian' && level >= 3 && !currentPrimalKnowledgeSkill;
 }
 
 // ============ EXPERTISE ============
@@ -4953,9 +4953,9 @@ export function needsWeaponMastery(
 ): boolean {
   const masteryCount = WEAPON_MASTERY_CLASSES[characterClass];
   if (masteryCount === 0) return false;
-  // Weapon mastery is chosen at level 1
-  if (level !== 1) return false;
-  // If already have masteries, don't need to choose again
+  // Weapon mastery is chosen at level 1, but allow retroactive selection
+  if (level < 1) return false;
+  // If already have enough masteries, don't need to choose again
   if (currentMasteries && currentMasteries.length >= masteryCount) return false;
   return true;
 }
