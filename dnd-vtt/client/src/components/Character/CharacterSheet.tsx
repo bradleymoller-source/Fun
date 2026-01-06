@@ -917,17 +917,50 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
 
       {/* Weapons */}
       {(() => {
-        // Check for combat feats
-        const hasSavageAttacker = character.features?.some(f => f.name === 'Savage Attacker');
-        const hasTavernBrawler = character.features?.some(f => f.name === 'Tavern Brawler');
+        // Check for combat feats - check both features and levelHistory
+        const hasSavageAttacker = character.features?.some(f => f.name === 'Savage Attacker' || f.name.startsWith('Savage Attacker')) ||
+          character.levelHistory?.some(lh => lh.changes.featTaken === 'Savage Attacker');
+        const hasTavernBrawler = character.features?.some(f => f.name === 'Tavern Brawler' || f.name.startsWith('Tavern Brawler')) ||
+          character.levelHistory?.some(lh => lh.changes.featTaken === 'Tavern Brawler');
+        const hasUnarmedFighting = character.fightingStyle === 'unarmed';
         const isUnarmed = (name: string) => name.toLowerCase().includes('unarmed');
+
+        // Calculate unarmed strike stats if character has Tavern Brawler or Unarmed Fighting
+        const strMod = getAbilityModifier(character.abilityScores.strength);
+        const dexMod = getAbilityModifier(character.abilityScores.dexterity);
+        const attackMod = Math.max(strMod, dexMod); // Can use STR or DEX
+        const unarmedAttackBonus = attackMod + profBonus;
+
+        // Determine unarmed damage die
+        let unarmedDamageDie = '1'; // Default unarmed is 1 + STR
+        let unarmedDamageSource = '';
+        if (hasUnarmedFighting) {
+          unarmedDamageDie = '1d6'; // 1d8 if both hands free
+          unarmedDamageSource = 'Unarmed Fighting';
+        } else if (hasTavernBrawler) {
+          unarmedDamageDie = '1d4';
+          unarmedDamageSource = 'Tavern Brawler';
+        }
+        const unarmedDamage = `${unarmedDamageDie}+${strMod}`;
+
+        // Check if character already has an unarmed strike weapon
+        const hasUnarmedWeapon = character.weapons.some(w => isUnarmed(w.name));
 
         return (
           <div>
             <h4 className="text-gold font-semibold mb-2">Weapons</h4>
-            {/* Combat feat reminders */}
-            {(hasSavageAttacker || hasTavernBrawler) && (
+            {/* Combat feat/style reminders */}
+            {(hasSavageAttacker || hasTavernBrawler || hasUnarmedFighting) && (
               <div className="mb-2 p-2 bg-amber-900/20 border border-amber-600/30 rounded text-xs">
+                {hasUnarmedFighting && (
+                  <div className="text-cyan-300 mb-1">
+                    <span className="font-semibold">Unarmed Fighting:</span>
+                    <ul className="list-disc list-inside ml-2 text-xs">
+                      <li>Unarmed Strikes deal 1d6 + STR (1d8 if both hands free)</li>
+                      <li>At start of turn: 1d4 bludgeoning to grappled creature</li>
+                    </ul>
+                  </div>
+                )}
                 {hasSavageAttacker && (
                   <p className="text-amber-300">
                     <span className="font-semibold">Savage Attacker:</span> Once per turn, roll weapon/unarmed damage twice and use either result
@@ -946,26 +979,72 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
                 )}
               </div>
             )}
-            {character.weapons.length === 0 ? (
-              <p className="text-parchment/50 text-sm">No weapons equipped</p>
-            ) : (
-              <div className="space-y-2">
-                {character.weapons.map(weapon => {
+            <div className="space-y-2">
+              {/* Synthesized Unarmed Strike if character has Tavern Brawler or Unarmed Fighting but no unarmed weapon */}
+              {(hasTavernBrawler || hasUnarmedFighting) && !hasUnarmedWeapon && (
+                <div
+                  className={`p-2 rounded border ${
+                    hasUnarmedFighting
+                      ? 'bg-cyan-900/30 border-cyan-600/40'
+                      : 'bg-orange-900/30 border-orange-600/40'
+                  }`}
+                >
+                  <div className="flex justify-between items-center mb-1">
+                    <div className="text-parchment font-semibold">
+                      Unarmed Strike
+                      <span className={`text-xs ml-2 ${hasUnarmedFighting ? 'text-cyan-400' : 'text-orange-400'}`}>
+                        ({unarmedDamageSource})
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => handleRollAttack('Unarmed Strike', unarmedAttackBonus)}
+                      disabled={!onRoll}
+                      className="text-gold font-bold hover:text-yellow-300 disabled:hover:text-gold"
+                      title="Roll attack"
+                    >
+                      {formatModifier(unarmedAttackBonus)} to hit
+                    </button>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <div className="text-parchment/70 text-xs">
+                      {hasTavernBrawler && 'Reroll 1s • Push 5ft (1/turn)'}
+                      {hasUnarmedFighting && hasTavernBrawler && ' • '}
+                      {hasUnarmedFighting && '1d8 if both hands free'}
+                    </div>
+                    <button
+                      onClick={() => handleRollDamage('Unarmed Strike', unarmedDamage)}
+                      disabled={!onRoll}
+                      className="text-red-400 text-sm hover:text-red-300 disabled:hover:text-red-400"
+                      title="Roll damage"
+                    >
+                      {unarmedDamage} bludgeoning
+                    </button>
+                  </div>
+                </div>
+              )}
+              {character.weapons.length === 0 && !hasTavernBrawler && !hasUnarmedFighting ? (
+                <p className="text-parchment/50 text-sm">No weapons equipped</p>
+              ) : (
+                character.weapons.map(weapon => {
                   const weaponIsUnarmed = isUnarmed(weapon.name);
                   return (
                     <div
                       key={weapon.id}
                       className={`p-2 rounded border ${
-                        weaponIsUnarmed && hasTavernBrawler
-                          ? 'bg-orange-900/30 border-orange-600/40'
+                        weaponIsUnarmed && (hasTavernBrawler || hasUnarmedFighting)
+                          ? hasUnarmedFighting
+                            ? 'bg-cyan-900/30 border-cyan-600/40'
+                            : 'bg-orange-900/30 border-orange-600/40'
                           : 'bg-dark-wood border-leather'
                       }`}
                     >
                       <div className="flex justify-between items-center mb-1">
                         <div className="text-parchment font-semibold">
                           {weapon.name}
-                          {weaponIsUnarmed && hasTavernBrawler && (
-                            <span className="text-orange-400 text-xs ml-2">(Tavern Brawler)</span>
+                          {weaponIsUnarmed && (hasTavernBrawler || hasUnarmedFighting) && (
+                            <span className={`text-xs ml-2 ${hasUnarmedFighting ? 'text-cyan-400' : 'text-orange-400'}`}>
+                              ({hasUnarmedFighting ? 'Unarmed Fighting' : 'Tavern Brawler'})
+                            </span>
                           )}
                         </div>
                         <button
@@ -1008,9 +1087,9 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
                       )}
                     </div>
                   );
-                })}
-              </div>
-            )}
+                })
+              )}
+            </div>
           </div>
         );
       })()}
