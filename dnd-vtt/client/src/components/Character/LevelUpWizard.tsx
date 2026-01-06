@@ -46,6 +46,9 @@ import {
   needsWeaponMastery,
   needsPrimalKnowledge,
   getCharacterResources,
+  getSubclassSpellcasting,
+  getSubclassNewCantripsAtLevel,
+  getSubclassNewSpellsAtLevel,
   type GeneralFeat,
 } from '../../data/dndData';
 
@@ -85,14 +88,20 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
   const [selectedSubclass, setSelectedSubclass] = useState<string | null>(null);
   const [subclassChoices, setSubclassChoices] = useState<Record<string, string[]>>({});
 
-  // Spell learning
+  // Spell learning (class spellcasting + subclass spellcasting like EK/AT)
   const [newSpellsLearned, setNewSpellsLearned] = useState<string[]>([]);
-  const spellsToLearn = getNewSpellsAtLevel(character.characterClass, newLevel);
+  const effectiveSubclass = selectedSubclass || character.subclass;
+  const subclassSpellcasting = getSubclassSpellcasting(character.characterClass, effectiveSubclass);
+  const classSpellsToLearn = getNewSpellsAtLevel(character.characterClass, newLevel);
+  const subclassSpellsToLearn = getSubclassNewSpellsAtLevel(character.characterClass, effectiveSubclass, newLevel);
+  const spellsToLearn = classSpellsToLearn + subclassSpellsToLearn;
 
-  // Cantrip learning
+  // Cantrip learning (class cantrips + subclass cantrips like EK/AT)
   const [newCantripsLearned, setNewCantripsLearned] = useState<string[]>([]);
-  const cantripsToLearn = getNewCantripsAtLevel(character.characterClass, newLevel);
-  const gainsCantrips = gainsCantripsAtLevel(character.characterClass, newLevel);
+  const classCantripsToLearn = getNewCantripsAtLevel(character.characterClass, newLevel);
+  const subclassCantripsToLearn = getSubclassNewCantripsAtLevel(character.characterClass, effectiveSubclass, newLevel);
+  const cantripsToLearn = classCantripsToLearn + subclassCantripsToLearn;
+  const gainsCantrips = gainsCantripsAtLevel(character.characterClass, newLevel) || subclassCantripsToLearn > 0;
 
   // Expertise
   const [newExpertise, setNewExpertise] = useState<SkillName[]>([]);
@@ -260,20 +269,21 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
       steps.push('invocations');
     }
 
-    // Cantrip learning (spellcasters that gain cantrips at this level)
+    // Cantrip learning (spellcasters that gain cantrips at this level, including subclass spellcasters)
     if (gainsCantrips && cantripsToLearn > 0) {
       steps.push('cantripLearning');
     }
 
-    // Spell learning for known casters or wizard
-    if (characterIsSpellcaster && (preparationType === 'known' || preparationType === 'spellbook')) {
+    // Spell learning for known casters, wizard, or subclass spellcasters (EK/AT)
+    const isSubclassSpellcaster = !!subclassSpellcasting;
+    if ((characterIsSpellcaster && (preparationType === 'known' || preparationType === 'spellbook')) || isSubclassSpellcaster) {
       if (spellsToLearn > 0 || preparationType === 'spellbook') {
         steps.push('spellLearning');
       }
     }
 
-    // Spell slot progression display
-    if (characterIsSpellcaster) {
+    // Spell slot progression display (for class spellcasters or subclass spellcasters)
+    if (characterIsSpellcaster || isSubclassSpellcaster) {
       steps.push('spells');
     }
 
@@ -1141,17 +1151,32 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
     </div>
   );
 
-  const renderSpellLearningStep = () => (
-    <SpellLearning
-      character={character}
-      newLevel={newLevel}
-      currentSpells={character.spellsKnown || character.spells || []}
-      onSelect={(spells) => {
-        setNewSpellsLearned(spells);
-        nextStep();
-      }}
-    />
-  );
+  const renderSpellLearningStep = () => {
+    // Determine max spell level for subclass spellcasters
+    const getSubclassMaxSpellLevel = (): number => {
+      if (!subclassSpellcasting) return 0;
+      const slots = subclassSpellcasting.spellSlots[newLevel] || [];
+      for (let i = slots.length - 1; i >= 0; i--) {
+        if (slots[i] > 0) return i + 1;
+      }
+      return 1;
+    };
+
+    return (
+      <SpellLearning
+        character={character}
+        newLevel={newLevel}
+        currentSpells={character.spellsKnown || character.spells || []}
+        onSelect={(spells) => {
+          setNewSpellsLearned(spells);
+          nextStep();
+        }}
+        spellsToLearnOverride={subclassSpellcasting ? spellsToLearn : undefined}
+        spellListClass={subclassSpellcasting ? 'wizard' as const : undefined}
+        maxSpellLevelOverride={subclassSpellcasting ? getSubclassMaxSpellLevel() : undefined}
+      />
+    );
+  };
 
   const renderSpellsStep = () => {
     const currentSlots = getCurrentSpellSlots();
@@ -1419,6 +1444,8 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
         setNewCantripsLearned(cantrips);
         nextStep();
       }}
+      cantripsToLearnOverride={subclassSpellcasting ? cantripsToLearn : undefined}
+      spellListClass={subclassSpellcasting ? 'wizard' as const : undefined}
     />
   );
 

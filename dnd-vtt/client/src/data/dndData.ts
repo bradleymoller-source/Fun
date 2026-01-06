@@ -3286,6 +3286,47 @@ export function getNewSpellsAtLevel(characterClass: CharacterClass, level: numbe
   return Math.max(0, current - previous);
 }
 
+// Check if subclass grants spellcasting (Eldritch Knight, Arcane Trickster)
+export function getSubclassSpellcasting(characterClass: CharacterClass, subclass: string | undefined): SubclassInfo['spellcasting'] | undefined {
+  if (!subclass) return undefined;
+  const subclassInfo = CLASS_SUBCLASSES[characterClass]?.find(sc => sc.name === subclass);
+  return subclassInfo?.spellcasting;
+}
+
+// Get new cantrips for subclass spellcasters at a level
+export function getSubclassNewCantripsAtLevel(characterClass: CharacterClass, subclass: string | undefined, level: number): number {
+  const spellcasting = getSubclassSpellcasting(characterClass, subclass);
+  if (!spellcasting) return 0;
+
+  const current = spellcasting.cantripsKnown[level] || 0;
+  const previous = spellcasting.cantripsKnown[level - 1] || 0;
+  return Math.max(0, current - previous);
+}
+
+// Get new spells for subclass spellcasters at a level
+export function getSubclassNewSpellsAtLevel(characterClass: CharacterClass, subclass: string | undefined, level: number): number {
+  const spellcasting = getSubclassSpellcasting(characterClass, subclass);
+  if (!spellcasting) return 0;
+
+  const current = spellcasting.spellsKnown[level] || 0;
+  const previous = spellcasting.spellsKnown[level - 1] || 0;
+  return Math.max(0, current - previous);
+}
+
+// Get total cantrips known for subclass spellcaster
+export function getSubclassCantripsKnown(characterClass: CharacterClass, subclass: string | undefined, level: number): number {
+  const spellcasting = getSubclassSpellcasting(characterClass, subclass);
+  if (!spellcasting) return 0;
+  return spellcasting.cantripsKnown[level] || 0;
+}
+
+// Get total spells known for subclass spellcaster
+export function getSubclassSpellsKnown(characterClass: CharacterClass, subclass: string | undefined, level: number): number {
+  const spellcasting = getSubclassSpellcasting(characterClass, subclass);
+  if (!spellcasting) return 0;
+  return spellcasting.spellsKnown[level] || 0;
+}
+
 // Get the spellcasting type for a class
 export function getSpellcasterType(characterClass: CharacterClass): 'full' | 'half' | 'pact' | 'none' {
   const fullCasters: CharacterClass[] = ['bard', 'cleric', 'druid', 'sorcerer', 'wizard'];
@@ -3391,9 +3432,10 @@ export function getMaxSpellLevel(characterClass: CharacterClass, level: number):
 // Get all available spells for a class at a given character level
 export function getAvailableSpellsForClass(
   characterClass: CharacterClass,
-  characterLevel: number
+  characterLevel: number,
+  maxSpellLevelOverride?: number  // For subclass spellcasters with different progression
 ): { name: string; description: string; level: number }[] {
-  const maxSpellLevel = getMaxSpellLevel(characterClass, characterLevel);
+  const maxSpellLevel = maxSpellLevelOverride ?? getMaxSpellLevel(characterClass, characterLevel);
   const spells: { name: string; description: string; level: number }[] = [];
 
   // Add level 1 spells

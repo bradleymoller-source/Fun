@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Character } from '../../types';
+import type { Character, CharacterClass } from '../../types';
 import { Button } from '../ui/Button';
 import {
   CLASS_NAMES,
@@ -14,17 +14,32 @@ interface SpellLearningProps {
   newLevel: number;
   currentSpells: string[];
   onSelect: (newSpells: string[]) => void;
+  spellsToLearnOverride?: number;    // For subclass spellcasters
+  spellListClass?: CharacterClass;   // Which class's spell list to use (e.g., 'wizard' for EK/AT)
+  maxSpellLevelOverride?: number;    // Max spell level for subclass spellcasters
 }
 
-export function SpellLearning({ character, newLevel, currentSpells, onSelect }: SpellLearningProps) {
+export function SpellLearning({
+  character,
+  newLevel,
+  currentSpells,
+  onSelect,
+  spellsToLearnOverride,
+  spellListClass,
+  maxSpellLevelOverride,
+}: SpellLearningProps) {
   const preparationType = getSpellPreparationType(character.characterClass);
-  const spellsToLearn = getNewSpellsAtLevel(character.characterClass, newLevel);
-  const maxSpellLevel = getMaxSpellLevel(character.characterClass, newLevel);
+  const spellsToLearn = spellsToLearnOverride ?? getNewSpellsAtLevel(character.characterClass, newLevel);
+
+  // For subclass spellcasters, use the override or calculate from the spell list class
+  const spellClass = spellListClass || character.characterClass;
+  const maxSpellLevel = maxSpellLevelOverride ?? getMaxSpellLevel(spellClass, newLevel);
 
   const [selectedSpells, setSelectedSpells] = useState<string[]>([]);
 
   // Get available spells filtered by what the character can cast
-  const availableSpells = getAvailableSpellsForClass(character.characterClass, newLevel)
+  // Use spellListClass if provided (for subclass spellcasters like EK/AT using wizard spells)
+  const availableSpells = getAvailableSpellsForClass(spellClass, newLevel, maxSpellLevelOverride)
     .filter(spell => !currentSpells.includes(spell.name)); // Exclude already known spells
 
   // Group spells by level

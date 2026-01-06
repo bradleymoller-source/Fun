@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Character } from '../../types';
+import type { Character, CharacterClass } from '../../types';
 import { Button } from '../ui/Button';
 import {
   CLASS_NAMES,
@@ -12,6 +12,8 @@ interface CantripLearningProps {
   newLevel: number;
   currentCantrips: string[];
   onSelect: (newCantrips: string[]) => void;
+  cantripsToLearnOverride?: number;  // For subclass spellcasters
+  spellListClass?: CharacterClass;    // Which class's cantrip list to use (e.g., 'wizard' for EK/AT)
 }
 
 export function CantripLearning({
@@ -19,13 +21,16 @@ export function CantripLearning({
   newLevel,
   currentCantrips,
   onSelect,
+  cantripsToLearnOverride,
+  spellListClass,
 }: CantripLearningProps) {
-  const cantripsToLearn = getNewCantripsAtLevel(character.characterClass, newLevel);
+  const cantripsToLearn = cantripsToLearnOverride ?? getNewCantripsAtLevel(character.characterClass, newLevel);
   const [selectedCantrips, setSelectedCantrips] = useState<string[]>([]);
   const [expandedCantrip, setExpandedCantrip] = useState<string | null>(null);
 
-  // Get available cantrips for this class
-  const availableCantrips = (CLASS_CANTRIPS[character.characterClass] || [])
+  // Get available cantrips - use spellListClass if provided (for subclass spellcasters)
+  const cantripClass = spellListClass || character.characterClass;
+  const availableCantrips = (CLASS_CANTRIPS[cantripClass] || [])
     .filter(cantrip => !currentCantrips.includes(cantrip.name));
 
   const handleCantripToggle = (cantripName: string) => {
