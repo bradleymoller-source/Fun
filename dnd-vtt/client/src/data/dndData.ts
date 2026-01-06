@@ -5975,7 +5975,7 @@ export const SPECIES_RESOURCES: SpeciesResourceDefinition[] = [
     id: 'giant-ancestry',
     name: 'Giant Ancestry',
     species: ['goliath'],
-    description: 'Use your chosen giant ancestry ability (Cloud: invisible, Fire: fire damage aura, Frost: cold resistance boost, Hill: knock prone, Stone: damage resistance, Storm: lightning damage). Uses equal to Proficiency Bonus per long rest.',
+    description: 'Use your chosen giant ancestry ability. Uses equal to Proficiency Bonus per long rest.',
     restoreOn: 'long',
     maxAtLevel: (level) => Math.ceil(level / 4) + 1,  // Proficiency bonus
   },
