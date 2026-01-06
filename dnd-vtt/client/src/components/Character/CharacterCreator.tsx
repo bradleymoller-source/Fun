@@ -1254,12 +1254,16 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       source: CLASS_NAMES[characterClass],
       description: f.description,
     }));
-    speciesTraits.features.filter(f => !f.level || f.level <= charLevel).forEach((f, idx) => features.push({
-      id: `species-${idx}`,
-      name: f.name,
-      source: SPECIES_NAMES[species],
-      description: f.description,
-    }));
+    speciesTraits.features
+      .filter(f => !f.level || f.level <= charLevel)
+      // Skip generic "Celestial Revelation" for Aasimar - we'll add the specific chosen one below
+      .filter(f => !(species === 'aasimar' && f.name === 'Celestial Revelation'))
+      .forEach((f, idx) => features.push({
+        id: `species-${idx}`,
+        name: f.name,
+        source: SPECIES_NAMES[species],
+        description: f.description,
+      }));
 
     // Add subclass features if level requirement met
     if (subclass) {
@@ -1387,6 +1391,17 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
           name: 'Infernal Legacy: Darkness',
           source: 'Infernal Tiefling',
           description: 'You can cast Darkness once per long rest. Charisma is your spellcasting ability.',
+        });
+      }
+    } else if (species === 'aasimar' && charLevel >= 3) {
+      // Aasimar Celestial Revelation - add the specific form chosen by the player
+      const revelationOption = SPECIES_CHOICES.aasimar?.options.find(o => o.id === speciesChoice);
+      if (revelationOption) {
+        features.push({
+          id: 'celestial-revelation',
+          name: `Celestial Revelation: ${revelationOption.name}`,
+          source: 'Aasimar',
+          description: `Transform for 1 minute as a bonus action (Prof bonus uses per Long Rest). ${revelationOption.description}`,
         });
       }
     }

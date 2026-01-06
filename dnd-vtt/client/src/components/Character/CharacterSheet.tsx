@@ -609,10 +609,12 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
           <div className="text-parchment/70 text-xs">Initiative</div>
         </button>
       </Tooltip>
-      <div className="bg-dark-wood p-2 rounded border border-leather text-center">
-        <div className="text-gold font-bold text-xl">{character.speed} ft</div>
-        <div className="text-parchment/70 text-xs">Speed</div>
-      </div>
+      <Tooltip content={calculateSpeed().details}>
+        <div className="bg-dark-wood p-2 rounded border border-leather text-center cursor-help">
+          <div className="text-gold font-bold text-xl">{calculateSpeed().speed} ft</div>
+          <div className="text-parchment/70 text-xs">Speed</div>
+        </div>
+      </Tooltip>
       <Tooltip content={RULE_TOOLTIPS.proficiencyBonus}>
         <div className="bg-dark-wood p-2 rounded border border-leather text-center cursor-help">
           <div className="text-gold font-bold text-xl">+{profBonus}</div>
@@ -1020,13 +1022,41 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
           const lowerName = feat.name.toLowerCase();
           const lowerDesc = feat.description.toLowerCase();
 
+          // Skip generic placeholder features
+          if (lowerName === 'fighting style' || lowerName === 'martial archetype' ||
+              lowerName === 'bard college' || lowerName === 'ranger conclave' ||
+              lowerName === 'monastic tradition' || lowerName === 'sorcerous origin' ||
+              lowerName === 'otherworldly patron' || lowerName === 'primal path' ||
+              lowerName === 'divine domain' || lowerName === 'druid circle' ||
+              lowerName === 'roguish archetype' || lowerName === 'arcane tradition' ||
+              lowerName === 'sacred oath' || lowerName === 'ability score improvement' ||
+              lowerName === 'spellcasting' || lowerName === 'weapon mastery') {
+            return; // Skip these generic features
+          }
+
           // Bonus actions (explicit or by description)
           if (lowerDesc.includes('bonus action') || lowerName === 'martial arts' || lowerName === 'cunning action') {
-            bonusActions.push({ name: feat.name, description: feat.description, source: CLASS_NAMES[character.characterClass] });
+            // For Second Wind at level 5+, include Tactical Shift in the description
+            let description = feat.description;
+            if (lowerName === 'second wind' && character.level >= 5) {
+              description += ' | Tactical Shift: Move up to half speed without provoking opportunity attacks.';
+            }
+            bonusActions.push({ name: feat.name, description, source: CLASS_NAMES[character.characterClass] });
           }
           // Reactions (explicit or by description)
           else if (lowerDesc.includes('reaction') || lowerName.includes('deflect') || lowerName === 'uncanny dodge') {
             reactions.push({ name: feat.name, description: feat.description, source: CLASS_NAMES[character.characterClass] });
+          }
+          // Important combat abilities that don't fit other categories
+          // Action-economy abilities (Action Surge, etc.)
+          else if (lowerName === 'action surge' || lowerName.startsWith('action surge')) {
+            passives.push({ name: feat.name, description: feat.description, source: CLASS_NAMES[character.characterClass] });
+          }
+          // Save/check enhancing abilities (Tactical Mind, Indomitable, etc.)
+          // Note: Tactical Shift is now combined with Second Wind above
+          else if (lowerName === 'tactical mind' ||
+                   lowerName === 'indomitable' || lowerName.startsWith('indomitable')) {
+            passives.push({ name: feat.name, description: feat.description, source: CLASS_NAMES[character.characterClass] });
           }
           // On-hit choices (spend resource or slot for extra effect)
           else if (lowerName === 'divine smite' || lowerName === 'stunning strike' ||
@@ -1034,12 +1064,20 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
                    lowerName === 'blessed strikes' || lowerName === 'radiant strikes') {
             passives.push({ name: feat.name, description: feat.description, source: CLASS_NAMES[character.characterClass] });
           }
+          // Class resource abilities (Channel Divinity, Wild Shape, Metamagic, etc.)
+          else if (lowerName === 'channel divinity' || lowerName.startsWith('channel divinity') ||
+                   lowerName === 'wild shape' || lowerName === 'wild companion' ||
+                   lowerName === 'font of magic' || lowerName === 'metamagic' ||
+                   lowerName === 'focus' || lowerName === 'abjure foes') {
+            passives.push({ name: feat.name, description: feat.description, source: CLASS_NAMES[character.characterClass] });
+          }
           // Passive combat features (AC, damage, attacks)
           else if (lowerName === 'unarmored defense' || lowerName === 'sneak attack' ||
                    lowerName === 'extra attack' || lowerName.startsWith('extra attack') ||
                    lowerName === 'evasion' || lowerName === 'danger sense' ||
                    lowerName === 'aura of protection' || lowerName === 'empowered strikes' ||
-                   lowerName.includes('fighting style')) {
+                   lowerName === 'brutal critical' || lowerName === 'feral instinct' ||
+                   lowerName === 'relentless rage' || lowerName === 'persistent rage') {
             passives.push({ name: feat.name, description: feat.description, source: CLASS_NAMES[character.characterClass] });
           }
         });
@@ -1297,6 +1335,58 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
     }
 
     return { ac: baseAC, details: acDetails };
+  };
+
+  // Calculate speed with all modifiers (feats, class features, race)
+  const calculateSpeed = (): { speed: number; details: string } => {
+    const equippedArmor = character.equipment.find(e => e.category === 'armor' && e.equipped);
+    const equippedShield = character.equipment.find(e => e.category === 'shield' && e.equipped);
+    const isWearingHeavyArmor = equippedArmor?.armorType === 'heavy';
+    const isWearingAnyArmor = !!equippedArmor;
+
+    // Start with base race speed
+    let speed = character.speed || 30;
+    let details = `Base: ${speed} ft`;
+
+    // Speedy feat: +10 feet
+    const hasSpeedy = character.features?.some(f => f.name === 'Speedy');
+    if (hasSpeedy) {
+      speed += 10;
+      details += ' + Speedy (+10)';
+    }
+
+    // Barbarian Fast Movement: +10 ft at level 5 if not wearing heavy armor
+    if (character.characterClass === 'barbarian' && character.level >= 5 && !isWearingHeavyArmor) {
+      speed += 10;
+      details += ' + Fast Movement (+10)';
+    }
+
+    // Monk Unarmored Movement: +10 ft at level 2 if not wearing armor or shield
+    // Increases at higher levels: +15 at 6, +20 at 10, +25 at 14, +30 at 18
+    if (character.characterClass === 'monk' && character.level >= 2 && !isWearingAnyArmor && !equippedShield) {
+      let monkSpeedBonus = 10;
+      if (character.level >= 18) monkSpeedBonus = 30;
+      else if (character.level >= 14) monkSpeedBonus = 25;
+      else if (character.level >= 10) monkSpeedBonus = 20;
+      else if (character.level >= 6) monkSpeedBonus = 15;
+      speed += monkSpeedBonus;
+      details += ` + Unarmored Movement (+${monkSpeedBonus})`;
+    }
+
+    // Bard College of Dance: +10 ft while not wearing armor or shield (level 3+)
+    if (character.characterClass === 'bard' && character.subclass === 'College of Dance' &&
+        character.level >= 3 && !isWearingAnyArmor && !equippedShield) {
+      speed += 10;
+      details += ' + Dazzling Footwork (+10)';
+    }
+
+    // Ranger Roving: +10 ft at level 6
+    if (character.characterClass === 'ranger' && character.level >= 6) {
+      speed += 10;
+      details += ' + Roving (+10)';
+    }
+
+    return { speed, details };
   };
 
   const renderEquipmentTab = () => {
