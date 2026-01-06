@@ -898,8 +898,20 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     if (equipmentMethod === 'pack') {
       const pack = CLASS_STARTING_PACKS[characterClass];
 
-      // Convert pack weapons to character weapons
-      weapons = pack.weapons.map((w, idx) => {
+      // Group thrown weapons by name to consolidate duplicates (e.g., 10 Darts -> "Dart (×10)")
+      const weaponCounts = new Map<string, number>();
+      for (const w of pack.weapons) {
+        const isThrown = w.properties?.some(p => p.toLowerCase().includes('thrown'));
+        if (isThrown) {
+          weaponCounts.set(w.name, (weaponCounts.get(w.name) || 0) + 1);
+        }
+      }
+
+      // Track which thrown weapons we've already added
+      const addedThrown = new Set<string>();
+
+      // Convert pack weapons to character weapons (consolidating thrown weapons)
+      weapons = pack.weapons.reduce<Character['weapons']>((acc, w) => {
         // Check if weapon is ranged (has ammunition property)
         const isRanged = w.properties?.some(p => p.toLowerCase().includes('ammunition'));
         // Check if weapon is thrown
@@ -908,6 +920,14 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
         const isTwoHanded = w.properties?.some(p => p.toLowerCase().includes('two-handed') || p.toLowerCase().includes('versatile'));
         // Check if weapon is one-handed melee (for dueling - not two-handed and no ammunition)
         const isOneHandedMelee = !isRanged && !isTwoHanded;
+
+        // Skip duplicate thrown weapons (we'll add them consolidated)
+        if (isThrown && addedThrown.has(w.name)) {
+          return acc;
+        }
+        if (isThrown) {
+          addedThrown.add(w.name);
+        }
 
         // Calculate attack bonus
         let attackBonus = getProficiencyBonus(level);
@@ -944,15 +964,21 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
           properties = [...properties, 'GWF: reroll 1-2'];
         }
 
-        return {
-          id: `weapon-${idx}`,
-          name: w.name,
+        // Get quantity for thrown weapons
+        const quantity = isThrown ? (weaponCounts.get(w.name) || 1) : 1;
+        const displayName = quantity > 1 ? `${w.name} (×${quantity})` : w.name;
+
+        acc.push({
+          id: `weapon-${acc.length}`,
+          name: displayName,
           attackBonus,
           damage,
           properties,
-          equipped: idx === 0,
-        };
-      });
+          equipped: acc.length === 0,
+        });
+
+        return acc;
+      }, []);
 
       // Convert pack equipment to character equipment
       equipment = pack.equipment.map((e, idx) => ({
@@ -1031,7 +1057,19 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       const weaponItems = shopCart.filter(i => i.category === 'weapon');
       const nonWeaponItems = shopCart.filter(i => i.category !== 'weapon');
 
-      weapons = weaponItems.map((w, idx) => {
+      // Group thrown weapons by name to consolidate duplicates
+      const weaponCounts = new Map<string, number>();
+      for (const w of weaponItems) {
+        const isThrown = w.properties?.some(p => p.toLowerCase().includes('thrown'));
+        if (isThrown) {
+          weaponCounts.set(w.name, (weaponCounts.get(w.name) || 0) + 1);
+        }
+      }
+
+      // Track which thrown weapons we've already added
+      const addedThrown = new Set<string>();
+
+      weapons = weaponItems.reduce<Character['weapons']>((acc, w) => {
         // Check if weapon is ranged (has ammunition property)
         const isRanged = w.properties?.some(p => p.toLowerCase().includes('ammunition'));
         // Check if weapon is thrown
@@ -1040,6 +1078,14 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
         const isTwoHanded = w.properties?.some(p => p.toLowerCase().includes('two-handed') || p.toLowerCase().includes('versatile'));
         // Check if weapon is one-handed melee (for dueling)
         const isOneHandedMelee = !isRanged && !isTwoHanded;
+
+        // Skip duplicate thrown weapons (we'll add them consolidated)
+        if (isThrown && addedThrown.has(w.name)) {
+          return acc;
+        }
+        if (isThrown) {
+          addedThrown.add(w.name);
+        }
 
         // Calculate attack bonus
         let attackBonus = getProficiencyBonus(level);
@@ -1076,15 +1122,21 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
           properties = [...properties, 'GWF: reroll 1-2'];
         }
 
-        return {
+        // Get quantity for thrown weapons
+        const quantity = isThrown ? (weaponCounts.get(w.name) || 1) : 1;
+        const displayName = quantity > 1 ? `${w.name} (×${quantity})` : w.name;
+
+        acc.push({
           id: w.id,
-          name: w.name,
+          name: displayName,
           attackBonus,
           damage,
           properties,
-          equipped: idx === 0,
-        };
-      });
+          equipped: acc.length === 0,
+        });
+
+        return acc;
+      }, []);
 
       // Map non-weapon items with proper armor properties
       equipment = nonWeaponItems.map(e => {

@@ -1237,6 +1237,12 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
       acDetails += ` + ${item.name} (+${item.acBonus})`;
     });
 
+    // Fighting Style: Defense (+1 AC when wearing armor)
+    if (character.fightingStyle === 'defense' && equippedArmor) {
+      baseAC += 1;
+      acDetails += ' + Defense (+1)';
+    }
+
     return { ac: baseAC, details: acDetails };
   };
 
