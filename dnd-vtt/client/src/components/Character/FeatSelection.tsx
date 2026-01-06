@@ -9,7 +9,7 @@ import {
 
 interface FeatSelectionProps {
   character: Character;
-  onSelect: (feat: GeneralFeat, abilityChoice?: keyof AbilityScores) => void;
+  onSelect: (feat: GeneralFeat, abilityChoice?: keyof AbilityScores, featChoices?: Record<string, string[]>) => void;
   onCancel: () => void; // Go back to ASI
 }
 
@@ -18,21 +18,32 @@ export function FeatSelection({ character, onSelect, onCancel }: FeatSelectionPr
   const [selectedFeat, setSelectedFeat] = useState<GeneralFeat | null>(null);
   const [expandedFeat, setExpandedFeat] = useState<string | null>(null);
   const [abilityChoice, setAbilityChoice] = useState<keyof AbilityScores | null>(null);
+  const [featChoices, setFeatChoices] = useState<Record<string, string[]>>({});
 
   // Check if feat requires ability choice
   const requiresAbilityChoice = selectedFeat?.abilityBonus?.ability === 'choice';
 
+  // Check if feat has other choices (like Elemental Adept damage type)
+  const hasFeatChoices = selectedFeat?.choices && selectedFeat.choices.length > 0;
+
+  // Check if all feat choices are made
+  const allFeatChoicesMade = !hasFeatChoices || selectedFeat?.choices?.every(choice => {
+    const selected = featChoices[choice.id] || [];
+    return selected.length >= choice.count;
+  });
+
   const handleConfirm = () => {
     if (selectedFeat) {
-      if (requiresAbilityChoice && abilityChoice) {
-        onSelect(selectedFeat, abilityChoice);
-      } else if (!requiresAbilityChoice) {
-        onSelect(selectedFeat);
+      const hasValidAbilityChoice = !requiresAbilityChoice || abilityChoice;
+      const hasValidFeatChoices = allFeatChoicesMade;
+
+      if (hasValidAbilityChoice && hasValidFeatChoices) {
+        onSelect(selectedFeat, abilityChoice || undefined, hasFeatChoices ? featChoices : undefined);
       }
     }
   };
 
-  const canConfirm = selectedFeat && (!requiresAbilityChoice || abilityChoice);
+  const canConfirm = selectedFeat && (!requiresAbilityChoice || abilityChoice) && allFeatChoicesMade;
 
   return (
     <div className="space-y-4">
@@ -65,6 +76,7 @@ export function FeatSelection({ character, onSelect, onCancel }: FeatSelectionPr
               onClick={() => {
                 setSelectedFeat(feat);
                 setAbilityChoice(null);
+                setFeatChoices({});
               }}
             >
               <div className="flex justify-between items-start">
@@ -149,6 +161,59 @@ export function FeatSelection({ character, onSelect, onCancel }: FeatSelectionPr
           </div>
         </div>
       )}
+
+      {/* Feat Choices (e.g., Elemental Adept damage type) */}
+      {selectedFeat && hasFeatChoices && selectedFeat.choices?.map(choice => {
+        const selectedOptions = featChoices[choice.id] || [];
+        return (
+          <div key={choice.id} className="p-3 bg-dark-wood rounded border border-leather">
+            <div className="text-parchment text-sm mb-2">
+              {choice.name}: <span className="text-gold">{choice.description}</span>
+            </div>
+            <div className="grid gap-2">
+              {choice.options.map(option => {
+                const isSelected = selectedOptions.includes(option.id);
+                const canSelect = selectedOptions.length < choice.count || isSelected;
+
+                return (
+                  <button
+                    key={option.id}
+                    onClick={() => {
+                      if (isSelected) {
+                        setFeatChoices({
+                          ...featChoices,
+                          [choice.id]: selectedOptions.filter(id => id !== option.id)
+                        });
+                      } else if (canSelect) {
+                        setFeatChoices({
+                          ...featChoices,
+                          [choice.id]: [...selectedOptions, option.id]
+                        });
+                      }
+                    }}
+                    disabled={!canSelect && !isSelected}
+                    className={`p-2 rounded border text-left transition-colors ${
+                      isSelected
+                        ? 'bg-gold/20 border-gold'
+                        : canSelect
+                        ? 'bg-leather/30 border-leather hover:border-gold/50'
+                        : 'bg-dark-wood/50 border-leather/30 opacity-50 cursor-not-allowed'
+                    }`}
+                  >
+                    <div className="flex justify-between items-center">
+                      <span className={isSelected ? 'text-gold font-semibold' : 'text-parchment'}>
+                        {option.name}
+                      </span>
+                      {isSelected && <span className="text-gold text-xs">✓</span>}
+                    </div>
+                    <p className="text-parchment/60 text-xs mt-1">{option.description}</p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
 
       {/* Selected Feat Summary */}
       {selectedFeat && (

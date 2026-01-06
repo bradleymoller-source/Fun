@@ -77,6 +77,7 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
   const [showFeatSelection, setShowFeatSelection] = useState(false);
   const [selectedFeat, setSelectedFeat] = useState<GeneralFeat | null>(null);
   const [featAbilityChoice, setFeatAbilityChoice] = useState<keyof AbilityScores | null>(null);
+  const [featChoices, setFeatChoices] = useState<Record<string, string[]>>({});
 
   // Subclass selection (level 3 for most classes, but some need it at level 1)
   const needsSubclass = newLevel >= 3 && !character.subclass;
@@ -375,11 +376,32 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
 
     // Add feat as feature if taken
     if (selectedFeat) {
+      // Build description including any choices made
+      let featDescription = selectedFeat.benefits.join(' ');
+      let featName = selectedFeat.name;
+
+      // Add feat choices to description (e.g., Elemental Adept: Fire)
+      if (selectedFeat.choices && Object.keys(featChoices).length > 0) {
+        const choiceDescriptions: string[] = [];
+        selectedFeat.choices.forEach(choice => {
+          const selectedOptionIds = featChoices[choice.id] || [];
+          const selectedOptionNames = selectedOptionIds
+            .map(id => choice.options.find(o => o.id === id)?.name)
+            .filter(Boolean);
+          if (selectedOptionNames.length > 0) {
+            choiceDescriptions.push(`${choice.name}: ${selectedOptionNames.join(', ')}`);
+          }
+        });
+        if (choiceDescriptions.length > 0) {
+          featName = `${selectedFeat.name} (${choiceDescriptions.join('; ')})`;
+        }
+      }
+
       updatedFeatures.push({
         id: `feat-${selectedFeat.name.toLowerCase().replace(/\s+/g, '-')}`,
-        name: selectedFeat.name,
+        name: featName,
         source: 'Feat',
-        description: selectedFeat.benefits.join(' '),
+        description: featDescription,
       });
     }
 
@@ -810,9 +832,10 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
       return (
         <FeatSelection
           character={character}
-          onSelect={(feat, abilityChoice) => {
+          onSelect={(feat, abilityChoice, choices) => {
             setSelectedFeat(feat);
             if (abilityChoice) setFeatAbilityChoice(abilityChoice);
+            if (choices) setFeatChoices(choices);
             setShowFeatSelection(false);
           }}
           onCancel={() => setShowFeatSelection(false)}

@@ -1275,10 +1275,22 @@ export const GENERAL_FEATS: GeneralFeat[] = [
     description: 'You have mastered a damage type.',
     prerequisites: { spellcasting: true },
     benefits: [
-      'Choose acid, cold, fire, lightning, or thunder',
-      'Spells ignore resistance to that damage type',
+      'Spells ignore resistance to chosen damage type',
       'Treat 1s on damage dice as 2s for that damage type',
     ],
+    choices: [{
+      id: 'element',
+      name: 'Damage Type',
+      description: 'Choose the damage type you have mastered.',
+      count: 1,
+      options: [
+        { id: 'acid', name: 'Acid', description: 'Your acid spells ignore resistance and treat 1s as 2s on damage dice.' },
+        { id: 'cold', name: 'Cold', description: 'Your cold spells ignore resistance and treat 1s as 2s on damage dice.' },
+        { id: 'fire', name: 'Fire', description: 'Your fire spells ignore resistance and treat 1s as 2s on damage dice.' },
+        { id: 'lightning', name: 'Lightning', description: 'Your lightning spells ignore resistance and treat 1s as 2s on damage dice.' },
+        { id: 'thunder', name: 'Thunder', description: 'Your thunder spells ignore resistance and treat 1s as 2s on damage dice.' },
+      ],
+    }],
   },
   {
     name: 'Fey Touched',
