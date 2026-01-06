@@ -78,6 +78,14 @@ export interface SubclassInfo {
   choices?: SubclassChoice[];  // Optional choices for this subclass
   bonusSpells?: string[];      // Bonus spells granted by subclass
   bonusCantrips?: string[];    // Bonus cantrips granted by subclass
+  // Subclass spellcasting (for Eldritch Knight, Arcane Trickster, etc.)
+  spellcasting?: {
+    ability: keyof AbilityScores;
+    spellList: string;  // e.g., 'wizard'
+    cantripsKnown: Record<number, number>;  // class level -> cantrips known
+    spellsKnown: Record<number, number>;    // class level -> spells known
+    spellSlots: Record<number, number[]>;   // class level -> [1st, 2nd, 3rd, 4th]
+  };
 }
 
 // All 48 subclasses from the 2024 PHB (4 per class)
@@ -292,8 +300,30 @@ export const CLASS_SUBCLASSES: Record<CharacterClass, SubclassInfo[]> = {
     {
       name: 'Eldritch Knight',
       description: 'Eldritch Knights combine martial mastery with arcane power.',
-      features: ['Spellcasting: Learn wizard spells (abjuration and evocation), INT-based'],
+      features: [
+        'Spellcasting: Cast wizard spells using Intelligence',
+        'War Magic (L7): Replace one attack with a cantrip',
+        'Eldritch Strike (L10): Creature hit has disadvantage on spell saves until your next turn',
+        'Arcane Charge (L15): Teleport 30 ft when using Action Surge',
+        'Improved War Magic (L18): Replace two attacks with a 1st or 2nd level spell',
+      ],
       levelAvailable: 3,
+      spellcasting: {
+        ability: 'intelligence',
+        spellList: 'wizard',
+        // Cantrips known at each Fighter level
+        cantripsKnown: { 3: 2, 4: 2, 5: 2, 6: 2, 7: 2, 8: 2, 9: 2, 10: 3, 11: 3, 12: 3, 13: 3, 14: 3, 15: 3, 16: 3, 17: 3, 18: 3, 19: 3, 20: 3 },
+        // Spells known at each Fighter level
+        spellsKnown: { 3: 3, 4: 4, 5: 4, 6: 4, 7: 5, 8: 6, 9: 6, 10: 7, 11: 8, 12: 8, 13: 9, 14: 10, 15: 10, 16: 11, 17: 11, 18: 11, 19: 12, 20: 13 },
+        // Spell slots at each Fighter level [1st, 2nd, 3rd, 4th]
+        spellSlots: {
+          3: [2, 0, 0, 0], 4: [3, 0, 0, 0], 5: [3, 0, 0, 0], 6: [3, 0, 0, 0],
+          7: [4, 2, 0, 0], 8: [4, 2, 0, 0], 9: [4, 2, 0, 0], 10: [4, 3, 0, 0],
+          11: [4, 3, 0, 0], 12: [4, 3, 0, 0], 13: [4, 3, 2, 0], 14: [4, 3, 2, 0],
+          15: [4, 3, 2, 0], 16: [4, 3, 3, 0], 17: [4, 3, 3, 0], 18: [4, 3, 3, 0],
+          19: [4, 3, 3, 1], 20: [4, 3, 3, 1],
+        },
+      },
     },
     {
       name: 'Psi Warrior',
@@ -414,8 +444,30 @@ export const CLASS_SUBCLASSES: Record<CharacterClass, SubclassInfo[]> = {
     {
       name: 'Arcane Trickster',
       description: 'Rogues who combine agile maneuvers with magical abilities.',
-      features: ['Spellcasting: Learn wizard spells (enchantment and illusion), INT-based'],
+      features: [
+        'Spellcasting: Cast wizard spells using Intelligence',
+        'Mage Hand Legerdemain (L3): Invisible Mage Hand, use to pickpocket/disarm',
+        'Magical Ambush (L9): Creatures have disadvantage on saves vs your spells if you\'re hidden',
+        'Versatile Trickster (L13): Bonus action to distract with Mage Hand, giving advantage on attacks',
+        'Spell Thief (L17): Steal a spell from a creature that casts one on you',
+      ],
       levelAvailable: 3,
+      spellcasting: {
+        ability: 'intelligence',
+        spellList: 'wizard',
+        // Cantrips known at each Rogue level
+        cantripsKnown: { 3: 3, 4: 3, 5: 3, 6: 3, 7: 3, 8: 3, 9: 3, 10: 4, 11: 4, 12: 4, 13: 4, 14: 4, 15: 4, 16: 4, 17: 4, 18: 4, 19: 4, 20: 4 },
+        // Spells known at each Rogue level
+        spellsKnown: { 3: 3, 4: 4, 5: 4, 6: 4, 7: 5, 8: 6, 9: 6, 10: 7, 11: 8, 12: 8, 13: 9, 14: 10, 15: 10, 16: 11, 17: 11, 18: 11, 19: 12, 20: 13 },
+        // Spell slots at each Rogue level [1st, 2nd, 3rd, 4th]
+        spellSlots: {
+          3: [2, 0, 0, 0], 4: [3, 0, 0, 0], 5: [3, 0, 0, 0], 6: [3, 0, 0, 0],
+          7: [4, 2, 0, 0], 8: [4, 2, 0, 0], 9: [4, 2, 0, 0], 10: [4, 3, 0, 0],
+          11: [4, 3, 0, 0], 12: [4, 3, 0, 0], 13: [4, 3, 2, 0], 14: [4, 3, 2, 0],
+          15: [4, 3, 2, 0], 16: [4, 3, 3, 0], 17: [4, 3, 3, 0], 18: [4, 3, 3, 0],
+          19: [4, 3, 3, 1], 20: [4, 3, 3, 1],
+        },
+      },
     },
     {
       name: 'Assassin',

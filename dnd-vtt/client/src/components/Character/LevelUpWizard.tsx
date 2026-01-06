@@ -527,6 +527,14 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
 
     // Update spellcasting stats if applicable
     let updatedSpellcasting = character.spellcasting;
+
+    // Check for subclass spellcasting (Eldritch Knight, Arcane Trickster)
+    const subclassToUse = selectedSubclass || character.subclass;
+    const subclassInfo = subclassToUse
+      ? CLASS_SUBCLASSES[character.characterClass]?.find(sc => sc.name === subclassToUse)
+      : undefined;
+    const hasSubclassSpellcasting = subclassInfo?.spellcasting;
+
     if (updatedSpellcasting) {
       const newProfBonus = getProficiencyBonus(newLevel);
       const spellAbility = updatedSpellcasting.ability;
@@ -552,6 +560,31 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
         spellSaveDC: 8 + newProfBonus + newAbilityMod,
         spellAttackBonus: newProfBonus + newAbilityMod,
         spellSlots: newSlots,
+      };
+    } else if (hasSubclassSpellcasting) {
+      // Initialize spellcasting for subclass spellcasters (Eldritch Knight, Arcane Trickster)
+      const sc = subclassInfo!.spellcasting!;
+      const newProfBonus = getProficiencyBonus(newLevel);
+      const spellAbilityMod = getAbilityModifier(newAbilityScores[sc.ability]);
+      const subclassSlots = sc.spellSlots[newLevel] || [0, 0, 0, 0];
+
+      updatedSpellcasting = {
+        ability: sc.ability,
+        spellSaveDC: 8 + newProfBonus + spellAbilityMod,
+        spellAttackBonus: newProfBonus + spellAbilityMod,
+        spells: [],
+        spellSlots: subclassSlots,
+        spellSlotsUsed: character.spellcasting?.spellSlotsUsed || [0, 0, 0, 0],
+      };
+    }
+
+    // Update subclass spellcasting spell slots if character already has subclass spellcasting
+    if (hasSubclassSpellcasting && updatedSpellcasting && !isFullCaster && !isHalfCaster && !isWarlock) {
+      const sc = subclassInfo!.spellcasting!;
+      const subclassSlots = sc.spellSlots[newLevel] || [0, 0, 0, 0];
+      updatedSpellcasting = {
+        ...updatedSpellcasting,
+        spellSlots: subclassSlots,
       };
     }
 

@@ -1678,6 +1678,30 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
         }
         return Object.keys(featureUses).length > 0 ? featureUses : undefined;
       })(),
+      // Subclass spellcasting (Eldritch Knight, Arcane Trickster)
+      ...(() => {
+        if (level < 3 || !subclass) return {};
+        const selectedSubclass = CLASS_SUBCLASSES[characterClass]?.find(sc => sc.name === subclass);
+        if (!selectedSubclass?.spellcasting) return {};
+
+        const sc = selectedSubclass.spellcasting;
+        const spellSlots = sc.spellSlots[charLevel] || [0, 0, 0, 0];
+        const subclassProfBonus = getProficiencyBonus(charLevel);
+        const spellcastingAbilityMod = getAbilityModifier(finalScores[sc.ability]);
+
+        return {
+          spellcasting: {
+            ability: sc.ability,
+            spellSaveDC: 8 + subclassProfBonus + spellcastingAbilityMod,
+            spellAttackBonus: subclassProfBonus + spellcastingAbilityMod,
+            spells: [], // Spells will be selected during level-up or manually
+            spellSlots: spellSlots,
+            spellSlotsUsed: [0, 0, 0, 0],
+          },
+          cantripsKnown: [], // Will be selected during subclass selection step
+          spellsKnown: [],   // Will be selected during subclass selection step
+        };
+      })(),
     };
   };
 
