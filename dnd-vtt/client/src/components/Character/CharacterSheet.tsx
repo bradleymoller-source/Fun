@@ -1102,6 +1102,34 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
           }
         }
 
+        // Add subclass features from character.features (these are added during character creation)
+        const subclassFeatures = character.features?.filter(f =>
+          f.source === character.subclass ||
+          (character.subclass && f.source.includes(character.subclass))
+        ) || [];
+
+        subclassFeatures.forEach(feat => {
+          const lowerName = feat.name.toLowerCase();
+          const lowerDesc = feat.description.toLowerCase();
+
+          // Skip spell-related features (handled in spells tab)
+          if (lowerName.includes('domain spells') || lowerName.includes('oath spells') ||
+              lowerName.includes('subclass spells') || lowerName.includes('patron spells') ||
+              lowerName.includes('circle spells')) {
+            return;
+          }
+
+          // Categorize by action type
+          if (lowerDesc.includes('bonus action')) {
+            bonusActions.push({ name: feat.name, description: feat.description, source: feat.source });
+          } else if (lowerDesc.includes('reaction')) {
+            reactions.push({ name: feat.name, description: feat.description, source: feat.source });
+          } else {
+            // All other subclass combat features go to passives
+            passives.push({ name: feat.name, description: feat.description, source: feat.source });
+          }
+        });
+
         const hasCombatActions = bonusActions.length > 0 || reactions.length > 0 || passives.length > 0;
         if (!hasCombatActions) return null;
 
