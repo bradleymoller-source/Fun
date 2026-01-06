@@ -1,6 +1,3 @@
-// DEBUG: This should log when the file is loaded
-console.log('[LevelUpWizard] FILE LOADED');
-
 import { useState } from 'react';
 import type { Character, AbilityScores, Feature, SkillName, LevelUpRecord } from '../../types';
 import { Button } from '../ui/Button';
@@ -117,9 +114,6 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
   // Fighting Style (Fighter L1, Paladin L2, Ranger L2)
   const [selectedFightingStyle, setSelectedFightingStyle] = useState<string | null>(null);
   const requiresFightingStyle = needsFightingStyle(character.characterClass, newLevel, character.fightingStyle);
-
-  // DEBUG
-  console.log('[LevelUp] Fighting Style Check:', { class: character.characterClass, newLevel, fightingStyle: character.fightingStyle, requiresFightingStyle });
 
   // Divine Order (Cleric L1)
   const [selectedDivineOrder, setSelectedDivineOrder] = useState<string | null>(null);
@@ -287,9 +281,6 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
 
   const steps = getSteps();
   const currentStepIndex = steps.indexOf(step);
-
-  // DEBUG
-  console.log('[LevelUp] Computed steps:', steps);
 
   const nextStep = () => {
     if (currentStepIndex < steps.length - 1) {

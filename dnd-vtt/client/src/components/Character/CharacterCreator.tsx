@@ -315,8 +315,9 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     // Reset subclass choices when class changes
     setSubclassChoices({});
     // Reset class feature choices when class changes
+    // Only set fighting style if class gets it at level 1 (Fighter only)
     const fightingStyleData = FIGHTING_STYLE_CLASSES[characterClass];
-    if (fightingStyleData && fightingStyleData.options.length > 0) {
+    if (fightingStyleData && fightingStyleData.level === 1 && fightingStyleData.options.length > 0) {
       setFightingStyle(fightingStyleData.options[0]);
     } else {
       setFightingStyle('');
