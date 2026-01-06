@@ -1258,6 +1258,8 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       .filter(f => !f.level || f.level <= charLevel)
       // Skip generic "Celestial Revelation" for Aasimar - we'll add the specific chosen one below
       .filter(f => !(species === 'aasimar' && f.name === 'Celestial Revelation'))
+      // Skip generic "Giant Ancestry" for Goliath - we'll add the specific chosen one below
+      .filter(f => !(species === 'goliath' && f.name === 'Giant Ancestry'))
       .forEach((f, idx) => features.push({
         id: `species-${idx}`,
         name: f.name,
@@ -1402,6 +1404,17 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
           name: `Celestial Revelation: ${revelationOption.name}`,
           source: 'Aasimar',
           description: `Transform for 1 minute as a bonus action (Prof bonus uses per Long Rest). ${revelationOption.description}`,
+        });
+      }
+    } else if (species === 'goliath') {
+      // Goliath Giant Ancestry - add the specific ancestry chosen by the player
+      const ancestryOption = SPECIES_CHOICES.goliath?.options.find(o => o.id === speciesChoice);
+      if (ancestryOption) {
+        features.push({
+          id: 'giant-ancestry',
+          name: `Giant Ancestry: ${ancestryOption.name}`,
+          source: 'Goliath',
+          description: `Prof bonus uses per Long Rest. ${ancestryOption.description}`,
         });
       }
     }
