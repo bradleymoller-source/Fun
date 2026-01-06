@@ -862,6 +862,7 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
     const maxHp = getCalculatedHp();
     const finalScores = getFinalAbilityScores();
     const dexMod = getAbilityModifier(finalScores.dexterity);
+    const strMod = getAbilityModifier(finalScores.strength);
 
     // Combine background and class skill proficiencies
     const finalSkills = { ...getDefaultSkillProficiencies() };
@@ -916,6 +917,8 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
         const isRanged = w.properties?.some(p => p.toLowerCase().includes('ammunition'));
         // Check if weapon is thrown
         const isThrown = w.properties?.some(p => p.toLowerCase().includes('thrown'));
+        // Check if weapon is finesse (can use DEX instead of STR)
+        const isFinesse = w.properties?.some(p => p.toLowerCase().includes('finesse'));
         // Check if weapon is two-handed or versatile (for great weapon)
         const isTwoHanded = w.properties?.some(p => p.toLowerCase().includes('two-handed') || p.toLowerCase().includes('versatile'));
         // Check if weapon is one-handed melee (for dueling - not two-handed and no ammunition)
@@ -929,20 +932,31 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
           addedThrown.add(w.name);
         }
 
-        // Calculate attack bonus
-        let attackBonus = getProficiencyBonus(level);
+        // Determine which ability modifier to use for attack/damage
+        // Ranged: DEX, Finesse: max(STR, DEX), Otherwise: STR
+        let abilityMod: number;
+        if (isRanged) {
+          abilityMod = dexMod;
+        } else if (isFinesse) {
+          abilityMod = Math.max(strMod, dexMod);
+        } else {
+          abilityMod = strMod;
+        }
+
+        // Calculate attack bonus: ability mod + proficiency + fighting style bonuses
+        let attackBonus = abilityMod + getProficiencyBonus(level);
         if (hasArchery && isRanged) {
           attackBonus += 2; // Archery fighting style
         }
 
-        // Calculate damage (add fighting style bonuses if applicable)
+        // Calculate damage: dice + ability mod + fighting style bonuses
         let damage = w.damage;
         const damageMatch = damage.match(/^(\d+d\d+)(\+(\d+))?/);
 
         if (damageMatch) {
           const baseDice = damageMatch[1];
           const existingBonus = parseInt(damageMatch[3] || '0');
-          let bonusDamage = existingBonus;
+          let bonusDamage = existingBonus + abilityMod; // Add ability modifier to damage
 
           // Dueling: +2 damage with one-handed melee
           if (hasDueling && isOneHandedMelee && !isThrown) {
@@ -955,6 +969,10 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
 
           if (bonusDamage > 0) {
             damage = `${baseDice}+${bonusDamage}`;
+          } else if (bonusDamage < 0) {
+            damage = `${baseDice}${bonusDamage}`; // negative modifier
+          } else {
+            damage = baseDice;
           }
         }
 
@@ -1074,6 +1092,8 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
         const isRanged = w.properties?.some(p => p.toLowerCase().includes('ammunition'));
         // Check if weapon is thrown
         const isThrown = w.properties?.some(p => p.toLowerCase().includes('thrown'));
+        // Check if weapon is finesse (can use DEX instead of STR)
+        const isFinesse = w.properties?.some(p => p.toLowerCase().includes('finesse'));
         // Check if weapon is two-handed or versatile (for great weapon)
         const isTwoHanded = w.properties?.some(p => p.toLowerCase().includes('two-handed') || p.toLowerCase().includes('versatile'));
         // Check if weapon is one-handed melee (for dueling)
@@ -1087,20 +1107,31 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
           addedThrown.add(w.name);
         }
 
-        // Calculate attack bonus
-        let attackBonus = getProficiencyBonus(level);
+        // Determine which ability modifier to use for attack/damage
+        // Ranged: DEX, Finesse: max(STR, DEX), Otherwise: STR
+        let abilityMod: number;
+        if (isRanged) {
+          abilityMod = dexMod;
+        } else if (isFinesse) {
+          abilityMod = Math.max(strMod, dexMod);
+        } else {
+          abilityMod = strMod;
+        }
+
+        // Calculate attack bonus: ability mod + proficiency + fighting style bonuses
+        let attackBonus = abilityMod + getProficiencyBonus(level);
         if (hasArchery && isRanged) {
           attackBonus += 2;
         }
 
-        // Calculate damage
+        // Calculate damage: dice + ability mod + fighting style bonuses
         let damage = w.damage || '1d4';
         const damageMatch = damage.match(/^(\d+d\d+)(\+(\d+))?/);
 
         if (damageMatch) {
           const baseDice = damageMatch[1];
           const existingBonus = parseInt(damageMatch[3] || '0');
-          let bonusDamage = existingBonus;
+          let bonusDamage = existingBonus + abilityMod; // Add ability modifier to damage
 
           // Dueling: +2 damage with one-handed melee
           if (hasDueling && isOneHandedMelee && !isThrown) {
@@ -1113,6 +1144,10 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
 
           if (bonusDamage > 0) {
             damage = `${baseDice}+${bonusDamage}`;
+          } else if (bonusDamage < 0) {
+            damage = `${baseDice}${bonusDamage}`; // negative modifier
+          } else {
+            damage = baseDice;
           }
         }
 

@@ -1145,6 +1145,8 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
   // Calculate AC based on equipment (used for syncing character.armorClass)
   const calculateACFromEquipment = (equipment: typeof character.equipment) => {
     const dexMod = getAbilityModifier(character.abilityScores.dexterity);
+    const conMod = getAbilityModifier(character.abilityScores.constitution);
+    const wisMod = getAbilityModifier(character.abilityScores.wisdom);
     const equippedArmor = equipment.find(e => e.category === 'armor' && e.equipped);
     const equippedShield = equipment.find(e => e.category === 'shield' && e.equipped);
     // Get equipped wondrous items with AC bonus
@@ -1152,15 +1154,34 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
       e.equipped && e.acBonus !== undefined && e.acBonus > 0
     );
 
-    let baseAC = 10 + dexMod; // Unarmored
+    let baseAC = 10 + dexMod; // Default Unarmored
+
+    // Check for class-based Unarmored Defense (only when not wearing armor)
+    if (!equippedArmor) {
+      if (character.characterClass === 'barbarian') {
+        // Barbarian Unarmored Defense: 10 + DEX + CON (can use shield)
+        baseAC = 10 + dexMod + conMod;
+      } else if (character.characterClass === 'monk' && !equippedShield) {
+        // Monk Unarmored Defense: 10 + DEX + WIS (cannot use shield)
+        baseAC = 10 + dexMod + wisMod;
+      }
+    }
+
+    // Check for Medium Armor Master feat (increases max DEX from 2 to 3)
+    const hasMediumArmorMaster = character.features?.some(f => f.name === 'Medium Armor Master');
 
     if (equippedArmor) {
       const armorAC = equippedArmor.armorClass || 10;
       if (equippedArmor.armorType === 'light') {
         baseAC = armorAC + dexMod;
       } else if (equippedArmor.armorType === 'medium') {
-        const maxDex = equippedArmor.maxDexBonus ?? 2;
+        // Medium Armor Master increases max DEX from 2 to 3
+        const maxDex = hasMediumArmorMaster ? 3 : (equippedArmor.maxDexBonus ?? 2);
         baseAC = armorAC + Math.min(dexMod, maxDex);
+        // Druid Primal Order: Warden adds +1 AC in medium armor
+        if (character.characterClass === 'druid' && character.primalOrder === 'warden') {
+          baseAC += 1;
+        }
       } else if (equippedArmor.armorType === 'heavy') {
         baseAC = armorAC;
       }
@@ -1174,6 +1195,11 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
     equippedWondrousWithAC.forEach(item => {
       baseAC += item.acBonus!;
     });
+
+    // Fighting Style: Defense (+1 AC when wearing armor)
+    if (character.fightingStyle === 'defense' && equippedArmor) {
+      baseAC += 1;
+    }
 
     return baseAC;
   };
@@ -1201,6 +1227,8 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
   // Calculate AC based on equipped armor
   const calculateAC = () => {
     const dexMod = getAbilityModifier(character.abilityScores.dexterity);
+    const conMod = getAbilityModifier(character.abilityScores.constitution);
+    const wisMod = getAbilityModifier(character.abilityScores.wisdom);
     const equippedArmor = character.equipment.find(e => e.category === 'armor' && e.equipped);
     const equippedShield = character.equipment.find(e => e.category === 'shield' && e.equipped);
     // Get equipped wondrous items with AC bonus
@@ -1208,8 +1236,24 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
       e.equipped && e.acBonus !== undefined && e.acBonus > 0
     );
 
-    let baseAC = 10 + dexMod; // Unarmored
+    let baseAC = 10 + dexMod; // Default Unarmored
     let acDetails = 'Unarmored: 10 + DEX';
+
+    // Check for class-based Unarmored Defense (only when not wearing armor)
+    if (!equippedArmor) {
+      if (character.characterClass === 'barbarian') {
+        // Barbarian Unarmored Defense: 10 + DEX + CON (can use shield)
+        baseAC = 10 + dexMod + conMod;
+        acDetails = 'Unarmored Defense: 10 + DEX + CON';
+      } else if (character.characterClass === 'monk' && !equippedShield) {
+        // Monk Unarmored Defense: 10 + DEX + WIS (cannot use shield)
+        baseAC = 10 + dexMod + wisMod;
+        acDetails = 'Unarmored Defense: 10 + DEX + WIS';
+      }
+    }
+
+    // Check for Medium Armor Master feat (increases max DEX from 2 to 3)
+    const hasMediumArmorMaster = character.features?.some(f => f.name === 'Medium Armor Master');
 
     if (equippedArmor) {
       const armorAC = equippedArmor.armorClass || 10;
@@ -1217,9 +1261,18 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
         baseAC = armorAC + dexMod;
         acDetails = `${equippedArmor.name}: ${armorAC} + DEX`;
       } else if (equippedArmor.armorType === 'medium') {
-        const maxDex = equippedArmor.maxDexBonus ?? 2;
+        // Medium Armor Master increases max DEX from 2 to 3
+        const maxDex = hasMediumArmorMaster ? 3 : (equippedArmor.maxDexBonus ?? 2);
         baseAC = armorAC + Math.min(dexMod, maxDex);
         acDetails = `${equippedArmor.name}: ${armorAC} + DEX (max ${maxDex})`;
+        if (hasMediumArmorMaster && dexMod > 2) {
+          acDetails += ' [Medium Armor Master]';
+        }
+        // Druid Primal Order: Warden adds +1 AC in medium armor
+        if (character.characterClass === 'druid' && character.primalOrder === 'warden') {
+          baseAC += 1;
+          acDetails += ' + Warden (+1)';
+        }
       } else if (equippedArmor.armorType === 'heavy') {
         baseAC = armorAC;
         acDetails = `${equippedArmor.name}: ${armorAC}`;
