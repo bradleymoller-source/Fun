@@ -1,15 +1,16 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import type { Character, AbilityScores } from '../../types';
 import { Button } from '../ui/Button';
 import {
   getEligibleFeats,
   ABILITY_NAMES,
+  getSpellsBySchoolAndLevel,
   type GeneralFeat,
 } from '../../data/dndData';
 
 interface FeatSelectionProps {
   character: Character;
-  onSelect: (feat: GeneralFeat, abilityChoice?: keyof AbilityScores, featChoices?: Record<string, string[]>) => void;
+  onSelect: (feat: GeneralFeat, abilityChoice?: keyof AbilityScores, featChoices?: Record<string, string[]>, spellChoices?: string[]) => void;
   onCancel: () => void; // Go back to ASI
 }
 
@@ -19,6 +20,7 @@ export function FeatSelection({ character, onSelect, onCancel }: FeatSelectionPr
   const [expandedFeat, setExpandedFeat] = useState<string | null>(null);
   const [abilityChoice, setAbilityChoice] = useState<keyof AbilityScores | null>(null);
   const [featChoices, setFeatChoices] = useState<Record<string, string[]>>({});
+  const [spellChoices, setSpellChoices] = useState<string[]>([]);
 
   // Check if feat requires ability choice
   const requiresAbilityChoice = selectedFeat?.abilityBonus?.ability === 'choice';
@@ -26,24 +28,46 @@ export function FeatSelection({ character, onSelect, onCancel }: FeatSelectionPr
   // Check if feat has other choices (like Elemental Adept damage type)
   const hasFeatChoices = selectedFeat?.choices && selectedFeat.choices.length > 0;
 
+  // Check if feat has spell choices (like Fey Touched, Shadow Touched)
+  const hasSpellChoices = selectedFeat?.spellChoices !== undefined;
+
+  // Get available spells for spell choice feats
+  const availableSpells = useMemo(() => {
+    if (!selectedFeat?.spellChoices) return [];
+    return getSpellsBySchoolAndLevel(
+      selectedFeat.spellChoices.schools,
+      selectedFeat.spellChoices.level
+    );
+  }, [selectedFeat?.spellChoices]);
+
   // Check if all feat choices are made
   const allFeatChoicesMade = !hasFeatChoices || selectedFeat?.choices?.every(choice => {
     const selected = featChoices[choice.id] || [];
     return selected.length >= choice.count;
   });
 
+  // Check if spell choices are made
+  const allSpellChoicesMade = !hasSpellChoices ||
+    spellChoices.length >= (selectedFeat?.spellChoices?.count || 0);
+
   const handleConfirm = () => {
     if (selectedFeat) {
       const hasValidAbilityChoice = !requiresAbilityChoice || abilityChoice;
       const hasValidFeatChoices = allFeatChoicesMade;
+      const hasValidSpellChoices = allSpellChoicesMade;
 
-      if (hasValidAbilityChoice && hasValidFeatChoices) {
-        onSelect(selectedFeat, abilityChoice || undefined, hasFeatChoices ? featChoices : undefined);
+      if (hasValidAbilityChoice && hasValidFeatChoices && hasValidSpellChoices) {
+        onSelect(
+          selectedFeat,
+          abilityChoice || undefined,
+          hasFeatChoices ? featChoices : undefined,
+          hasSpellChoices ? spellChoices : undefined
+        );
       }
     }
   };
 
-  const canConfirm = selectedFeat && (!requiresAbilityChoice || abilityChoice) && allFeatChoicesMade;
+  const canConfirm = selectedFeat && (!requiresAbilityChoice || abilityChoice) && allFeatChoicesMade && allSpellChoicesMade;
 
   return (
     <div className="space-y-4">
@@ -77,6 +101,7 @@ export function FeatSelection({ character, onSelect, onCancel }: FeatSelectionPr
                 setSelectedFeat(feat);
                 setAbilityChoice(null);
                 setFeatChoices({});
+                setSpellChoices([]);
               }}
             >
               <div className="flex justify-between items-start">
@@ -214,6 +239,62 @@ export function FeatSelection({ character, onSelect, onCancel }: FeatSelectionPr
           </div>
         );
       })}
+
+      {/* Spell Choices (for Fey Touched, Shadow Touched, etc.) */}
+      {selectedFeat && hasSpellChoices && selectedFeat.spellChoices && (
+        <div className="p-3 bg-dark-wood rounded border border-leather">
+          <div className="text-parchment text-sm mb-2">
+            Choose {selectedFeat.spellChoices.count} {selectedFeat.spellChoices.level === 1 ? '1st-level' : `${selectedFeat.spellChoices.level}th-level`} spell
+            {selectedFeat.spellChoices.count > 1 ? 's' : ''} from: <span className="text-gold capitalize">{selectedFeat.spellChoices.schools.join(' or ')}</span>
+          </div>
+          {/* Fixed spells indicator */}
+          {selectedFeat.fixedSpells && selectedFeat.fixedSpells.length > 0 && (
+            <div className="text-xs text-green-400 mb-2">
+              ✓ Also granted: {selectedFeat.fixedSpells.join(', ')}
+            </div>
+          )}
+          <div className="max-h-[200px] overflow-y-auto space-y-1">
+            {availableSpells.map(spell => {
+              const isSelected = spellChoices.includes(spell.name);
+              const canSelect = spellChoices.length < (selectedFeat.spellChoices?.count || 0) || isSelected;
+
+              return (
+                <button
+                  key={spell.name}
+                  onClick={() => {
+                    if (isSelected) {
+                      setSpellChoices(spellChoices.filter(s => s !== spell.name));
+                    } else if (canSelect) {
+                      setSpellChoices([...spellChoices, spell.name]);
+                    }
+                  }}
+                  disabled={!canSelect && !isSelected}
+                  className={`w-full p-2 rounded border text-left transition-colors ${
+                    isSelected
+                      ? 'bg-gold/20 border-gold'
+                      : canSelect
+                      ? 'bg-leather/30 border-leather hover:border-gold/50'
+                      : 'bg-dark-wood/50 border-leather/30 opacity-50 cursor-not-allowed'
+                  }`}
+                >
+                  <div className="flex justify-between items-center">
+                    <span className={isSelected ? 'text-gold font-semibold' : 'text-parchment'}>
+                      {spell.name}
+                    </span>
+                    <span className="text-parchment/50 text-xs capitalize">{spell.school}</span>
+                  </div>
+                  <p className="text-parchment/60 text-xs mt-1 line-clamp-2">{spell.description}</p>
+                </button>
+              );
+            })}
+            {availableSpells.length === 0 && (
+              <div className="text-parchment/50 text-sm text-center py-2">
+                No spells available for these schools at this level
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Selected Feat Summary */}
       {selectedFeat && (

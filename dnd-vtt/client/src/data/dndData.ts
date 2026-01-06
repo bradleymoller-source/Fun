@@ -57,6 +57,8 @@ export interface SubclassChoiceOption {
   id: string;
   name: string;
   description: string;
+  bonusSpells?: string[];      // Bonus spells granted by this choice
+  bonusCantrips?: string[];    // Bonus cantrips granted by this choice
 }
 
 // Subclass choice (e.g., maneuvers, land type, etc.)
@@ -75,6 +77,7 @@ export interface SubclassInfo {
   levelAvailable: number; // Level when subclass can be chosen
   choices?: SubclassChoice[];  // Optional choices for this subclass
   bonusSpells?: string[];      // Bonus spells granted by subclass
+  bonusCantrips?: string[];    // Bonus cantrips granted by subclass
 }
 
 // All 48 subclasses from the 2024 PHB (4 per class)
@@ -195,10 +198,34 @@ export const CLASS_SUBCLASSES: Record<CharacterClass, SubclassInfo[]> = {
         description: 'Choose the type of land that you have a mystical connection to. You always have the associated spells prepared.',
         count: 1,
         options: [
-          { id: 'arid', name: 'Arid Land', description: 'Blur, Burning Hands, Fire Bolt. At higher levels: Fireball, Fire Shield, Wall of Stone.' },
-          { id: 'polar', name: 'Polar Land', description: 'Fog Cloud, Hold Person, Ray of Frost. At higher levels: Sleet Storm, Ice Storm, Cone of Cold.' },
-          { id: 'temperate', name: 'Temperate Land', description: 'Misty Step, Shocking Grasp, Sleep. At higher levels: Lightning Bolt, Freedom of Movement, Tree Stride.' },
-          { id: 'tropical', name: 'Tropical Land', description: 'Acid Splash, Entangle, Web. At higher levels: Gaseous Form, Polymorph, Insect Plague.' },
+          {
+            id: 'arid',
+            name: 'Arid Land',
+            description: 'Blur, Burning Hands, Fire Bolt. At higher levels: Fireball, Fire Shield, Wall of Stone.',
+            bonusCantrips: ['Fire Bolt'],
+            bonusSpells: ['Burning Hands', 'Blur', 'Fireball', 'Fire Shield', 'Wall of Stone'],
+          },
+          {
+            id: 'polar',
+            name: 'Polar Land',
+            description: 'Fog Cloud, Hold Person, Ray of Frost. At higher levels: Sleet Storm, Ice Storm, Cone of Cold.',
+            bonusCantrips: ['Ray of Frost'],
+            bonusSpells: ['Fog Cloud', 'Hold Person', 'Sleet Storm', 'Ice Storm', 'Cone of Cold'],
+          },
+          {
+            id: 'temperate',
+            name: 'Temperate Land',
+            description: 'Misty Step, Shocking Grasp, Sleep. At higher levels: Lightning Bolt, Freedom of Movement, Tree Stride.',
+            bonusCantrips: ['Shocking Grasp'],
+            bonusSpells: ['Sleep', 'Misty Step', 'Lightning Bolt', 'Freedom of Movement', 'Tree Stride'],
+          },
+          {
+            id: 'tropical',
+            name: 'Tropical Land',
+            description: 'Acid Splash, Entangle, Web. At higher levels: Gaseous Form, Polymorph, Insect Plague.',
+            bonusCantrips: ['Acid Splash'],
+            bonusSpells: ['Entangle', 'Web', 'Gaseous Form', 'Polymorph', 'Insect Plague'],
+          },
         ],
       }],
     },
@@ -1195,6 +1222,21 @@ export interface GeneralFeat {
     armorProficiency?: 'light' | 'medium' | 'heavy';
   };
   abilityBonus?: { ability: keyof AbilityScores | 'choice'; bonus: number };
+  // Spell choices for feats like Fey Touched, Shadow Touched
+  fixedSpells?: string[];      // Spells always granted by this feat
+  spellChoices?: {
+    schools: string[];         // Allowed spell schools (e.g., ['divination', 'enchantment'])
+    level: number;             // Spell level to choose from
+    count: number;             // How many spells to choose
+  };
+  // Pre-defined choices for feats (similar to Elemental Adept)
+  choices?: {
+    id: string;
+    name: string;
+    description: string;
+    count: number;           // How many to choose (usually 1)
+    options: { id: string; name: string; description: string }[];
+  }[];
 }
 
 export const GENERAL_FEATS: GeneralFeat[] = [
@@ -1303,6 +1345,12 @@ export const GENERAL_FEATS: GeneralFeat[] = [
       'Cast each once per long rest free, or with spell slots',
     ],
     abilityBonus: { ability: 'choice', bonus: 1 },
+    fixedSpells: ['Misty Step'],
+    spellChoices: {
+      schools: ['divination', 'enchantment'],
+      level: 1,
+      count: 1,
+    },
   },
   {
     name: 'Fighting Initiate',
@@ -1483,6 +1531,12 @@ export const GENERAL_FEATS: GeneralFeat[] = [
       'Cast each once per long rest free, or with spell slots',
     ],
     abilityBonus: { ability: 'choice', bonus: 1 },
+    fixedSpells: ['Invisibility'],
+    spellChoices: {
+      schools: ['illusion', 'necromancy'],
+      level: 1,
+      count: 1,
+    },
   },
   {
     name: 'Sharpshooter',
@@ -2454,6 +2508,23 @@ export const CLASS_ROLE_INFO: Record<CharacterClass, ClassRoleInfo> = {
     goodFor: 'Players who want maximum spell options and enjoy studying their spellbook.',
     color: 'blue',
   },
+};
+
+// Class stat priorities for character creation help
+// Primary stats should get highest scores, secondary are also important
+export const CLASS_STAT_PRIORITY: Record<CharacterClass, { primary: (keyof AbilityScores)[]; secondary: (keyof AbilityScores)[] }> = {
+  barbarian: { primary: ['strength'], secondary: ['constitution', 'dexterity'] },
+  bard: { primary: ['charisma'], secondary: ['dexterity', 'constitution'] },
+  cleric: { primary: ['wisdom'], secondary: ['constitution', 'strength'] },
+  druid: { primary: ['wisdom'], secondary: ['constitution', 'dexterity'] },
+  fighter: { primary: ['strength', 'dexterity'], secondary: ['constitution'] }, // STR or DEX based on build
+  monk: { primary: ['dexterity', 'wisdom'], secondary: ['constitution'] },
+  paladin: { primary: ['strength', 'charisma'], secondary: ['constitution'] },
+  ranger: { primary: ['dexterity', 'wisdom'], secondary: ['constitution'] },
+  rogue: { primary: ['dexterity'], secondary: ['constitution', 'intelligence', 'charisma'] },
+  sorcerer: { primary: ['charisma'], secondary: ['constitution', 'dexterity'] },
+  warlock: { primary: ['charisma'], secondary: ['constitution', 'dexterity'] },
+  wizard: { primary: ['intelligence'], secondary: ['constitution', 'dexterity'] },
 };
 
 // ============ SPECIES ROLE DETAILS ============
@@ -4424,6 +4495,13 @@ export function getSpellDetails(spellName: string): SpellDetails | undefined {
   return SPELL_DETAILS[spellName];
 }
 
+// Get all spells of a given level and school(s)
+export function getSpellsBySchoolAndLevel(schools: string[], level: number): SpellDetails[] {
+  return Object.values(SPELL_DETAILS).filter(spell =>
+    spell.level === level && schools.includes(spell.school)
+  );
+}
+
 // Cantrips by class
 export const CLASS_CANTRIPS: Partial<Record<CharacterClass, { name: string; description: string }[]>> = {
   bard: [
@@ -5688,13 +5766,94 @@ export const FEAT_RESOURCES: FeatResourceDefinition[] = [
   },
 ];
 
+// Subclass resources
+export interface SubclassResourceDefinition {
+  id: string;
+  name: string;
+  characterClass: CharacterClass;
+  subclassName: string;
+  description: string;
+  restoreOn: RestType;
+  maxAtLevel: (level: number, abilityMod?: number) => number;
+  usesAbilityMod?: keyof AbilityScores;
+  minLevel?: number;
+}
+
+export const SUBCLASS_RESOURCES: SubclassResourceDefinition[] = [
+  // Cleric Subclasses
+  {
+    id: 'war-priest',
+    name: 'War Priest',
+    characterClass: 'cleric',
+    subclassName: 'War Domain',
+    description: 'Bonus action to make one weapon attack after using the Attack action. Uses equal to Wisdom modifier per long rest.',
+    restoreOn: 'long',
+    maxAtLevel: (_level, wisMod) => Math.max(1, wisMod || 1),
+    usesAbilityMod: 'wisdom',
+  },
+  {
+    id: 'warding-flare',
+    name: 'Warding Flare',
+    characterClass: 'cleric',
+    subclassName: 'Light Domain',
+    description: 'Reaction when a creature within 30 ft attacks: Impose disadvantage on the attack roll. Uses equal to Wisdom modifier per long rest.',
+    restoreOn: 'long',
+    maxAtLevel: (_level, wisMod) => Math.max(1, wisMod || 1),
+    usesAbilityMod: 'wisdom',
+  },
+  // Fighter Subclasses
+  {
+    id: 'superiority-dice',
+    name: 'Superiority Dice',
+    characterClass: 'fighter',
+    subclassName: 'Battle Master',
+    description: 'Spend a superiority die to fuel your maneuvers. Dice are d8s (d10 at 10th, d12 at 18th level).',
+    restoreOn: 'short',
+    maxAtLevel: (level) => level >= 15 ? 6 : level >= 7 ? 5 : 4,
+  },
+  // Ranger Subclasses
+  {
+    id: 'hunters-mark-free',
+    name: "Hunter's Mark (Free Cast)",
+    characterClass: 'ranger',
+    subclassName: 'Hunter',
+    description: "Cast Hunter's Mark once per long rest without expending a spell slot.",
+    restoreOn: 'long',
+    maxAtLevel: () => 1,
+  },
+  // Paladin Subclasses
+  {
+    id: 'harness-divine-power',
+    name: 'Harness Divine Power',
+    characterClass: 'paladin',
+    subclassName: '*', // All paladin subclasses get this
+    description: 'Bonus action to regain an expended spell slot (max level = Prof Bonus / 2). Once per long rest.',
+    restoreOn: 'long',
+    maxAtLevel: () => 1,
+    minLevel: 3,
+  },
+  // Monk Subclasses
+  {
+    id: 'wholeness-of-body',
+    name: 'Wholeness of Body',
+    characterClass: 'monk',
+    subclassName: 'Way of the Open Hand',
+    description: 'Action to regain HP equal to 3 times your Monk level. Once per long rest.',
+    restoreOn: 'long',
+    maxAtLevel: () => 1,
+    minLevel: 6,
+  },
+];
+
 // Helper to get all resources for a character
 export function getCharacterResources(
   characterClass: CharacterClass,
   species: Species,
   level: number,
   abilityScores: AbilityScores,
-  feats?: string[]
+  feats?: string[],
+  speciesChoice?: string,
+  subclass?: string
 ): Record<string, { max: number; restoreOn: RestType; name: string; description: string }> {
   const resources: Record<string, { max: number; restoreOn: RestType; name: string; description: string }> = {};
 
@@ -5718,8 +5877,50 @@ export function getCharacterResources(
   // Add species resources
   for (const resource of SPECIES_RESOURCES) {
     if (resource.species.includes(species)) {
+      let name = resource.name;
+      let description = resource.description;
+
+      // For Aasimar, use the specific celestial revelation form
+      if (resource.id === 'celestial-revelation' && speciesChoice) {
+        const chosenOption = AASIMAR_REVELATION.options.find(o => o.id === speciesChoice);
+        if (chosenOption) {
+          name = `Celestial Revelation: ${chosenOption.name}`;
+          description = `Bonus action: Transform for 1 minute. ${chosenOption.description}`;
+        }
+      }
+
+      // For Goliath, use the specific giant ancestry
+      if (resource.id === 'giant-ancestry' && speciesChoice) {
+        const chosenOption = GOLIATH_ANCESTRY.options.find(o => o.id === speciesChoice);
+        if (chosenOption) {
+          name = `Giant Ancestry: ${chosenOption.name}`;
+          description = chosenOption.description;
+        }
+      }
+
       resources[resource.id] = {
         max: resource.maxAtLevel(level),
+        restoreOn: resource.restoreOn,
+        name,
+        description,
+      };
+    }
+  }
+
+  // Add subclass resources
+  if (subclass) {
+    for (const resource of SUBCLASS_RESOURCES) {
+      // Check if resource matches this character's class and subclass
+      if (resource.characterClass !== characterClass) continue;
+      if (resource.subclassName !== '*' && resource.subclassName !== subclass) continue;
+      if (resource.minLevel && level < resource.minLevel) continue;
+
+      const abilityMod = resource.usesAbilityMod
+        ? getAbilityModifier(abilityScores[resource.usesAbilityMod])
+        : undefined;
+
+      resources[resource.id] = {
+        max: resource.maxAtLevel(level, abilityMod),
         restoreOn: resource.restoreOn,
         name: resource.name,
         description: resource.description,

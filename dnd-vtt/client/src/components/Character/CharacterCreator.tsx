@@ -78,6 +78,7 @@ import {
   BACKGROUND_ROLE_INFO,
   FEAT_ROLE_INFO,
   SKILL_DESCRIPTIONS,
+  CLASS_STAT_PRIORITY,
 } from '../../data/dndData';
 import type { ShopItem, OriginFeatName } from '../../data/dndData';
 
@@ -1596,6 +1597,21 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
         ...(characterClass === 'cleric' && divineOrder === 'thaumaturge' && divineOrderCantrip ? [divineOrderCantrip] : []),
         // Primal Order (Magician) extra cantrip
         ...(characterClass === 'druid' && primalOrder === 'magician' && primalOrderCantrip ? [primalOrderCantrip] : []),
+        // Subclass choice bonus cantrips (e.g., Circle of the Land)
+        ...(() => {
+          if (level < 3) return [];
+          const selectedSubclass = CLASS_SUBCLASSES[characterClass]?.find(sc => sc.name === subclass);
+          if (!selectedSubclass?.choices) return [];
+          const cantrips: string[] = [];
+          selectedSubclass.choices.forEach(choice => {
+            const selectedOptionIds = subclassChoices[choice.id] || [];
+            selectedOptionIds.forEach(optionId => {
+              const option = choice.options.find(o => o.id === optionId);
+              if (option?.bonusCantrips) cantrips.push(...option.bonusCantrips);
+            });
+          });
+          return cantrips;
+        })(),
       ],
       spells: [
         ...selectedSpells,
@@ -1604,6 +1620,21 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
         ...originFeatSpells,
         // Subclass bonus spells only at level 3+
         ...(level >= 3 ? (CLASS_SUBCLASSES[characterClass]?.find(sc => sc.name === subclass)?.bonusSpells || []) : []),
+        // Subclass choice bonus spells (e.g., Circle of the Land)
+        ...(() => {
+          if (level < 3) return [];
+          const selectedSubclass = CLASS_SUBCLASSES[characterClass]?.find(sc => sc.name === subclass);
+          if (!selectedSubclass?.choices) return [];
+          const spells: string[] = [];
+          selectedSubclass.choices.forEach(choice => {
+            const selectedOptionIds = subclassChoices[choice.id] || [];
+            selectedOptionIds.forEach(optionId => {
+              const option = choice.options.find(o => o.id === optionId);
+              if (option?.bonusSpells) spells.push(...option.bonusSpells);
+            });
+          });
+          return spells;
+        })(),
         // Drow innate spells
         ...(species === 'elf' && speciesChoice === 'drow' && charLevel >= 3 ? ['Faerie Fire'] : []),
         ...(species === 'elf' && speciesChoice === 'drow' && charLevel >= 5 ? ['Darkness'] : []),
@@ -2763,11 +2794,39 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
           </div>
         )}
 
+        {/* Stat priority legend */}
+        <div className="flex gap-4 text-xs mb-2">
+          <div className="flex items-center gap-1">
+            <span className="w-3 h-3 bg-gold/30 border border-gold rounded"></span>
+            <span className="text-gold">Primary</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="w-3 h-3 bg-cyan-500/30 border border-cyan-500 rounded"></span>
+            <span className="text-cyan-400">Secondary</span>
+          </div>
+          <span className="text-parchment/50 ml-auto">{CLASS_ROLE_INFO[characterClass].keyStats}</span>
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
-          {abilities.map((ability, idx) => (
-            <div key={ability} className="bg-dark-wood p-3 rounded border border-leather">
-              <label className="block text-parchment text-sm mb-1">
+          {abilities.map((ability, idx) => {
+            const statPriority = CLASS_STAT_PRIORITY[characterClass];
+            const isPrimary = statPriority.primary.includes(ability);
+            const isSecondary = statPriority.secondary.includes(ability);
+
+            return (
+            <div key={ability} className={`p-3 rounded border ${
+              isPrimary
+                ? 'bg-gold/10 border-gold'
+                : isSecondary
+                ? 'bg-cyan-900/20 border-cyan-500/50'
+                : 'bg-dark-wood border-leather'
+            }`}>
+              <label className={`block text-sm mb-1 ${
+                isPrimary ? 'text-gold font-semibold' : isSecondary ? 'text-cyan-400' : 'text-parchment'
+              }`}>
                 {ABILITY_NAMES[ability]} ({ABILITY_ABBREVIATIONS[ability]})
+                {isPrimary && <span className="ml-1 text-xs">★</span>}
+                {isSecondary && <span className="ml-1 text-xs">☆</span>}
               </label>
               <div className="flex items-center justify-between">
                 {abilityMethod === 'pointbuy' ? (
@@ -2830,7 +2889,8 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
                 </div>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* HP Options */}
@@ -3148,6 +3208,27 @@ export function CharacterCreator({ onComplete, onCancel, playerId }: CharacterCr
       subclassBonusSpells.forEach(s => {
         acquiredSpells.push({ name: s, source: subclass || 'Subclass' });
       });
+
+      // Also check for bonus spells/cantrips from subclass choices (e.g., Circle of the Land)
+      const selectedSubclass = CLASS_SUBCLASSES[characterClass]?.find(sc => sc.name === subclass);
+      if (selectedSubclass?.choices) {
+        selectedSubclass.choices.forEach(choice => {
+          const selectedOptionIds = subclassChoices[choice.id] || [];
+          selectedOptionIds.forEach(optionId => {
+            const option = choice.options.find(o => o.id === optionId);
+            if (option) {
+              // Add bonus cantrips from this choice
+              option.bonusCantrips?.forEach(c => {
+                acquiredCantrips.push({ name: c, source: `${subclass} (${option.name})` });
+              });
+              // Add bonus spells from this choice
+              option.bonusSpells?.forEach(s => {
+                acquiredSpells.push({ name: s, source: `${subclass} (${option.name})` });
+              });
+            }
+          });
+        });
+      }
     }
 
     // Monk Warrior of the Elements - Elementalism cantrip

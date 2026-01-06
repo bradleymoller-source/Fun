@@ -19,6 +19,7 @@ import {
   HALF_CASTER_SPELL_SLOTS,
   WARLOCK_SPELL_SLOTS,
   getSpellDetails,
+  SPELL_DETAILS,
   getCharacterResources,
   WEAPON_MASTERIES,
   WEAPON_MASTERY_DESCRIPTIONS,
@@ -828,14 +829,21 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
         <Tooltip content={RULE_TOOLTIPS.passivePerception}>
           <div className="bg-dark-wood p-2 rounded border border-leather text-center cursor-help">
             <span className="text-parchment/70 text-sm">Passive Perception: </span>
-            <span className="text-gold font-bold">
-              {10 + getSkillModifier(
+            {(() => {
+              const hasObservant = character.features?.some(f => f.name === 'Observant');
+              const basePassive = 10 + getSkillModifier(
                 character.abilityScores.wisdom,
                 character.skillProficiencies.perception,
                 profBonus,
                 hasJackOfAllTrades
-              )}
-            </span>
+              );
+              const total = basePassive + (hasObservant ? 5 : 0);
+              return (
+                <span className="text-gold font-bold" title={hasObservant ? 'Includes +5 from Observant feat' : undefined}>
+                  {total}{hasObservant && <span className="text-emerald-400 text-xs ml-1">(+5)</span>}
+                </span>
+              );
+            })()}
           </div>
         </Tooltip>
 
@@ -1099,6 +1107,81 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
                    lowerName === 'brutal critical' || lowerName === 'feral instinct' ||
                    lowerName === 'relentless rage' || lowerName === 'persistent rage') {
             passives.push({ name: feat.name, description: feat.description, source: CLASS_NAMES[character.characterClass] });
+          }
+          // Cleric abilities
+          else if (lowerName === 'sear undead' || lowerName === 'divine intervention' ||
+                   lowerName === 'smite undead' || lowerName === 'destroy undead') {
+            passives.push({ name: feat.name, description: feat.description, source: CLASS_NAMES[character.characterClass] });
+          }
+          // Paladin auras and abilities
+          else if (lowerName.startsWith('aura of') || lowerName === 'cleansing touch' ||
+                   lowerName === 'improved divine smite') {
+            passives.push({ name: feat.name, description: feat.description, source: CLASS_NAMES[character.characterClass] });
+          }
+          // Ranger abilities
+          else if (lowerName === 'favored enemy' || lowerName === 'deft explorer' ||
+                   lowerName === 'feral senses' || lowerName === 'foe slayer') {
+            passives.push({ name: feat.name, description: feat.description, source: CLASS_NAMES[character.characterClass] });
+          }
+          // Sorcerer abilities
+          else if (lowerName === 'innate sorcery' || lowerName === 'sorcerous restoration') {
+            passives.push({ name: feat.name, description: feat.description, source: CLASS_NAMES[character.characterClass] });
+          }
+          // Warlock abilities
+          else if (lowerName === 'eldritch invocations' || lowerName === 'mystic arcanum') {
+            passives.push({ name: feat.name, description: feat.description, source: CLASS_NAMES[character.characterClass] });
+          }
+          // Wizard abilities
+          else if (lowerName === 'arcane recovery' || lowerName === 'spell mastery' ||
+                   lowerName === 'signature spells') {
+            passives.push({ name: feat.name, description: feat.description, source: CLASS_NAMES[character.characterClass] });
+          }
+          // Druid abilities
+          else if (lowerName === 'wild resurgence' || lowerName === 'archdruid' ||
+                   lowerName === 'beast spells') {
+            passives.push({ name: feat.name, description: feat.description, source: CLASS_NAMES[character.characterClass] });
+          }
+          // Rogue abilities
+          else if (lowerName === 'blindsense' || lowerName === 'slippery mind' ||
+                   lowerName === 'elusive' || lowerName === 'stroke of luck') {
+            passives.push({ name: feat.name, description: feat.description, source: CLASS_NAMES[character.characterClass] });
+          }
+          // Bard abilities
+          else if (lowerName === 'countercharm' || lowerName === 'superior inspiration') {
+            passives.push({ name: feat.name, description: feat.description, source: CLASS_NAMES[character.characterClass] });
+          }
+        });
+
+        // Add feat-based combat abilities from character.features
+        const combatFeats = character.features?.filter(f => {
+          const featName = f.name.toLowerCase();
+          // Check if this is a combat-relevant feat
+          return featName === 'lucky' || featName === 'alert' || featName === 'savage attacker' ||
+                 featName === 'sentinel' || featName === 'polearm master' || featName === 'shield master' ||
+                 featName === 'war caster' || featName === 'great weapon master' || featName === 'charger' ||
+                 featName === 'dual wielder' || featName === 'heavy armor master' || featName === 'mage slayer' ||
+                 featName === 'mobile' || featName === 'resilient' || featName === 'sharpshooter' ||
+                 featName === 'crossbow expert' || featName === 'defensive duelist' || featName === 'grappler' ||
+                 featName === 'martial adept' || featName === 'mounted combatant' || featName === 'piercer' ||
+                 featName === 'slasher' || featName === 'crusher' || featName === 'fighting initiate' ||
+                 featName === 'fey touched' || featName === 'shadow touched' || featName === 'telekinetic' ||
+                 featName === 'telepathic' || featName === 'metamagic adept';
+        }) || [];
+
+        combatFeats.forEach(feat => {
+          const lowerName = feat.name.toLowerCase();
+
+          // Categorize feats by action type
+          if (lowerName === 'sentinel' || lowerName === 'war caster' || lowerName === 'mage slayer' ||
+              lowerName === 'defensive duelist') {
+            reactions.push({ name: feat.name, description: feat.description, source: 'Feat' });
+          } else if (lowerName === 'polearm master' || lowerName === 'shield master' ||
+                     lowerName === 'great weapon master' || lowerName === 'charger') {
+            // These have bonus action components
+            bonusActions.push({ name: feat.name, description: feat.description, source: 'Feat' });
+          } else {
+            // All other combat feats are passives
+            passives.push({ name: feat.name, description: feat.description, source: 'Feat' });
           }
         });
 
@@ -1725,7 +1808,9 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
       character.species,
       character.level,
       character.abilityScores,
-      featNames
+      featNames,
+      character.speciesChoice,
+      character.subclass
     );
 
     const resourceEntries = Object.entries(resources);
@@ -2013,7 +2098,7 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
           // Group spells by level
           const spellsByLevel: Record<number, string[]> = {};
           character.spells!.forEach(spellName => {
-            const spellData = SPELL_DESCRIPTIONS[spellName];
+            const spellData = SPELL_DETAILS[spellName];
             const level = spellData?.level ?? 1;
             if (!spellsByLevel[level]) spellsByLevel[level] = [];
             spellsByLevel[level].push(spellName);
@@ -2102,8 +2187,9 @@ export function CharacterSheet({ character, onUpdate, onRoll, onRollInitiative, 
         {/* Full Spell List (if spellcasting object exists) - Grouped by level */}
         {hasSpellcasting && character.spellcasting!.spells.length > 0 && (() => {
           // Group spells by level
-          const spellsByLevel: Record<number, typeof character.spellcasting.spells> = {};
-          character.spellcasting!.spells.forEach(spell => {
+          const spells = character.spellcasting!.spells;
+          const spellsByLevel: Record<number, typeof spells> = {};
+          spells.forEach(spell => {
             if (!spellsByLevel[spell.level]) spellsByLevel[spell.level] = [];
             spellsByLevel[spell.level].push(spell);
           });

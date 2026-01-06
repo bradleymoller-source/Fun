@@ -78,6 +78,7 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
   const [selectedFeat, setSelectedFeat] = useState<GeneralFeat | null>(null);
   const [featAbilityChoice, setFeatAbilityChoice] = useState<keyof AbilityScores | null>(null);
   const [featChoices, setFeatChoices] = useState<Record<string, string[]>>({});
+  const [featSpellChoices, setFeatSpellChoices] = useState<string[]>([]);
 
   // Subclass selection (level 3 for most classes, but some need it at level 1)
   const needsSubclass = newLevel >= 3 && !character.subclass;
@@ -447,6 +448,24 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
       }
     }
 
+    // Add feat bonus spells (Fey Touched, Shadow Touched, etc.)
+    if (selectedFeat) {
+      // Add fixed spells from the feat (e.g., Misty Step for Fey Touched)
+      if (selectedFeat.fixedSpells) {
+        const fixedSpellsToAdd = selectedFeat.fixedSpells.filter(
+          spell => !updatedSpellsKnown.includes(spell)
+        );
+        updatedSpellsKnown = [...updatedSpellsKnown, ...fixedSpellsToAdd];
+      }
+      // Add user-selected spells from the feat
+      if (featSpellChoices.length > 0) {
+        const chosenSpellsToAdd = featSpellChoices.filter(
+          spell => !updatedSpellsKnown.includes(spell)
+        );
+        updatedSpellsKnown = [...updatedSpellsKnown, ...chosenSpellsToAdd];
+      }
+    }
+
     // Build updated cantrips
     const currentCantrips = character.cantripsKnown || [];
     const updatedCantripsKnown = [...currentCantrips, ...newCantripsLearned];
@@ -581,8 +600,11 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
         subclass: selectedSubclass,
         subclassChoices: subclassChoices,
       }),
-      // Spells (include when new spells learned OR when subclass adds bonus spells)
-      ...((newSpellsLearned.length > 0 || (selectedSubclass && CLASS_SUBCLASSES[character.characterClass]?.find(sub => sub.name === selectedSubclass)?.bonusSpells?.length)) && {
+      // Spells (include when new spells learned OR when subclass/feat adds bonus spells)
+      ...((newSpellsLearned.length > 0 ||
+           (selectedSubclass && CLASS_SUBCLASSES[character.characterClass]?.find(sub => sub.name === selectedSubclass)?.bonusSpells?.length) ||
+           (selectedFeat?.fixedSpells?.length) ||
+           featSpellChoices.length > 0) && {
         spellsKnown: updatedSpellsKnown,
         spells: updatedSpellsKnown,
       }),
@@ -832,10 +854,11 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
       return (
         <FeatSelection
           character={character}
-          onSelect={(feat, abilityChoice, choices) => {
+          onSelect={(feat, abilityChoice, choices, spellChoices) => {
             setSelectedFeat(feat);
             if (abilityChoice) setFeatAbilityChoice(abilityChoice);
             if (choices) setFeatChoices(choices);
+            if (spellChoices && spellChoices.length > 0) setFeatSpellChoices(spellChoices);
             setShowFeatSelection(false);
           }}
           onCancel={() => setShowFeatSelection(false)}
